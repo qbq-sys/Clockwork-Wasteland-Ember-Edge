@@ -180,7 +180,8 @@ namespace ClockworkWasteland.EditorTools
                     continue;
                 }
 
-                combatant.unitPrefab = CreateCombatUnitPrefab(GetUnitPrefabPath(combatant), GetUnitPrefabName(combatant), GetDefaultOverlayPosition(combatant), GetDefaultOverlayScale(combatant));
+                combatant.unitPrefabPath = GetUnitPrefabPath(combatant);
+                combatant.unitPrefab = CreateCombatUnitPrefab(combatant.unitPrefabPath, GetUnitPrefabName(combatant), GetDefaultOverlayPosition(combatant), GetDefaultOverlayScale(combatant));
                 EditorUtility.SetDirty(combatant);
             }
 
@@ -259,6 +260,7 @@ namespace ClockworkWasteland.EditorTools
             foreach (var combatant in heroes.Concat(enemies))
             {
                 combatant.unitPrefab = CreateCombatUnitPrefab(GetUnitPrefabPath(combatant), GetUnitPrefabName(combatant), GetDefaultOverlayPosition(combatant), GetDefaultOverlayScale(combatant));
+                combatant.unitPrefabPath = GetUnitPrefabPath(combatant);
                 EditorUtility.SetDirty(combatant);
             }
 

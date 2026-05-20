@@ -1574,6 +1574,13 @@ namespace ClockworkWasteland.Combat
         private CombatantView CreateCombatantView(BattleUnit unit)
         {
             var prefab = unit.Definition.unitPrefab != null ? unit.Definition.unitPrefab : defaultUnitPrefab;
+#if UNITY_EDITOR
+            if (prefab == null && !string.IsNullOrWhiteSpace(unit.Definition.unitPrefabPath))
+            {
+                prefab = AssetDatabase.LoadAssetAtPath<CombatantView>(unit.Definition.unitPrefabPath);
+            }
+#endif
+
             if (prefab != null)
             {
                 var view = Instantiate(prefab);

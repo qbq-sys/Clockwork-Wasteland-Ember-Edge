@@ -39,11 +39,22 @@ MonoBehaviour:
   - {fileID: -1046024882, guid: 09d235f701d0aea4898dd598d2207d22, type: 3}
   - {fileID: -1953125799, guid: 09d235f701d0aea4898dd598d2207d22, type: 3}
   - {fileID: -21631297, guid: 09d235f701d0aea4898dd598d2207d22, type: 3}
-  unitPrefab: {fileID: 4429785199804319837, guid: a1040000000000000000000000000004, type: 3}
+  unitPrefab: {fileID: 0}
+  unitPrefabPath: Assets/ClockworkWastelandDemo/Prefabs/CombatUnits/hero_04_Unit.prefab
   tint: {r: 1, g: 1, b: 1, a: 1}
   visualScale: 1
+  occupiedSlotCount: 1
+  corpseHealth: 3
+  isUnlocked: 1
+  recruitPrice: 500
   maxHealth: 34
   speed: 5
+  attack: 8
+  defense: 2
+  growthData: {fileID: 0}
+  currentLevel: 1
+  currentExperience: 0
+  currentHealth: -1
   skills:
   - {fileID: 11400000, guid: 46ba23410b28e73469772da701f356c9, type: 2}
   - {fileID: 11400000, guid: 83d12756417b50a4e97bb25a08cacd78, type: 2}

@@ -18,6 +18,7 @@ namespace ClockworkWasteland.Combat
         public Sprite battleSprite;
         public Sprite[] idleAnimationFrames;
         public CombatantView unitPrefab;
+        public string unitPrefabPath;
         public Color tint = Color.white;
         public float visualScale = 1f;
         public int occupiedSlotCount = 1;

@@ -54,7 +54,7 @@ MonoBehaviour:
   - {fileID: 506941255, guid: 21aecb6881261974aae268cb8afec04e, type: 3}
   - {fileID: 356925075, guid: 21aecb6881261974aae268cb8afec04e, type: 3}
   - {fileID: 2020786879, guid: 21aecb6881261974aae268cb8afec04e, type: 3}
-  unitPrefab: {fileID: 4429785199804319837, guid: /YjmNbZxsBfn+h1HtcVEkJ4K4IdVHyYbMi0gNTWGAJw=, type: 3}
+  unitPrefab: {fileID: 4429785199804319837, guid: a1010000000000000000000000000001, type: 3}
   tint: {r: 1, g: 1, b: 1, a: 1}
   visualScale: 1
   maxHealth: 38

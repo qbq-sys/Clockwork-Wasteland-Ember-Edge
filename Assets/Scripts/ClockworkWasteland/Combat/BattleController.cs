@@ -1192,9 +1192,11 @@ namespace ClockworkWasteland.Combat
             var skillId = ResolveId(skill.skillId, skill.name, skill.skillName);
             var characterSpecificPath = $"Assets/Art/VFX/Combat/CharacterSpecific/{characterId}/{skillId}_attack.png";
             var characterDefaultPath = $"Assets/Art/VFX/Combat/CharacterSpecific/{characterId}/default_attack.png";
+            var visualFallbackPath = $"Assets/Art/VFX/Combat/CharacterSpecific/{ResolveVisualFallbackId(characterId)}/default_attack.png";
             var genericPath = $"Assets/Art/VFX/Combat/AttackSprites/{skillId}_attack.png";
             return EditorSpriteSheetLoader.LoadSprite(characterSpecificPath)
                 ?? EditorSpriteSheetLoader.LoadSprite(characterDefaultPath)
+                ?? EditorSpriteSheetLoader.LoadSprite(visualFallbackPath)
                 ?? EditorSpriteSheetLoader.LoadSprite(genericPath)
                 ?? skill.attackSprite;
         }
@@ -1205,11 +1207,30 @@ namespace ClockworkWasteland.Combat
             var skillId = ResolveId(skill.skillId, skill.name, skill.skillName);
             var characterSpecificPath = $"Assets/Art/VFX/Combat/CharacterSpecific/{characterId}/{skillId}_hit.png";
             var characterDefaultPath = $"Assets/Art/VFX/Combat/CharacterSpecific/{characterId}/default_hit.png";
+            var visualFallbackPath = $"Assets/Art/VFX/Combat/CharacterSpecific/{ResolveVisualFallbackId(characterId)}/default_hit.png";
             var genericPath = $"Assets/Art/VFX/Combat/HitSprites/{skillId}_hit.png";
             return EditorSpriteSheetLoader.LoadSprite(characterSpecificPath)
                 ?? EditorSpriteSheetLoader.LoadSprite(characterDefaultPath)
+                ?? EditorSpriteSheetLoader.LoadSprite(visualFallbackPath)
                 ?? EditorSpriteSheetLoader.LoadSprite(genericPath)
                 ?? skill.hitSprite;
+        }
+
+        private static string ResolveVisualFallbackId(string characterId)
+        {
+            switch (characterId)
+            {
+                case "enemy_01":
+                    return "hero_01";
+                case "enemy_02":
+                    return "hero_02";
+                case "enemy_03":
+                    return "hero_03";
+                case "boss_clockwork_warden":
+                    return "hero_04";
+                default:
+                    return characterId;
+            }
         }
 
         private static string ResolveId(string explicitId, string assetName, string displayName)

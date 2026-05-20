@@ -109,12 +109,8 @@ namespace ClockworkWasteland.Combat
             CombatAudio.Ensure();
             SetupScene();
             CacheDefaultCamera();
-            ui.SetGold(gold);
             shopItems = LoadShopItems();
-            totalHeroPool = DemoBattleBootstrap.CreateHeroPool();
-            availableHeroPool = GetUnlockedHeroPool();
-            selectedHeroDefinitions.AddRange(availableHeroPool.Take(MaxFormationSlots));
-            ShowTeamSelection();
+            ShowTitleScreen();
         }
 
         public void RunAttackFlowByIndices(int attackerIndex, int skillIndex, int targetIndex)
@@ -143,6 +139,49 @@ namespace ClockworkWasteland.Combat
             }
 
             StartCoroutine(ExecuteSkill(attacker, skill, candidates[targetIndex]));
+        }
+
+        private void ShowTitleScreen()
+        {
+            CombatAudio.Instance.StopMusic();
+            ClearAllUnits();
+            ui.ClearActionPanels();
+            ui.SetRound(0);
+            ui.SetTurn("\u6807\u9898\u754c\u9762");
+            ui.SetGold(0);
+            ui.ShowTitleScreen(StartNewGame, ShowSettings, QuitGame);
+        }
+
+        private void StartNewGame()
+        {
+            ResetGameState();
+            ShowTeamSelection();
+        }
+
+        private void ResetGameState()
+        {
+            StopAllCoroutines();
+            ClearAllUnits();
+            gold = 0;
+            inventory.Clear();
+            totalHeroPool = DemoBattleBootstrap.CreateHeroPool();
+            availableHeroPool = GetUnlockedHeroPool();
+            selectedHeroDefinitions.Clear();
+            selectedHeroDefinitions.AddRange(availableHeroPool.Take(MaxFormationSlots));
+            currentBattleNumber = 0;
+            heroParty = selectedHeroDefinitions.ToArray();
+            ui.SetGold(gold);
+        }
+
+        private void ShowSettings()
+        {
+            ui.ShowSettingsScreen(ShowTitleScreen);
+        }
+
+        private void QuitGame()
+        {
+            ui.AddLog("\u9000\u51fa\u6e38\u620f\u3002");
+            Application.Quit();
         }
 
         private void ShowTeamSelection()
@@ -429,16 +468,16 @@ namespace ClockworkWasteland.Combat
             }
 
             ui.ClearActionPanels();
-            ui.SetTurn("\u901a\u5173");
+            ui.SetTurn("\u606d\u559c\u901a\u5173");
             ui.AddLog("Boss \u5df2\u88ab\u51fb\u8d25\uff0c\u8fdc\u5f81\u901a\u5173\u3002");
             var requestedReturn = false;
-            ui.ShowContinuePrompt("\u901a\u5173", "\u8fd4\u56de\u961f\u4f0d\u914d\u7f6e", () => requestedReturn = true);
+            ui.ShowContinuePrompt("\u606d\u559c\u901a\u5173", "\u8fd4\u56de\u6807\u9898", () => requestedReturn = true);
             while (!requestedReturn)
             {
                 yield return null;
             }
 
-            ShowTeamSelection();
+            ShowTitleScreen();
         }
 
         private IEnumerator RunCombatEncounter(bool bossBattle)
@@ -548,13 +587,13 @@ namespace ClockworkWasteland.Combat
             ui.SetTurn("\u6218\u8d25");
             ui.AddLog("\u8fdc\u5f81\u961f\u5012\u4e0b\u4e86\uff0c\u8fdc\u5f81\u7ec8\u6b62\u3002");
             var returnRequested = false;
-            ui.ShowContinuePrompt("\u6218\u8d25", "\u8fd4\u56de\u961f\u4f0d\u914d\u7f6e", () => returnRequested = true);
+            ui.ShowContinuePrompt("\u6218\u8d25", "\u8fd4\u56de\u6807\u9898", () => returnRequested = true);
             while (!returnRequested)
             {
                 yield return null;
             }
 
-            ShowTeamSelection();
+            ShowTitleScreen();
         }
 
         private IReadOnlyList<BattleRewardResult> GrantVictoryRewards(out int goldGained)

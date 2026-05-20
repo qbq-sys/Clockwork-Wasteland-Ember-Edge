@@ -284,6 +284,52 @@ namespace ClockworkWasteland.Combat
             ClearRuntimeButtons(buttonParent);
         }
 
+        public void ShowTitleScreen(Action onStartGame, Action onOpenSettings, Action onQuit)
+        {
+            EnsureOverlay();
+            overlayPanel.gameObject.SetActive(true);
+            ClearChildren(overlayPanel);
+
+            var panel = CreatePanel("TitlePanel", overlayPanel, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(760f, 520f), new Color(0.028f, 0.023f, 0.022f, 0.97f));
+            panel.GetComponent<Image>().sprite = descriptionSprite;
+            panel.GetComponent<Image>().type = Image.Type.Sliced;
+
+            var title = CreateText("Title", panel, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -112f), new Vector2(-80f, 96f), 34, TextAnchor.MiddleCenter);
+            title.text = "Clockwork Wasteland\nEmber Edge";
+            SetTextStyle(title, new Color(0.98f, 0.78f, 0.38f), true);
+
+            var subtitle = CreateText("Subtitle", panel, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -198f), new Vector2(-120f, 40f), 18, TextAnchor.MiddleCenter);
+            subtitle.text = "\u53d1\u6761\u8352\u539f\uff1a\u4f59\u70ec\u4e4b\u5203";
+            SetTextStyle(subtitle, new Color(0.82f, 0.72f, 0.54f), false);
+
+            CreateButton(panel, "\u5f00\u59cb\u6e38\u620f", new Vector2(380f, -282f), () => onStartGame?.Invoke(), true, null);
+            CreateButton(panel, "\u8bbe\u7f6e", new Vector2(380f, -342f), () => onOpenSettings?.Invoke(), true, null);
+            CreateButton(panel, "\u9000\u51fa", new Vector2(380f, -402f), () => onQuit?.Invoke(), true, null);
+        }
+
+        public void ShowSettingsScreen(Action onBack)
+        {
+            EnsureOverlay();
+            overlayPanel.gameObject.SetActive(true);
+            ClearChildren(overlayPanel);
+
+            var panel = CreatePanel("SettingsPanel", overlayPanel, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(620f, 360f), new Color(0.032f, 0.026f, 0.024f, 0.97f));
+            panel.GetComponent<Image>().sprite = descriptionSprite;
+            panel.GetComponent<Image>().type = Image.Type.Sliced;
+
+            var title = CreateText("Title", panel, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -60f), new Vector2(-70f, 58f), 28, TextAnchor.MiddleCenter);
+            title.text = "\u8bbe\u7f6e";
+            SetTextStyle(title, new Color(0.96f, 0.82f, 0.48f), true);
+
+            var body = CreateText("Body", panel, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero, 18, TextAnchor.MiddleCenter);
+            body.rectTransform.offsetMin = new Vector2(70f, 112f);
+            body.rectTransform.offsetMax = new Vector2(-70f, -128f);
+            body.text = "\u97f3\u6548\uff1a\u5f00\u542f";
+            SetTextStyle(body, new Color(0.86f, 0.78f, 0.64f), false);
+
+            CreateButton(panel, "\u8fd4\u56de", new Vector2(310f, -304f), () => onBack?.Invoke(), true, null);
+        }
+
         public void ShowRewardScreen(int goldGained, int totalGold, IReadOnlyList<BattleRewardResult> results, Action onContinue)
         {
             EnsureOverlay();

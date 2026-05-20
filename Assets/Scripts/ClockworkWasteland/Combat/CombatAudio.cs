@@ -12,7 +12,7 @@ namespace ClockworkWasteland.Combat
     {
         private static CombatAudio instance;
 
-        private readonly Dictionary<string, AudioClip> clips = new Dictionary<string, AudioClip>();
+        private readonly List<ClipEntry> clips = new List<ClipEntry>();
         private AudioSource sfxSource;
         private AudioSource musicSource;
 
@@ -46,7 +46,7 @@ namespace ClockworkWasteland.Combat
         {
             if (skill != null && IsGunLikeSkill(skill))
             {
-                PlayOneShot(FindClip("\u67aa\u51fb"), 1f);
+                PlayOneShot(FindClip("\u67aa\u51fb") ?? FindAnyCombatClip(), 1f);
                 return;
             }
 
@@ -57,17 +57,17 @@ namespace ClockworkWasteland.Combat
                 return;
             }
 
-            PlayOneShot(FindClip("\u6280\u80fd\u6253\u51fb"), 0.95f);
+            PlayOneShot(FindClip("\u6280\u80fd\u6253\u51fb") ?? FindAnyCombatClip(), 1f);
         }
 
         public void PlayImpact()
         {
-            PlayOneShot(FindRandomClip("\u6253\u51fb"), 0.95f);
+            PlayOneShot(FindRandomClip("\u6253\u51fb") ?? FindAnyCombatClip(), 1f);
         }
 
         public void PlayHeal()
         {
-            PlayOneShot(FindClip("\u56de\u8840", "\u6cbb\u7597"), 0.95f);
+            PlayOneShot(FindClip("\u56de\u8840", "\u6cbb\u7597") ?? FindAnyCombatClip(), 1f);
         }
 
         public void PlayBossMusic()
@@ -118,25 +118,20 @@ namespace ClockworkWasteland.Combat
 
         private AudioClip FindClip(params string[] keywords)
         {
-            return clips.Values.FirstOrDefault(clip => MatchesKeywords(clip, keywords));
+            return clips.FirstOrDefault(clip => clip.MatchesAny(keywords))?.Clip;
         }
 
         private AudioClip FindRandomClip(params string[] keywords)
         {
-            var matches = clips.Values
-                .Where(clip => MatchesKeywords(clip, keywords))
+            var matches = clips
+                .Where(clip => clip.MatchesAny(keywords))
                 .ToArray();
-            return matches.Length > 0 ? matches[Random.Range(0, matches.Length)] : null;
+            return matches.Length > 0 ? matches[Random.Range(0, matches.Length)].Clip : null;
         }
 
-        private static bool MatchesKeywords(AudioClip clip, params string[] keywords)
+        private AudioClip FindAnyCombatClip()
         {
-            if (clip == null || keywords == null || keywords.Length == 0)
-            {
-                return false;
-            }
-
-            return keywords.Any(keyword => !string.IsNullOrWhiteSpace(keyword) && clip.name.Contains(keyword));
+            return FindRandomClip("\u5200\u780d", "\u67aa\u51fb", "\u6253\u51fb", "\u6280\u80fd", "\u901a\u7528");
         }
 
         private static bool IsGunLikeSkill(SkillData skill)
@@ -152,12 +147,29 @@ namespace ClockworkWasteland.Combat
             {
                 var assetPath = AssetDatabase.GUIDToAssetPath(guid);
                 var clip = AssetDatabase.LoadAssetAtPath<AudioClip>(assetPath);
-                if (clip != null && !clips.ContainsKey(clip.name))
+                if (clip != null && clips.All(entry => entry.Clip != clip))
                 {
-                    clips.Add(clip.name, clip);
+                    clips.Add(new ClipEntry(clip, assetPath));
                 }
             }
 #endif
+        }
+
+        private sealed class ClipEntry
+        {
+            public ClipEntry(AudioClip clip, string assetPath)
+            {
+                Clip = clip;
+                SearchText = $"{clip.name}|{assetPath}";
+            }
+
+            public AudioClip Clip { get; }
+            private string SearchText { get; }
+
+            public bool MatchesAny(params string[] keywords)
+            {
+                return keywords != null && keywords.Any(keyword => !string.IsNullOrWhiteSpace(keyword) && SearchText.Contains(keyword));
+            }
         }
     }
 }

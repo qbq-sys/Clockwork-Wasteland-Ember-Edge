@@ -785,6 +785,7 @@ namespace ClockworkWasteland.Combat
             }
 
             actor.SpendResourcesFor(skill);
+            CombatAudio.Instance.PlayAttack(skill);
 
             var mainTarget = targets[0];
             views.TryGetValue(mainTarget, out var mainTargetView);
@@ -793,7 +794,6 @@ namespace ClockworkWasteland.Combat
             yield return StartCoroutine(FocusCamera(actorView.transform.position));
 
             var overlayDuration = Mathf.Max(0.05f, skill.overlayDuration);
-            CombatAudio.Instance.PlayAttack(skill);
             if (mainTargetView != null)
             {
                 var attackSprite = ResolveAttackSprite(actor, skill);

@@ -3,6 +3,10 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
+
 namespace ClockworkWasteland.Combat
 {
     public readonly struct BattleRewardResult
@@ -67,6 +71,8 @@ namespace ClockworkWasteland.Combat
 
         [Header("Presentation")]
         [SerializeField] private BattleUI battleUIPrefab;
+        [SerializeField] private CombatantView defaultUnitPrefab;
+        [SerializeField] private CombatNameplate nameplatePrefab;
         [SerializeField] private float heroVisualScale = 0.8f;
         [SerializeField] private Sprite[] battleBackgrounds;
         [SerializeField] private int battleBackgroundIndex = 0;
@@ -98,11 +104,13 @@ namespace ClockworkWasteland.Combat
         private CombatantDefinition[] availableHeroPool = new CombatantDefinition[0];
         private readonly List<CombatantDefinition> selectedHeroDefinitions = new List<CombatantDefinition>();
 
-        public void Configure(CombatantDefinition[] heroesToUse, CombatantDefinition[] enemiesToUse, BattleUI uiPrefabToUse = null)
+        public void Configure(CombatantDefinition[] heroesToUse, CombatantDefinition[] enemiesToUse, BattleUI uiPrefabToUse = null, CombatantView unitPrefabToUse = null, CombatNameplate nameplatePrefabToUse = null)
         {
             heroParty = heroesToUse;
             enemyParty = enemiesToUse;
             battleUIPrefab = uiPrefabToUse;
+            defaultUnitPrefab = unitPrefabToUse;
+            nameplatePrefab = nameplatePrefabToUse;
         }
 
         private void Start()
@@ -112,6 +120,7 @@ namespace ClockworkWasteland.Combat
             CombatAudio.Ensure();
             SetupScene();
             CacheDefaultCamera();
+            LoadDefaultPresentationPrefabs();
             shopItems = LoadShopItems();
             ShowTitleScreen();
         }
@@ -1432,6 +1441,21 @@ namespace ClockworkWasteland.Combat
             }
         }
 
+        private void LoadDefaultPresentationPrefabs()
+        {
+#if UNITY_EDITOR
+            if (defaultUnitPrefab == null)
+            {
+                defaultUnitPrefab = AssetDatabase.LoadAssetAtPath<CombatantView>("Assets/ClockworkWastelandDemo/Prefabs/CombatUnit.prefab");
+            }
+
+            if (nameplatePrefab == null)
+            {
+                nameplatePrefab = AssetDatabase.LoadAssetAtPath<CombatNameplate>("Assets/ClockworkWastelandDemo/Prefabs/CombatNameplate.prefab");
+            }
+#endif
+        }
+
         private void SetupHeroUnits()
         {
             var heroDefinitions = heroParty != null && heroParty.Length > 0 ? heroParty : DemoBattleBootstrap.CreateDefaultHeroes();
@@ -1539,13 +1563,26 @@ namespace ClockworkWasteland.Combat
                 destination.Add(unit);
                 slots[i] = unit;
 
-                var unitObject = new GameObject(unit.DisplayName);
-                unitObject.transform.position = new Vector3(GetSlotX(isHero, unit.CurrentPosition), -0.35f, 0f);
-                var view = unitObject.AddComponent<CombatantView>();
-                view.Initialize(unit, fallbackSprite, heroVisualScale, HandleUnitClicked);
+                var view = CreateCombatantView(unit);
+                view.transform.position = new Vector3(GetSlotX(isHero, unit.CurrentPosition), -0.35f, 0f);
+                view.Initialize(unit, fallbackSprite, heroVisualScale, HandleUnitClicked, nameplatePrefab);
                 view.AlignFeetTo(FormationFeetY);
                 views[unit] = view;
             }
+        }
+
+        private CombatantView CreateCombatantView(BattleUnit unit)
+        {
+            var prefab = unit.Definition.unitPrefab != null ? unit.Definition.unitPrefab : defaultUnitPrefab;
+            if (prefab != null)
+            {
+                var view = Instantiate(prefab);
+                view.name = unit.DisplayName;
+                return view;
+            }
+
+            var unitObject = new GameObject(unit.DisplayName);
+            return unitObject.AddComponent<CombatantView>();
         }
 
         private void LayoutFormation(bool isHero)

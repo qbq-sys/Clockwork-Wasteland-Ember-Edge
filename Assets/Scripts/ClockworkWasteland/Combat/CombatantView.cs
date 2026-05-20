@@ -7,11 +7,12 @@ namespace ClockworkWasteland.Combat
 {
     public sealed class CombatantView : MonoBehaviour
     {
-        private SpriteRenderer spriteRenderer;
-        private SpriteRenderer overlayRenderer;
-        private Text nameLabel;
-        private Text positionLabel;
-        private RectTransform healthFill;
+        [Header("Prefab Hooks")]
+        [SerializeField] private SpriteRenderer spriteRenderer;
+        [SerializeField] private SpriteRenderer overlayRenderer;
+        [SerializeField] private Transform nameplatePosition;
+
+        private CombatNameplate nameplate;
         private BattleUnit unit;
         private Sprite[] idleFrames;
         private float animationTimer;
@@ -22,31 +23,36 @@ namespace ClockworkWasteland.Combat
 
         public BattleUnit Unit => unit;
 
-        public void Initialize(BattleUnit battleUnit, Sprite fallbackSprite, float scaleMultiplier, Action<BattleUnit> onClicked)
+        public void Initialize(BattleUnit battleUnit, Sprite fallbackSprite, float scaleMultiplier, Action<BattleUnit> onClicked, CombatNameplate nameplatePrefab)
         {
             unit = battleUnit;
             clicked = onClicked;
 
-            spriteRenderer = gameObject.AddComponent<SpriteRenderer>();
+            spriteRenderer = spriteRenderer != null ? spriteRenderer : GetComponent<SpriteRenderer>();
+            if (spriteRenderer == null)
+            {
+                spriteRenderer = gameObject.AddComponent<SpriteRenderer>();
+            }
+
             idleFrames = battleUnit.Definition.idleAnimationFrames;
             spriteRenderer.sprite = GetInitialSprite(battleUnit, fallbackSprite);
             spriteRenderer.color = battleUnit.Definition.tint;
-            spriteRenderer.sortingOrder = 2;
+            if (spriteRenderer.sortingOrder == 0)
+            {
+                spriteRenderer.sortingOrder = 2;
+            }
+
             baseSortingOrder = spriteRenderer.sortingOrder;
 
-            var overlayObject = new GameObject("ActionOverlay");
-            overlayObject.transform.SetParent(transform, false);
-            overlayRenderer = overlayObject.AddComponent<SpriteRenderer>();
-            overlayRenderer.sortingOrder = 80;
-            overlayRenderer.enabled = false;
+            EnsureOverlayRenderer();
+            EnsureNameplatePosition();
 
             var scale = Mathf.Max(0.1f, battleUnit.Definition.visualScale * scaleMultiplier);
             transform.localScale = new Vector3(scale, scale, 1f);
             baseLocalScale = transform.localScale;
             spriteRenderer.flipX = battleUnit.IsHero;
 
-            CreateNameplate();
-            CreatePositionBadge();
+            AttachNameplate(nameplatePrefab);
             CreateClickCollider();
             Refresh();
         }
@@ -58,15 +64,8 @@ namespace ClockworkWasteland.Combat
                 return;
             }
 
-            var healthPercent = unit.MaxHealth <= 0 ? 0f : Mathf.Clamp01((float)unit.Health / unit.MaxHealth);
-            healthFill.localScale = new Vector3(healthPercent, 1f, 1f);
             spriteRenderer.color = unit.IsCorpse ? new Color(0.32f, 0.3f, 0.28f, 0.78f) : unit.Definition.tint;
-            nameLabel.text = $"{unit.DisplayName}\n{unit.Health}/{unit.MaxHealth}";
-            if (positionLabel != null)
-            {
-                positionLabel.text = unit.CurrentPosition.ToString();
-            }
-
+            nameplate?.Refresh(unit);
             gameObject.SetActive(unit.IsAlive);
         }
 
@@ -170,7 +169,6 @@ namespace ClockworkWasteland.Combat
 
             overlaySprite = overlaySprite != null ? overlaySprite : spriteRenderer.sprite;
             var previousScale = overlayRenderer.transform.localScale;
-            var previousPosition = overlayRenderer.transform.localPosition;
             var previousSortingOrder = overlayRenderer.sortingOrder;
             var baseWorldScale = Mathf.Max(0.1f, transform.lossyScale.x);
             var overlayScale = 1f + Mathf.Max(0f, worldScaleBonus) / baseWorldScale;
@@ -179,14 +177,12 @@ namespace ClockworkWasteland.Combat
             overlayRenderer.sprite = overlaySprite;
             overlayRenderer.flipX = spriteRenderer.flipX;
             overlayRenderer.sortingOrder = sortingOrder;
-            overlayRenderer.transform.localScale = Vector3.one * overlayScale;
-            overlayRenderer.transform.localPosition = new Vector3(0f, 0f, -0.6f);
+            overlayRenderer.transform.localScale = previousScale * overlayScale;
             overlayRenderer.enabled = true;
             yield return new WaitForSecondsRealtime(duration);
             overlayRenderer.enabled = false;
             overlayRenderer.sortingOrder = previousSortingOrder;
             overlayRenderer.transform.localScale = previousScale;
-            overlayRenderer.transform.localPosition = previousPosition;
             spriteRenderer.enabled = true;
         }
 
@@ -228,11 +224,55 @@ namespace ClockworkWasteland.Combat
             transform.localPosition = start;
         }
 
-        private void CreateNameplate()
+        private void EnsureOverlayRenderer()
         {
-            var canvasObject = new GameObject("Nameplate", typeof(RectTransform), typeof(Canvas));
-            canvasObject.transform.SetParent(transform, false);
-            canvasObject.transform.localPosition = new Vector3(0f, -0.24f, 0f);
+            if (overlayRenderer == null)
+            {
+                var overlayTransform = transform.Find("ActionOverlay");
+                overlayRenderer = overlayTransform != null ? overlayTransform.GetComponent<SpriteRenderer>() : null;
+            }
+
+            if (overlayRenderer == null)
+            {
+                var overlayObject = new GameObject("ActionOverlay");
+                overlayObject.transform.SetParent(transform, false);
+                overlayRenderer = overlayObject.AddComponent<SpriteRenderer>();
+                overlayRenderer.sortingOrder = 80;
+            }
+
+            overlayRenderer.enabled = false;
+        }
+
+        private void EnsureNameplatePosition()
+        {
+            if (nameplatePosition == null)
+            {
+                nameplatePosition = transform.Find("NameplatePosition");
+            }
+
+            if (nameplatePosition == null)
+            {
+                var positionObject = new GameObject("NameplatePosition");
+                positionObject.transform.SetParent(transform, false);
+                positionObject.transform.localPosition = new Vector3(0f, -0.24f, 0f);
+                nameplatePosition = positionObject.transform;
+            }
+        }
+
+        private void AttachNameplate(CombatNameplate nameplatePrefab)
+        {
+            nameplate = nameplatePrefab != null
+                ? Instantiate(nameplatePrefab, nameplatePosition)
+                : CreateFallbackNameplate(nameplatePosition);
+
+            nameplate.transform.localPosition = Vector3.zero;
+            nameplate.transform.localRotation = Quaternion.identity;
+        }
+
+        private static CombatNameplate CreateFallbackNameplate(Transform parent)
+        {
+            var canvasObject = new GameObject("Nameplate", typeof(RectTransform), typeof(Canvas), typeof(CombatNameplate));
+            canvasObject.transform.SetParent(parent, false);
             canvasObject.transform.localScale = Vector3.one * 0.01f;
 
             var canvas = canvasObject.GetComponent<Canvas>();
@@ -240,7 +280,7 @@ namespace ClockworkWasteland.Combat
             canvas.sortingOrder = 12;
 
             var rect = canvasObject.GetComponent<RectTransform>();
-            rect.sizeDelta = new Vector2(180f, 52f);
+            rect.sizeDelta = new Vector2(180f, 78f);
 
             var background = new GameObject("Background", typeof(RectTransform), typeof(Image));
             background.transform.SetParent(canvasObject.transform, false);
@@ -259,7 +299,7 @@ namespace ClockworkWasteland.Combat
             textRect.offsetMin = new Vector2(6f, 4f);
             textRect.offsetMax = new Vector2(-6f, -4f);
 
-            nameLabel = textObject.GetComponent<Text>();
+            var nameLabel = textObject.GetComponent<Text>();
             nameLabel.alignment = TextAnchor.MiddleCenter;
             nameLabel.fontSize = 16;
             nameLabel.fontStyle = FontStyle.Bold;
@@ -284,61 +324,59 @@ namespace ClockworkWasteland.Combat
 
             var healthFillObject = new GameObject("HealthFill", typeof(RectTransform), typeof(Image));
             healthFillObject.transform.SetParent(healthBack.transform, false);
-            healthFill = healthFillObject.GetComponent<RectTransform>();
+            var healthFill = healthFillObject.GetComponent<RectTransform>();
             healthFill.anchorMin = new Vector2(0f, 0.5f);
             healthFill.anchorMax = new Vector2(0f, 0.5f);
             healthFill.pivot = new Vector2(0f, 0.5f);
             healthFill.anchoredPosition = Vector2.zero;
             healthFill.sizeDelta = new Vector2(146f, 4f);
             healthFillObject.GetComponent<Image>().color = new Color(0.68f, 0.08f, 0.06f, 1f);
-        }
 
-        private void CreatePositionBadge()
-        {
-            var canvasObject = new GameObject("PositionBadge", typeof(RectTransform), typeof(Canvas));
-            canvasObject.transform.SetParent(transform, false);
-            canvasObject.transform.localPosition = new Vector3(0f, -0.78f, 0f);
-            canvasObject.transform.localScale = Vector3.one * 0.01f;
+            var badge = new GameObject("PositionBadge", typeof(RectTransform));
+            badge.transform.SetParent(canvasObject.transform, false);
+            var badgeRect = badge.GetComponent<RectTransform>();
+            badgeRect.anchorMin = new Vector2(0.5f, 0f);
+            badgeRect.anchorMax = new Vector2(0.5f, 0f);
+            badgeRect.pivot = new Vector2(0.5f, 0.5f);
+            badgeRect.anchoredPosition = new Vector2(0f, -18f);
+            badgeRect.sizeDelta = new Vector2(48f, 36f);
 
-            var canvas = canvasObject.GetComponent<Canvas>();
-            canvas.renderMode = RenderMode.WorldSpace;
-            canvas.sortingOrder = 14;
+            var badgeBackground = new GameObject("Background", typeof(RectTransform), typeof(Image));
+            badgeBackground.transform.SetParent(badge.transform, false);
+            var badgeBackgroundRect = badgeBackground.GetComponent<RectTransform>();
+            badgeBackgroundRect.anchorMin = Vector2.zero;
+            badgeBackgroundRect.anchorMax = Vector2.one;
+            badgeBackgroundRect.offsetMin = Vector2.zero;
+            badgeBackgroundRect.offsetMax = Vector2.zero;
+            var badgeBackgroundImage = badgeBackground.GetComponent<Image>();
+            badgeBackgroundImage.color = new Color(0.07f, 0.048f, 0.038f, 0.92f);
+            badgeBackgroundImage.sprite = CombatUiAssetLoader.LoadSprite("Assets/Art/UI/Combat/ui_position_badge_frame.png", new Vector4(48f, 48f, 48f, 48f));
+            badgeBackgroundImage.type = badgeBackgroundImage.sprite != null ? Image.Type.Sliced : Image.Type.Simple;
 
-            var rect = canvasObject.GetComponent<RectTransform>();
-            rect.sizeDelta = new Vector2(48f, 36f);
+            var positionObject = new GameObject("Text", typeof(RectTransform), typeof(Text));
+            positionObject.transform.SetParent(badge.transform, false);
+            var positionRect = positionObject.GetComponent<RectTransform>();
+            positionRect.anchorMin = Vector2.zero;
+            positionRect.anchorMax = Vector2.one;
+            positionRect.offsetMin = Vector2.zero;
+            positionRect.offsetMax = Vector2.zero;
 
-            var background = new GameObject("Background", typeof(RectTransform), typeof(Image));
-            background.transform.SetParent(canvasObject.transform, false);
-            var backgroundRect = background.GetComponent<RectTransform>();
-            backgroundRect.anchorMin = Vector2.zero;
-            backgroundRect.anchorMax = Vector2.one;
-            backgroundRect.offsetMin = Vector2.zero;
-            backgroundRect.offsetMax = Vector2.zero;
-            var backgroundImage = background.GetComponent<Image>();
-            backgroundImage.color = new Color(0.07f, 0.048f, 0.038f, 0.92f);
-            backgroundImage.sprite = CombatUiAssetLoader.LoadSprite("Assets/Art/UI/Combat/ui_position_badge_frame.png", new Vector4(48f, 48f, 48f, 48f));
-            backgroundImage.type = backgroundImage.sprite != null ? Image.Type.Sliced : Image.Type.Simple;
-
-            var textObject = new GameObject("Text", typeof(RectTransform), typeof(Text));
-            textObject.transform.SetParent(canvasObject.transform, false);
-            var textRect = textObject.GetComponent<RectTransform>();
-            textRect.anchorMin = Vector2.zero;
-            textRect.anchorMax = Vector2.one;
-            textRect.offsetMin = Vector2.zero;
-            textRect.offsetMax = Vector2.zero;
-
-            positionLabel = textObject.GetComponent<Text>();
+            var positionLabel = positionObject.GetComponent<Text>();
             positionLabel.alignment = TextAnchor.MiddleCenter;
             positionLabel.fontSize = 20;
             positionLabel.fontStyle = FontStyle.Bold;
             positionLabel.color = new Color(0.97f, 0.82f, 0.45f);
             positionLabel.font = ChineseFontProvider.LegacyFont ?? Resources.GetBuiltinResource<Font>("Arial.ttf");
             positionLabel.raycastTarget = false;
+
+            var fallback = canvasObject.GetComponent<CombatNameplate>();
+            fallback.BindFallbackReferences(nameLabel, positionLabel, healthFill);
+            return fallback;
         }
 
         private void CreateClickCollider()
         {
-            var collider = gameObject.AddComponent<BoxCollider2D>();
+            var collider = GetComponent<BoxCollider2D>() ?? gameObject.AddComponent<BoxCollider2D>();
             var bounds = spriteRenderer.sprite != null ? spriteRenderer.sprite.bounds : new Bounds(Vector3.zero, Vector3.one);
             collider.offset = bounds.center;
             collider.size = bounds.size;

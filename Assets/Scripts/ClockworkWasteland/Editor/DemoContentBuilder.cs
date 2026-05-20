@@ -4,6 +4,7 @@ using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using UnityEngine.UI;
 
 namespace ClockworkWasteland.EditorTools
 {
@@ -17,6 +18,8 @@ namespace ClockworkWasteland.EditorTools
         private const string CombatantsPath = Root + "/Data/Combatants";
         private const string PrefabsPath = Root + "/Prefabs";
         private const string BattleUIPrefabPath = PrefabsPath + "/BattleUI.prefab";
+        private const string CombatUnitPrefabPath = PrefabsPath + "/CombatUnit.prefab";
+        private const string CombatNameplatePrefabPath = PrefabsPath + "/CombatNameplate.prefab";
         private const string ScenePath = "Assets/Scenes/CombatDemo.unity";
 
         [MenuItem("Clockwork Wasteland/Create Battle UI Prefab")]
@@ -35,6 +38,146 @@ namespace ClockworkWasteland.EditorTools
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
             return AssetDatabase.LoadAssetAtPath<BattleUI>(BattleUIPrefabPath);
+        }
+
+        [MenuItem("Clockwork Wasteland/Create Combat Unit Prefabs")]
+        public static void CreateCombatUnitPrefabs()
+        {
+            EnsureFolder("Assets", "ClockworkWastelandDemo");
+            EnsureFolder(Root, "Prefabs");
+
+            CreateCombatNameplatePrefab();
+            CreateCombatUnitPrefab();
+
+            AssetDatabase.SaveAssets();
+            AssetDatabase.Refresh();
+            EditorUtility.DisplayDialog("Combat Prefabs Created", "Created CombatUnit.prefab and CombatNameplate.prefab under Assets/ClockworkWastelandDemo/Prefabs.", "OK");
+        }
+
+        private static CombatNameplate CreateCombatNameplatePrefab()
+        {
+            var root = new GameObject("CombatNameplate", typeof(RectTransform), typeof(Canvas), typeof(CombatNameplate));
+            root.transform.localScale = Vector3.one * 0.01f;
+
+            var canvas = root.GetComponent<Canvas>();
+            canvas.renderMode = RenderMode.WorldSpace;
+            canvas.sortingOrder = 12;
+
+            var rect = root.GetComponent<RectTransform>();
+            rect.sizeDelta = new Vector2(180f, 78f);
+
+            var background = new GameObject("Background", typeof(RectTransform), typeof(Image));
+            background.transform.SetParent(root.transform, false);
+            var backgroundRect = background.GetComponent<RectTransform>();
+            backgroundRect.anchorMin = Vector2.zero;
+            backgroundRect.anchorMax = Vector2.one;
+            backgroundRect.offsetMin = Vector2.zero;
+            backgroundRect.offsetMax = Vector2.zero;
+            background.GetComponent<Image>().color = new Color(0.02f, 0.018f, 0.016f, 0.72f);
+
+            var textObject = new GameObject("NameText", typeof(RectTransform), typeof(Text));
+            textObject.transform.SetParent(root.transform, false);
+            var textRect = textObject.GetComponent<RectTransform>();
+            textRect.anchorMin = Vector2.zero;
+            textRect.anchorMax = Vector2.one;
+            textRect.offsetMin = new Vector2(6f, 4f);
+            textRect.offsetMax = new Vector2(-6f, -4f);
+            var nameText = textObject.GetComponent<Text>();
+            nameText.alignment = TextAnchor.MiddleCenter;
+            nameText.fontSize = 16;
+            nameText.fontStyle = FontStyle.Bold;
+            nameText.color = new Color(0.96f, 0.88f, 0.68f);
+            nameText.horizontalOverflow = HorizontalWrapMode.Wrap;
+            nameText.verticalOverflow = VerticalWrapMode.Truncate;
+            nameText.font = ChineseFontProvider.LegacyFont ?? Resources.GetBuiltinResource<Font>("Arial.ttf");
+            nameText.raycastTarget = false;
+
+            var healthBack = new GameObject("HealthBack", typeof(RectTransform), typeof(Image));
+            healthBack.transform.SetParent(root.transform, false);
+            var backRect = healthBack.GetComponent<RectTransform>();
+            backRect.anchorMin = new Vector2(0.5f, 0f);
+            backRect.anchorMax = new Vector2(0.5f, 0f);
+            backRect.pivot = new Vector2(0.5f, 0.5f);
+            backRect.anchoredPosition = new Vector2(0f, 5f);
+            backRect.sizeDelta = new Vector2(146f, 6f);
+            var healthBackImage = healthBack.GetComponent<Image>();
+            healthBackImage.color = new Color(0.08f, 0.055f, 0.045f, 0.95f);
+            healthBackImage.sprite = CombatUiAssetLoader.LoadSprite("Assets/Art/UI/Combat/ui_health_bar_frame.png", new Vector4(70f, 70f, 70f, 70f));
+            healthBackImage.type = healthBackImage.sprite != null ? Image.Type.Sliced : Image.Type.Simple;
+
+            var healthFillObject = new GameObject("HealthFill", typeof(RectTransform), typeof(Image));
+            healthFillObject.transform.SetParent(healthBack.transform, false);
+            var healthFill = healthFillObject.GetComponent<RectTransform>();
+            healthFill.anchorMin = new Vector2(0f, 0.5f);
+            healthFill.anchorMax = new Vector2(0f, 0.5f);
+            healthFill.pivot = new Vector2(0f, 0.5f);
+            healthFill.anchoredPosition = Vector2.zero;
+            healthFill.sizeDelta = new Vector2(146f, 4f);
+            healthFillObject.GetComponent<Image>().color = new Color(0.68f, 0.08f, 0.06f, 1f);
+
+            var badge = new GameObject("PositionBadge", typeof(RectTransform));
+            badge.transform.SetParent(root.transform, false);
+            var badgeRect = badge.GetComponent<RectTransform>();
+            badgeRect.anchorMin = new Vector2(0.5f, 0f);
+            badgeRect.anchorMax = new Vector2(0.5f, 0f);
+            badgeRect.pivot = new Vector2(0.5f, 0.5f);
+            badgeRect.anchoredPosition = new Vector2(0f, -18f);
+            badgeRect.sizeDelta = new Vector2(48f, 36f);
+
+            var badgeBackground = new GameObject("Background", typeof(RectTransform), typeof(Image));
+            badgeBackground.transform.SetParent(badge.transform, false);
+            var badgeBackgroundRect = badgeBackground.GetComponent<RectTransform>();
+            badgeBackgroundRect.anchorMin = Vector2.zero;
+            badgeBackgroundRect.anchorMax = Vector2.one;
+            badgeBackgroundRect.offsetMin = Vector2.zero;
+            badgeBackgroundRect.offsetMax = Vector2.zero;
+            var badgeBackgroundImage = badgeBackground.GetComponent<Image>();
+            badgeBackgroundImage.color = new Color(0.07f, 0.048f, 0.038f, 0.92f);
+            badgeBackgroundImage.sprite = CombatUiAssetLoader.LoadSprite("Assets/Art/UI/Combat/ui_position_badge_frame.png", new Vector4(48f, 48f, 48f, 48f));
+            badgeBackgroundImage.type = badgeBackgroundImage.sprite != null ? Image.Type.Sliced : Image.Type.Simple;
+
+            var positionObject = new GameObject("PositionText", typeof(RectTransform), typeof(Text));
+            positionObject.transform.SetParent(badge.transform, false);
+            var positionRect = positionObject.GetComponent<RectTransform>();
+            positionRect.anchorMin = Vector2.zero;
+            positionRect.anchorMax = Vector2.one;
+            positionRect.offsetMin = Vector2.zero;
+            positionRect.offsetMax = Vector2.zero;
+            var positionText = positionObject.GetComponent<Text>();
+            positionText.alignment = TextAnchor.MiddleCenter;
+            positionText.fontSize = 20;
+            positionText.fontStyle = FontStyle.Bold;
+            positionText.color = new Color(0.97f, 0.82f, 0.45f);
+            positionText.font = ChineseFontProvider.LegacyFont ?? Resources.GetBuiltinResource<Font>("Arial.ttf");
+            positionText.raycastTarget = false;
+
+            var nameplate = root.GetComponent<CombatNameplate>();
+            nameplate.BindFallbackReferences(nameText, positionText, healthFill);
+
+            var prefab = PrefabUtility.SaveAsPrefabAsset(root, CombatNameplatePrefabPath);
+            Object.DestroyImmediate(root);
+            return AssetDatabase.LoadAssetAtPath<CombatNameplate>(CombatNameplatePrefabPath);
+        }
+
+        private static CombatantView CreateCombatUnitPrefab()
+        {
+            var root = new GameObject("CombatUnit", typeof(SpriteRenderer), typeof(BoxCollider2D), typeof(CombatantView));
+            var spriteRenderer = root.GetComponent<SpriteRenderer>();
+            spriteRenderer.sortingOrder = 2;
+
+            var overlay = new GameObject("ActionOverlay", typeof(SpriteRenderer));
+            overlay.transform.SetParent(root.transform, false);
+            overlay.transform.localPosition = new Vector3(0f, 0f, -0.6f);
+            overlay.GetComponent<SpriteRenderer>().sortingOrder = 80;
+            overlay.GetComponent<SpriteRenderer>().enabled = false;
+
+            var nameplatePosition = new GameObject("NameplatePosition");
+            nameplatePosition.transform.SetParent(root.transform, false);
+            nameplatePosition.transform.localPosition = new Vector3(0f, -0.24f, 0f);
+
+            var prefab = PrefabUtility.SaveAsPrefabAsset(root, CombatUnitPrefabPath);
+            Object.DestroyImmediate(root);
+            return AssetDatabase.LoadAssetAtPath<CombatantView>(CombatUnitPrefabPath);
         }
 
         [MenuItem("Clockwork Wasteland/Create Combat Demo Assets")]

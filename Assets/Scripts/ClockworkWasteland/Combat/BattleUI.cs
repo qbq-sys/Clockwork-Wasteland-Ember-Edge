@@ -907,6 +907,8 @@ namespace ClockworkWasteland.Combat
             var button = buttonObject.GetComponent<Button>();
             button.onClick.AddListener(() =>
             {
+                CombatAudio.Instance.PlayUiClick();
+
                 if (skill != null)
                 {
                     ShowSkillDescription(skill);

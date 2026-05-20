@@ -106,6 +106,7 @@ namespace ClockworkWasteland.Combat
         {
             fallbackSprite = CreateFallbackSprite();
             swapSkill = CreateSwapSkill();
+            CombatAudio.Ensure();
             SetupScene();
             CacheDefaultCamera();
             ui.SetGold(gold);
@@ -146,6 +147,7 @@ namespace ClockworkWasteland.Combat
 
         private void ShowTeamSelection()
         {
+            CombatAudio.Instance.StopMusic();
             ClearAllUnits();
             ui.ClearActionPanels();
             ui.SetRound(0);
@@ -194,6 +196,7 @@ namespace ClockworkWasteland.Combat
 
             ClearAllUnits();
             ui.HideOverlay();
+            CombatAudio.Instance.PlayStartExpedition();
             heroParty = selectedHeroDefinitions.Take(MaxFormationSlots).ToArray();
             SetupHeroUnits();
             StartCoroutine(MapExpeditionLoop());
@@ -440,8 +443,18 @@ namespace ClockworkWasteland.Combat
 
         private IEnumerator RunCombatEncounter(bool bossBattle)
         {
+            if (bossBattle)
+            {
+                CombatAudio.Instance.PlayBossMusic();
+            }
+
             PrepareBattle(currentBattleNumber, bossBattle);
             yield return StartCoroutine(BattleLoop());
+
+            if (bossBattle)
+            {
+                CombatAudio.Instance.StopMusic();
+            }
 
             if (!heroes.Any(hero => hero.CanAct))
             {
@@ -469,6 +482,11 @@ namespace ClockworkWasteland.Combat
                 if (hero != null)
                 {
                     var healed = hero.HealOutsideBattle(20);
+                    if (healed > 0)
+                    {
+                        CombatAudio.Instance.PlayHeal();
+                    }
+
                     ui.AddLog(healed > 0
                         ? $"{hero.displayName} \u5728\u4f11\u606f\u4e2d\u6062\u590d\u4e86 {healed} \u70b9\u751f\u547d\u3002"
                         : $"{hero.displayName} \u73b0\u5728\u65e0\u9700\u4f11\u606f\u3002");
@@ -775,6 +793,7 @@ namespace ClockworkWasteland.Combat
             yield return StartCoroutine(FocusCamera(actorView.transform.position));
 
             var overlayDuration = Mathf.Max(0.05f, skill.overlayDuration);
+            CombatAudio.Instance.PlayAttack(skill);
             if (mainTargetView != null)
             {
                 var attackSprite = ResolveAttackSprite(actor, skill);
@@ -796,6 +815,7 @@ namespace ClockworkWasteland.Combat
                     {
                         var damage = CalculateDamage(actor, skill, target);
                         target.TakeDamage(damage.Amount);
+                        CombatAudio.Instance.PlayImpact();
                         ui.AddLog(damage.IsCritical
                             ? $"{actor.DisplayName} \u4f7f\u7528 {skill.skillName}\u66b4\u51fb\uff01{target.DisplayName} \u53d7\u5230 {damage.Amount} \u70b9\u4f24\u5bb3\u3002"
                             : $"{actor.DisplayName} \u4f7f\u7528 {skill.skillName}\uff0c{target.DisplayName} \u53d7\u5230 {damage.Amount} \u70b9\u4f24\u5bb3\u3002");
@@ -815,6 +835,7 @@ namespace ClockworkWasteland.Combat
                 {
                     var amount = CalculateHealingAmount(actor, skill);
                     target.Heal(amount);
+                    CombatAudio.Instance.PlayHeal();
                     ui.AddLog($"{actor.DisplayName} \u4f7f\u7528 {skill.skillName}\uff0c{target.DisplayName} \u6062\u590d {amount} \u70b9\u751f\u547d\u3002");
 
                     if (views.TryGetValue(target, out var targetView))

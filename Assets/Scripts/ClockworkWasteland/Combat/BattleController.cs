@@ -19,6 +19,18 @@ namespace ClockworkWasteland.Combat
         public int LevelsGained { get; }
     }
 
+    public readonly struct InventoryItemStack
+    {
+        public InventoryItemStack(InventoryItemData item, int count)
+        {
+            Item = item;
+            Count = count;
+        }
+
+        public InventoryItemData Item { get; }
+        public int Count { get; }
+    }
+
     public sealed class BattleController : MonoBehaviour
     {
         private const int MaxFormationSlots = 4;
@@ -56,6 +68,8 @@ namespace ClockworkWasteland.Combat
         private SkillData swapSkill;
         private int currentBattleNumber;
         private int gold;
+        private InventoryItemData[] shopItems = new InventoryItemData[0];
+        private readonly Dictionary<InventoryItemData, int> inventory = new Dictionary<InventoryItemData, int>();
         private CombatantDefinition[] availableHeroPool = new CombatantDefinition[0];
         private readonly List<CombatantDefinition> selectedHeroDefinitions = new List<CombatantDefinition>();
 
@@ -73,6 +87,7 @@ namespace ClockworkWasteland.Combat
             SetupScene();
             CacheDefaultCamera();
             ui.SetGold(gold);
+            shopItems = LoadShopItems();
             availableHeroPool = DemoBattleBootstrap.CreateHeroPool();
             selectedHeroDefinitions.AddRange(availableHeroPool.Take(MaxFormationSlots));
             ShowTeamSelection();
@@ -112,7 +127,8 @@ namespace ClockworkWasteland.Combat
             ui.ClearActionPanels();
             ui.SetRound(0);
             ui.SetTurn("\u961f\u4f0d\u914d\u7f6e");
-            ui.ShowTeamSelection(availableHeroPool, selectedHeroDefinitions, ToggleHeroSelection, StartSelectedBattleSequence);
+            ui.SetGold(gold);
+            ui.ShowTeamSelection(availableHeroPool, selectedHeroDefinitions, ToggleHeroSelection, StartSelectedBattleSequence, ShowShop, ShowInventory);
         }
 
         private void ToggleHeroSelection(CombatantDefinition hero)
@@ -135,7 +151,7 @@ namespace ClockworkWasteland.Combat
                 ui.AddLog("\u6700\u591a\u53ea\u80fd\u9009\u62e9 4 \u540d\u82f1\u96c4\u3002");
             }
 
-            ui.ShowTeamSelection(availableHeroPool, selectedHeroDefinitions, ToggleHeroSelection, StartSelectedBattleSequence);
+            ui.ShowTeamSelection(availableHeroPool, selectedHeroDefinitions, ToggleHeroSelection, StartSelectedBattleSequence, ShowShop, ShowInventory);
         }
 
         private void StartSelectedBattleSequence()
@@ -146,11 +162,136 @@ namespace ClockworkWasteland.Combat
                 return;
             }
 
+            var deadHero = selectedHeroDefinitions.FirstOrDefault(hero => hero != null && hero.IsDead);
+            if (deadHero != null)
+            {
+                ui.AddLog($"{deadHero.displayName} \u5df2\u6b7b\u4ea1\uff0c\u9700\u8981\u5148\u590d\u6d3b\u624d\u80fd\u51fa\u6218\u3002");
+                return;
+            }
+
             ClearAllUnits();
             ui.HideOverlay();
             heroParty = selectedHeroDefinitions.Take(MaxFormationSlots).ToArray();
             SetupHeroUnits();
             StartCoroutine(BattleSequenceLoop());
+        }
+
+        private void ShowShop()
+        {
+            ui.ShowShop(shopItems, gold, GetInventoryStacks(), BuyItem, ShowTeamSelection);
+        }
+
+        private void ShowInventory()
+        {
+            ui.ShowInventory(GetInventoryStacks(), availableHeroPool, UseItemOnHero, ShowTeamSelection);
+        }
+
+        private void BuyItem(InventoryItemData item)
+        {
+            if (item == null)
+            {
+                return;
+            }
+
+            if (gold < item.price)
+            {
+                ui.AddLog("\u91d1\u5e01\u4e0d\u8db3\u3002");
+                ShowShop();
+                return;
+            }
+
+            gold -= item.price;
+            inventory[item] = inventory.TryGetValue(item, out var count) ? count + 1 : 1;
+            ui.SetGold(gold);
+            ui.AddLog($"\u8d2d\u4e70\u4e86 {item.itemName}\u3002");
+            ShowShop();
+        }
+
+        private void UseItemOnHero(InventoryItemData item, CombatantDefinition hero)
+        {
+            if (item == null || hero == null || !inventory.TryGetValue(item, out var count) || count <= 0)
+            {
+                return;
+            }
+
+            var used = false;
+            switch (item.effectType)
+            {
+                case InventoryItemEffectType.Revive:
+                    var revivedHealth = hero.ReviveOutsideBattle(item.reviveHealthPercent);
+                    used = revivedHealth > 0;
+                    ui.AddLog(used
+                        ? $"{hero.displayName} \u88ab\u590d\u6d3b\uff0c\u751f\u547d\u6062\u590d\u5230 {revivedHealth}/{hero.MaxHealthWithGrowth}\u3002"
+                        : $"{item.itemName} \u53ea\u80fd\u5bf9\u6b7b\u4ea1\u82f1\u96c4\u4f7f\u7528\u3002");
+                    break;
+                case InventoryItemEffectType.Heal:
+                default:
+                    var healed = hero.HealOutsideBattle(item.healAmount);
+                    used = healed > 0;
+                    ui.AddLog(used
+                        ? $"{hero.displayName} \u6062\u590d\u4e86 {healed} \u70b9\u751f\u547d\u3002"
+                        : $"{item.itemName} \u65e0\u6cd5\u5bf9\u8be5\u82f1\u96c4\u751f\u6548\u3002");
+                    break;
+            }
+
+            if (used)
+            {
+                count--;
+                if (count <= 0)
+                {
+                    inventory.Remove(item);
+                }
+                else
+                {
+                    inventory[item] = count;
+                }
+            }
+
+            ShowInventory();
+        }
+
+        private IReadOnlyList<InventoryItemStack> GetInventoryStacks()
+        {
+            return inventory
+                .Where(pair => pair.Key != null && pair.Value > 0)
+                .Select(pair => new InventoryItemStack(pair.Key, pair.Value))
+                .OrderBy(stack => stack.Item.price)
+                .ToArray();
+        }
+
+        private static InventoryItemData[] LoadShopItems()
+        {
+            var configuredItems = Resources.LoadAll<InventoryItemData>("Items")
+                .Where(item => item != null)
+                .OrderBy(item => item.price)
+                .ToArray();
+
+            return configuredItems.Length > 0
+                ? configuredItems
+                : CreateDefaultShopItems();
+        }
+
+        private static InventoryItemData[] CreateDefaultShopItems()
+        {
+            return new[]
+            {
+                CreateRuntimeItem("small_potion", "\u5c0f\u836f\u6c34", "\u6218\u6597\u5916\u4f7f\u7528\uff0c\u4e3a\u4e00\u540d\u82f1\u96c4\u6062\u590d 20 \u751f\u547d\u3002", 100, InventoryItemEffectType.Heal, 20, 0.3f),
+                CreateRuntimeItem("large_potion", "\u5927\u836f\u6c34", "\u6218\u6597\u5916\u4f7f\u7528\uff0c\u4e3a\u4e00\u540d\u82f1\u96c4\u6062\u590d 50 \u751f\u547d\u3002", 250, InventoryItemEffectType.Heal, 50, 0.3f),
+                CreateRuntimeItem("revive_potion", "\u590d\u6d3b\u836f\u6c34", "\u6218\u6597\u5916\u4f7f\u7528\uff0c\u590d\u6d3b\u4e00\u540d\u6b7b\u4ea1\u82f1\u96c4\uff0c\u751f\u547d\u6062\u590d\u5230 30%\u3002", 500, InventoryItemEffectType.Revive, 0, 0.3f)
+            };
+        }
+
+        private static InventoryItemData CreateRuntimeItem(string itemId, string itemName, string description, int price, InventoryItemEffectType effectType, int healAmount, float reviveHealthPercent)
+        {
+            var item = ScriptableObject.CreateInstance<InventoryItemData>();
+            item.itemId = itemId;
+            item.itemName = itemName;
+            item.description = description;
+            item.price = price;
+            item.effectType = effectType;
+            item.healAmount = healAmount;
+            item.reviveHealthPercent = reviveHealthPercent;
+            return item;
         }
 
         private IEnumerator BattleSequenceLoop()

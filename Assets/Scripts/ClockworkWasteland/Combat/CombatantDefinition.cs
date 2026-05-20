@@ -32,6 +32,7 @@ namespace ClockworkWasteland.Combat
         public HeroGrowthData growthData;
         [Min(1)] public int currentLevel = 1;
         [Min(0)] public int currentExperience;
+        public int currentHealth = -1;
 
         [Header("Actions")]
         public SkillData[] skills;
@@ -45,6 +46,51 @@ namespace ClockworkWasteland.Combat
         public int MaxHealthWithGrowth => maxHealth + (Level - 1) * GrowthMaxHealthPerLevel;
         public int AttackWithGrowth => attack + (Level - 1) * GrowthAttackPerLevel;
         public int DefenseWithGrowth => defense + (Level - 1) * GrowthDefensePerLevel;
+        public int CurrentHealth => isHero ? Mathf.Clamp(currentHealth < 0 ? MaxHealthWithGrowth : currentHealth, 0, MaxHealthWithGrowth) : MaxHealthWithGrowth;
+        public bool IsDead => isHero && CurrentHealth <= 0;
+
+        public void EnsureRuntimeHealth()
+        {
+            if (!isHero || currentHealth < 0)
+            {
+                currentHealth = MaxHealthWithGrowth;
+            }
+            else
+            {
+                currentHealth = Mathf.Clamp(currentHealth, 0, MaxHealthWithGrowth);
+            }
+        }
+
+        public void SetRuntimeHealth(int amount)
+        {
+            if (isHero)
+            {
+                currentHealth = Mathf.Clamp(amount, 0, MaxHealthWithGrowth);
+            }
+        }
+
+        public int HealOutsideBattle(int amount)
+        {
+            if (!isHero || amount <= 0 || IsDead)
+            {
+                return 0;
+            }
+
+            var before = CurrentHealth;
+            currentHealth = Mathf.Min(MaxHealthWithGrowth, before + amount);
+            return currentHealth - before;
+        }
+
+        public int ReviveOutsideBattle(float healthPercent)
+        {
+            if (!isHero || !IsDead)
+            {
+                return 0;
+            }
+
+            currentHealth = Mathf.Clamp(Mathf.CeilToInt(MaxHealthWithGrowth * Mathf.Clamp01(healthPercent)), 1, MaxHealthWithGrowth);
+            return currentHealth;
+        }
 
         public int AddExperience(int amount)
         {
@@ -60,6 +106,7 @@ namespace ClockworkWasteland.Combat
             {
                 currentExperience -= requiredExperience;
                 currentLevel = Mathf.Max(1, currentLevel + 1);
+                currentHealth = Mathf.Clamp(currentHealth + GrowthMaxHealthPerLevel, 0, MaxHealthWithGrowth);
                 levelsGained++;
                 requiredExperience = ExperienceToNextLevel;
             }
@@ -75,5 +122,26 @@ namespace ClockworkWasteland.Combat
         public int maxHealthPerLevel = 5;
         public int attackPerLevel = 2;
         public int defensePerLevel = 1;
+    }
+
+    public enum InventoryItemEffectType
+    {
+        Heal,
+        Revive
+    }
+
+    [CreateAssetMenu(menuName = "Clockwork Wasteland/Combat/Inventory Item Data")]
+    public sealed class InventoryItemData : ScriptableObject
+    {
+        public string itemId = "item";
+        public string itemName = "Item";
+        [TextArea]
+        public string description = "A usable item.";
+        public Sprite icon;
+        public int price = 100;
+        public InventoryItemEffectType effectType = InventoryItemEffectType.Heal;
+        public int healAmount = 20;
+        [Range(0.01f, 1f)]
+        public float reviveHealthPercent = 0.3f;
     }
 }

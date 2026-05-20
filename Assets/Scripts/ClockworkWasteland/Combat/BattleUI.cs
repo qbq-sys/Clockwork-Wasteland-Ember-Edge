@@ -327,7 +327,9 @@ namespace ClockworkWasteland.Combat
             IReadOnlyList<CombatantDefinition> heroPool,
             IReadOnlyList<CombatantDefinition> selectedHeroes,
             Action<CombatantDefinition> onToggleHero,
-            Action onStartBattle)
+            Action onStartBattle,
+            Action onOpenShop,
+            Action onOpenInventory)
         {
             EnsureOverlay();
             overlayPanel.gameObject.SetActive(true);
@@ -344,6 +346,9 @@ namespace ClockworkWasteland.Combat
             var subtitle = CreateText("Subtitle", rootPanel, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -94f), new Vector2(-120f, 36f), 17, TextAnchor.MiddleCenter);
             subtitle.text = $"\u9009\u62e9\u6700\u591a 4 \u540d\u82f1\u96c4\u51fa\u6218\uff08\u5df2\u9009 {selectedHeroes.Count}/4\uff09";
             SetTextStyle(subtitle, new Color(0.82f, 0.72f, 0.54f), false);
+
+            CreateButton(rootPanel, "\u5546\u5e97", new Vector2(1000f, -70f), () => onOpenShop?.Invoke(), true, null);
+            CreateButton(rootPanel, "\u80cc\u5305", new Vector2(1000f, -122f), () => onOpenInventory?.Invoke(), true, null);
 
             for (var i = 0; i < heroPool.Count; i++)
             {
@@ -375,7 +380,7 @@ namespace ClockworkWasteland.Combat
                 var stats = CreateText("Stats", card, new Vector2(0f, 0f), new Vector2(1f, 1f), Vector2.zero, Vector2.zero, 15, TextAnchor.UpperLeft);
                 stats.rectTransform.offsetMin = new Vector2(112f, 36f);
                 stats.rectTransform.offsetMax = new Vector2(-20f, -48f);
-                stats.text = $"\u7b49\u7ea7 {hero.Level}  EXP {hero.Experience}/{hero.ExperienceToNextLevel}\n\u751f\u547d {hero.MaxHealthWithGrowth}\n\u653b\u51fb {hero.AttackWithGrowth}\n\u9632\u5fa1 {hero.DefenseWithGrowth}\n\u901f\u5ea6 {hero.speed}";
+                stats.text = $"\u7b49\u7ea7 {hero.Level}  EXP {hero.Experience}/{hero.ExperienceToNextLevel}\n\u751f\u547d {hero.CurrentHealth}/{hero.MaxHealthWithGrowth}\n\u653b\u51fb {hero.AttackWithGrowth}\n\u9632\u5fa1 {hero.DefenseWithGrowth}\n\u901f\u5ea6 {hero.speed}";
                 SetTextStyle(stats, new Color(0.84f, 0.78f, 0.66f), false);
 
                 CreateButton(card, selected ? "\u53d6\u6d88" : "\u9009\u62e9", new Vector2(165f, -148f), () => onToggleHero?.Invoke(hero), true, null);
@@ -389,6 +394,107 @@ namespace ClockworkWasteland.Combat
             SetTextStyle(lineupText, new Color(0.9f, 0.78f, 0.58f), false);
 
             CreateButton(rootPanel, "\u5f00\u59cb\u6218\u6597", new Vector2(590f, -708f), onStartBattle.Invoke, selectedHeroes.Count > 0, null);
+        }
+
+        public void ShowShop(
+            IReadOnlyList<InventoryItemData> shopItems,
+            int currentGold,
+            IReadOnlyList<InventoryItemStack> inventory,
+            Action<InventoryItemData> onBuy,
+            Action onBack)
+        {
+            EnsureOverlay();
+            overlayPanel.gameObject.SetActive(true);
+            ClearChildren(overlayPanel);
+
+            var panel = CreatePanel("ShopPanel", overlayPanel, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(860f, 620f), new Color(0.032f, 0.026f, 0.024f, 0.97f));
+            panel.GetComponent<Image>().sprite = descriptionSprite;
+            panel.GetComponent<Image>().type = Image.Type.Sliced;
+
+            var title = CreateText("Title", panel, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -48f), new Vector2(-80f, 56f), 30, TextAnchor.MiddleCenter);
+            title.text = "\u5546\u5e97";
+            SetTextStyle(title, new Color(0.96f, 0.82f, 0.48f), true);
+
+            var goldLine = CreateText("Gold", panel, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -96f), new Vector2(-110f, 34f), 18, TextAnchor.MiddleCenter);
+            goldLine.text = $"\u5f53\u524d\u91d1\u5e01\uff1a{currentGold}";
+            SetTextStyle(goldLine, new Color(1f, 0.78f, 0.34f), true);
+
+            var items = shopItems ?? Array.Empty<InventoryItemData>();
+            for (var i = 0; i < items.Count; i++)
+            {
+                var item = items[i];
+                var y = -168f - i * 118f;
+                var row = CreatePanel($"ShopItem_{i}", panel, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, y), new Vector2(-100f, 94f), new Color(0.055f, 0.048f, 0.047f, 0.94f));
+                row.offsetMin = new Vector2(60f, row.offsetMin.y);
+                row.offsetMax = new Vector2(-60f, row.offsetMax.y);
+                row.GetComponent<Image>().sprite = panelSprite;
+                row.GetComponent<Image>().type = Image.Type.Sliced;
+
+                var count = inventory != null ? inventory.FirstOrDefault(stack => stack.Item == item).Count : 0;
+                var itemText = CreateText("ItemText", row, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero, 16, TextAnchor.UpperLeft);
+                itemText.rectTransform.offsetMin = new Vector2(18f, 10f);
+                itemText.rectTransform.offsetMax = new Vector2(-170f, -10f);
+                itemText.text = $"{item.itemName}  {item.price}\u91d1\u5e01  \u5df2\u6709 {count}\n{item.description}";
+                SetTextStyle(itemText, new Color(0.88f, 0.8f, 0.66f), false);
+
+                CreateButton(row, "\u8d2d\u4e70", new Vector2(650f, -48f), () => onBuy?.Invoke(item), currentGold >= item.price, null);
+            }
+
+            CreateButton(panel, "\u8fd4\u56de", new Vector2(430f, -562f), () => onBack?.Invoke(), true, null);
+        }
+
+        public void ShowInventory(
+            IReadOnlyList<InventoryItemStack> inventory,
+            IReadOnlyList<CombatantDefinition> heroes,
+            Action<InventoryItemData, CombatantDefinition> onUse,
+            Action onBack)
+        {
+            EnsureOverlay();
+            overlayPanel.gameObject.SetActive(true);
+            ClearChildren(overlayPanel);
+
+            var panel = CreatePanel("InventoryPanel", overlayPanel, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(980f, 690f), new Color(0.032f, 0.026f, 0.024f, 0.97f));
+            panel.GetComponent<Image>().sprite = descriptionSprite;
+            panel.GetComponent<Image>().type = Image.Type.Sliced;
+
+            var title = CreateText("Title", panel, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -48f), new Vector2(-80f, 56f), 30, TextAnchor.MiddleCenter);
+            title.text = "\u80cc\u5305";
+            SetTextStyle(title, new Color(0.96f, 0.82f, 0.48f), true);
+
+            var stacks = inventory ?? Array.Empty<InventoryItemStack>();
+            if (stacks.Count == 0)
+            {
+                var empty = CreateText("Empty", panel, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero, 20, TextAnchor.MiddleCenter);
+                empty.text = "\u80cc\u5305\u662f\u7a7a\u7684\u3002";
+                SetTextStyle(empty, new Color(0.82f, 0.72f, 0.54f), false);
+            }
+            else
+            {
+                for (var i = 0; i < stacks.Count; i++)
+                {
+                    var stack = stacks[i];
+                    var x = i % 2 == 0 ? 255f : 725f;
+                    var y = -150f - (i / 2) * 250f;
+                    var itemPanel = CreatePanel($"InventoryItem_{i}", panel, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(x, y), new Vector2(420f, 220f), new Color(0.055f, 0.048f, 0.047f, 0.94f));
+                    itemPanel.GetComponent<Image>().sprite = panelSprite;
+                    itemPanel.GetComponent<Image>().type = Image.Type.Sliced;
+
+                    var itemText = CreateText("ItemText", itemPanel, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -42f), new Vector2(-32f, 56f), 17, TextAnchor.MiddleCenter);
+                    itemText.text = $"{stack.Item.itemName} x{stack.Count}";
+                    SetTextStyle(itemText, new Color(0.96f, 0.82f, 0.48f), true);
+
+                    var heroList = heroes ?? Array.Empty<CombatantDefinition>();
+                    for (var h = 0; h < heroList.Count && h < 4; h++)
+                    {
+                        var hero = heroList[h];
+                        var usable = IsItemUsableOnHero(stack.Item, hero);
+                        var label = $"{hero.displayName} {hero.CurrentHealth}/{hero.MaxHealthWithGrowth}";
+                        CreateButton(itemPanel, label, new Vector2(210f, -86f - h * 34f), () => onUse?.Invoke(stack.Item, hero), usable, null);
+                    }
+                }
+            }
+
+            CreateButton(panel, "\u8fd4\u56de", new Vector2(490f, -632f), () => onBack?.Invoke(), true, null);
         }
 
         public void HideOverlay()
@@ -472,6 +578,23 @@ namespace ClockworkWasteland.Combat
             return hero.idleAnimationFrames != null && hero.idleAnimationFrames.Length > 0
                 ? hero.idleAnimationFrames[0]
                 : null;
+        }
+
+        private static bool IsItemUsableOnHero(InventoryItemData item, CombatantDefinition hero)
+        {
+            if (item == null || hero == null || !hero.isHero)
+            {
+                return false;
+            }
+
+            switch (item.effectType)
+            {
+                case InventoryItemEffectType.Revive:
+                    return hero.IsDead;
+                case InventoryItemEffectType.Heal:
+                default:
+                    return !hero.IsDead && hero.CurrentHealth < hero.MaxHealthWithGrowth;
+            }
         }
 
         private static void EnsureEventSystem()

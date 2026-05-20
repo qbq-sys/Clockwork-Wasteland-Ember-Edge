@@ -10,6 +10,7 @@ namespace ClockworkWasteland.EditorTools
     public static class DemoContentBuilder
     {
         private const string Root = "Assets/ClockworkWastelandDemo";
+        private const string ItemsPath = "Assets/Resources/Items";
         private const string SkillsPath = Root + "/Data/Skills";
         private const string BuffsPath = Root + "/Data/Buffs";
         private const string GrowthsPath = Root + "/Data/Growth";
@@ -39,6 +40,8 @@ namespace ClockworkWasteland.EditorTools
         [MenuItem("Clockwork Wasteland/Create Combat Demo Assets")]
         public static void CreateCombatDemoAssets()
         {
+            EnsureFolder("Assets", "Resources");
+            EnsureFolder("Assets/Resources", "Items");
             EnsureFolder("Assets", "ClockworkWastelandDemo");
             EnsureFolder(Root, "Data");
             EnsureFolder(Root + "/Data", "Skills");
@@ -48,6 +51,9 @@ namespace ClockworkWasteland.EditorTools
             EnsureFolder(Root, "Prefabs");
 
             var burn = CreateBuff("burn", "\u707c\u70e7", "\u6bcf\u56de\u5408\u53d7\u5230\u6301\u7eed\u4f24\u5bb3\u3002", 3, false, 2);
+            CreateItem("small_potion", "\u5c0f\u836f\u6c34", "\u6218\u6597\u5916\u4f7f\u7528\uff0c\u4e3a\u4e00\u540d\u82f1\u96c4\u6062\u590d 20 \u751f\u547d\u3002", 100, InventoryItemEffectType.Heal, 20, 0.3f);
+            CreateItem("large_potion", "\u5927\u836f\u6c34", "\u6218\u6597\u5916\u4f7f\u7528\uff0c\u4e3a\u4e00\u540d\u82f1\u96c4\u6062\u590d 50 \u751f\u547d\u3002", 250, InventoryItemEffectType.Heal, 50, 0.3f);
+            CreateItem("revive_potion", "\u590d\u6d3b\u836f\u6c34", "\u6218\u6597\u5916\u4f7f\u7528\uff0c\u590d\u6d3b\u4e00\u540d\u6b7b\u4ea1\u82f1\u96c4\uff0c\u751f\u547d\u6062\u590d\u5230 30%\u3002", 500, InventoryItemEffectType.Revive, 0, 0.3f);
             var ironCut = CreateSkill("iron_cut", "\u94c1\u5203\u65a9", "\u7a33\u5b9a\u7684\u5355\u4f53\u4f24\u5bb3\u3002", SkillDataType.伤害, SkillDataTargetType.单敌, 8, 1f, null, new[] { 1, 2 }, new[] { 1, 2 });
             var emberNick = CreateSkill("ember_rend", "\u4f59\u70ec\u5272\u88c2", "\u9020\u6210\u4f24\u5bb3\u5e76\u7559\u4e0b\u707c\u70e7\u3002", SkillDataType.伤害, SkillDataTargetType.单敌, 5, 1f, burn, new[] { 1, 2, 3 }, new[] { 1, 2, 3 });
             var fieldStitch = CreateSkill("field_stitch", "\u6218\u5730\u7f1d\u5408", "\u6cbb\u7597\u4e00\u540d\u53cb\u65b9\u3002", SkillDataType.治疗, SkillDataTargetType.单友, 7, 1f, null, new[] { 2, 3, 4 }, new[] { 1, 2, 3, 4 });
@@ -125,6 +131,27 @@ namespace ClockworkWasteland.EditorTools
             buff.tickDamage = tickDamage;
             EditorUtility.SetDirty(buff);
             return buff;
+        }
+
+        private static InventoryItemData CreateItem(string itemId, string displayName, string description, int price, InventoryItemEffectType effectType, int healAmount, float reviveHealthPercent)
+        {
+            var assetPath = $"{ItemsPath}/{ToAssetName(displayName)}.asset";
+            var item = AssetDatabase.LoadAssetAtPath<InventoryItemData>(assetPath);
+            if (item == null)
+            {
+                item = ScriptableObject.CreateInstance<InventoryItemData>();
+                AssetDatabase.CreateAsset(item, assetPath);
+            }
+
+            item.itemId = itemId;
+            item.itemName = displayName;
+            item.description = description;
+            item.price = price;
+            item.effectType = effectType;
+            item.healAmount = healAmount;
+            item.reviveHealthPercent = reviveHealthPercent;
+            EditorUtility.SetDirty(item);
+            return item;
         }
 
         private static CombatantDefinition CreateCombatant(string characterId, string displayName, bool isHero, int maxHealth, int speed, Color tint, string idleSpriteSheetPath, params SkillData[] skills)

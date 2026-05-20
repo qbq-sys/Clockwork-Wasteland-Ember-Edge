@@ -12,7 +12,8 @@ namespace ClockworkWasteland.Combat
         {
             Definition = definition;
             CurrentPosition = currentPosition;
-            Health = definition.maxHealth;
+            definition.EnsureRuntimeHealth();
+            Health = definition.isHero ? definition.CurrentHealth : definition.MaxHealthWithGrowth;
             Resource = 0;
         }
 
@@ -39,6 +40,7 @@ namespace ClockworkWasteland.Combat
         public void TakeDamage(int amount)
         {
             Health = System.Math.Max(0, Health - amount);
+            SyncHealthToDefinition();
         }
 
         public void Heal(int amount)
@@ -49,6 +51,7 @@ namespace ClockworkWasteland.Combat
             }
 
             Health = System.Math.Min(MaxHealth, Health + amount);
+            SyncHealthToDefinition();
         }
 
         public void RestoreForMaxHealthGain(int amount)
@@ -106,6 +109,14 @@ namespace ClockworkWasteland.Combat
             IsCorpse = true;
             statuses.Clear();
             Health = MaxHealth;
+        }
+
+        private void SyncHealthToDefinition()
+        {
+            if (IsHero && !IsCorpse)
+            {
+                Definition.SetRuntimeHealth(Health);
+            }
         }
 
         public void AddOrRefreshStatus(string displayName, int duration, int tickDamage)

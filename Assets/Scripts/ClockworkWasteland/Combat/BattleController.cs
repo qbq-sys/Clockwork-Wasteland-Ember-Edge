@@ -1145,8 +1145,10 @@ namespace ClockworkWasteland.Combat
             var characterId = ResolveId(actor.Definition.characterId, actor.Definition.name, actor.DisplayName);
             var skillId = ResolveId(skill.skillId, skill.name, skill.skillName);
             var characterSpecificPath = $"Assets/Art/VFX/Combat/CharacterSpecific/{characterId}/{skillId}_attack.png";
+            var characterDefaultPath = $"Assets/Art/VFX/Combat/CharacterSpecific/{characterId}/default_attack.png";
             var genericPath = $"Assets/Art/VFX/Combat/AttackSprites/{skillId}_attack.png";
             return EditorSpriteSheetLoader.LoadSprite(characterSpecificPath)
+                ?? EditorSpriteSheetLoader.LoadSprite(characterDefaultPath)
                 ?? EditorSpriteSheetLoader.LoadSprite(genericPath)
                 ?? skill.attackSprite;
         }
@@ -1156,8 +1158,10 @@ namespace ClockworkWasteland.Combat
             var characterId = ResolveId(target.Definition.characterId, target.Definition.name, target.DisplayName);
             var skillId = ResolveId(skill.skillId, skill.name, skill.skillName);
             var characterSpecificPath = $"Assets/Art/VFX/Combat/CharacterSpecific/{characterId}/{skillId}_hit.png";
+            var characterDefaultPath = $"Assets/Art/VFX/Combat/CharacterSpecific/{characterId}/default_hit.png";
             var genericPath = $"Assets/Art/VFX/Combat/HitSprites/{skillId}_hit.png";
             return EditorSpriteSheetLoader.LoadSprite(characterSpecificPath)
+                ?? EditorSpriteSheetLoader.LoadSprite(characterDefaultPath)
                 ?? EditorSpriteSheetLoader.LoadSprite(genericPath)
                 ?? skill.hitSprite;
         }

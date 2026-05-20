@@ -91,6 +91,7 @@ namespace ClockworkWasteland.Combat
         private int gold;
         private InventoryItemData[] shopItems = new InventoryItemData[0];
         private readonly Dictionary<InventoryItemData, int> inventory = new Dictionary<InventoryItemData, int>();
+        private CombatantDefinition[] totalHeroPool = new CombatantDefinition[0];
         private CombatantDefinition[] availableHeroPool = new CombatantDefinition[0];
         private readonly List<CombatantDefinition> selectedHeroDefinitions = new List<CombatantDefinition>();
 
@@ -109,7 +110,8 @@ namespace ClockworkWasteland.Combat
             CacheDefaultCamera();
             ui.SetGold(gold);
             shopItems = LoadShopItems();
-            availableHeroPool = DemoBattleBootstrap.CreateHeroPool();
+            totalHeroPool = DemoBattleBootstrap.CreateHeroPool();
+            availableHeroPool = GetUnlockedHeroPool();
             selectedHeroDefinitions.AddRange(availableHeroPool.Take(MaxFormationSlots));
             ShowTeamSelection();
         }
@@ -149,7 +151,7 @@ namespace ClockworkWasteland.Combat
             ui.SetRound(0);
             ui.SetTurn("\u961f\u4f0d\u914d\u7f6e");
             ui.SetGold(gold);
-            ui.ShowTeamSelection(availableHeroPool, selectedHeroDefinitions, ToggleHeroSelection, StartSelectedBattleSequence, ShowShop, ShowInventory);
+            ui.ShowTeamSelection(availableHeroPool, selectedHeroDefinitions, ToggleHeroSelection, StartSelectedBattleSequence, ShowShop, ShowInventory, ShowTavern);
         }
 
         private void ToggleHeroSelection(CombatantDefinition hero)
@@ -172,7 +174,7 @@ namespace ClockworkWasteland.Combat
                 ui.AddLog("\u6700\u591a\u53ea\u80fd\u9009\u62e9 4 \u540d\u82f1\u96c4\u3002");
             }
 
-            ui.ShowTeamSelection(availableHeroPool, selectedHeroDefinitions, ToggleHeroSelection, StartSelectedBattleSequence, ShowShop, ShowInventory);
+            ui.ShowTeamSelection(availableHeroPool, selectedHeroDefinitions, ToggleHeroSelection, StartSelectedBattleSequence, ShowShop, ShowInventory, ShowTavern);
         }
 
         private void StartSelectedBattleSequence()
@@ -205,6 +207,42 @@ namespace ClockworkWasteland.Combat
         private void ShowInventory()
         {
             ui.ShowInventory(GetInventoryStacks(), availableHeroPool, UseItemOnHero, ShowTeamSelection);
+        }
+
+        private void ShowTavern()
+        {
+            ui.ShowTavern(GetTavernOffers(), gold, RecruitHero, ShowTeamSelection);
+        }
+
+        private void RecruitHero(CombatantDefinition hero)
+        {
+            if (hero == null)
+            {
+                return;
+            }
+
+            if (hero.isUnlocked)
+            {
+                ui.AddLog($"{hero.displayName} \u5df2\u7ecf\u52a0\u5165\u82f1\u96c4\u6c60\u3002");
+                ShowTavern();
+                return;
+            }
+
+            if (gold < hero.recruitPrice)
+            {
+                ui.AddLog("\u91d1\u5e01\u4e0d\u8db3\uff0c\u65e0\u6cd5\u62db\u52df\u8be5\u82f1\u96c4\u3002");
+                ShowTavern();
+                return;
+            }
+
+            gold -= hero.recruitPrice;
+            hero.isUnlocked = true;
+            hero.EnsureRuntimeHealth();
+            availableHeroPool = GetUnlockedHeroPool();
+            selectedHeroDefinitions.RemoveAll(selected => selected == null || !selected.isUnlocked);
+            ui.SetGold(gold);
+            ui.AddLog($"\u62db\u52df\u4e86 {hero.displayName}\uff0c\u4ed6\u5df2\u52a0\u5165\u82f1\u96c4\u6c60\u3002");
+            ShowTavern();
         }
 
         private void BuyItem(InventoryItemData item)
@@ -277,6 +315,22 @@ namespace ClockworkWasteland.Combat
                 .Where(pair => pair.Key != null && pair.Value > 0)
                 .Select(pair => new InventoryItemStack(pair.Key, pair.Value))
                 .OrderBy(stack => stack.Item.price)
+                .ToArray();
+        }
+
+        private CombatantDefinition[] GetUnlockedHeroPool()
+        {
+            return totalHeroPool
+                .Where(hero => hero != null && hero.isHero && hero.isUnlocked)
+                .ToArray();
+        }
+
+        private IReadOnlyList<CombatantDefinition> GetTavernOffers()
+        {
+            return totalHeroPool
+                .Where(hero => hero != null && hero.isHero && !hero.isUnlocked)
+                .OrderBy(_ => Random.value)
+                .Take(3)
                 .ToArray();
         }
 

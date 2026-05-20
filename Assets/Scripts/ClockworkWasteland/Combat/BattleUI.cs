@@ -329,7 +329,8 @@ namespace ClockworkWasteland.Combat
             Action<CombatantDefinition> onToggleHero,
             Action onStartBattle,
             Action onOpenShop,
-            Action onOpenInventory)
+            Action onOpenInventory,
+            Action onOpenTavern)
         {
             EnsureOverlay();
             overlayPanel.gameObject.SetActive(true);
@@ -349,14 +350,15 @@ namespace ClockworkWasteland.Combat
 
             CreateButton(rootPanel, "\u5546\u5e97", new Vector2(1000f, -70f), () => onOpenShop?.Invoke(), true, null);
             CreateButton(rootPanel, "\u80cc\u5305", new Vector2(1000f, -122f), () => onOpenInventory?.Invoke(), true, null);
+            CreateButton(rootPanel, "\u9152\u9986", new Vector2(1000f, -174f), () => onOpenTavern?.Invoke(), true, null);
 
             for (var i = 0; i < heroPool.Count; i++)
             {
                 var hero = heroPool[i];
                 var selected = selectedHeroes.Contains(hero);
-                var row = i / 3;
-                var column = i % 3;
-                var card = CreatePanel($"HeroCard_{i}", rootPanel, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(215f + column * 380f, -218f - row * 220f), new Vector2(330f, 176f), selected ? new Color(0.16f, 0.105f, 0.055f, 0.96f) : new Color(0.055f, 0.048f, 0.047f, 0.94f));
+                var row = i / 4;
+                var column = i % 4;
+                var card = CreatePanel($"HeroCard_{i}", rootPanel, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(155f + column * 288f, -220f - row * 224f), new Vector2(250f, 176f), selected ? new Color(0.16f, 0.105f, 0.055f, 0.96f) : new Color(0.055f, 0.048f, 0.047f, 0.94f));
                 card.GetComponent<Image>().sprite = panelSprite;
                 card.GetComponent<Image>().type = Image.Type.Sliced;
 
@@ -370,20 +372,20 @@ namespace ClockworkWasteland.Combat
                 portraitRect.anchorMin = new Vector2(0f, 0f);
                 portraitRect.anchorMax = new Vector2(0f, 1f);
                 portraitRect.pivot = new Vector2(0.5f, 0.5f);
-                portraitRect.anchoredPosition = new Vector2(58f, -8f);
-                portraitRect.sizeDelta = new Vector2(78f, 116f);
+                portraitRect.anchoredPosition = new Vector2(48f, -8f);
+                portraitRect.sizeDelta = new Vector2(68f, 108f);
                 var portraitImage = portraitObject.GetComponent<Image>();
                 portraitImage.sprite = ResolveHeroPortrait(hero);
                 portraitImage.color = portraitImage.sprite != null ? Color.white : new Color(0.18f, 0.14f, 0.12f, 1f);
                 portraitImage.preserveAspect = true;
 
                 var stats = CreateText("Stats", card, new Vector2(0f, 0f), new Vector2(1f, 1f), Vector2.zero, Vector2.zero, 15, TextAnchor.UpperLeft);
-                stats.rectTransform.offsetMin = new Vector2(112f, 36f);
+                stats.rectTransform.offsetMin = new Vector2(92f, 36f);
                 stats.rectTransform.offsetMax = new Vector2(-20f, -48f);
                 stats.text = $"\u7b49\u7ea7 {hero.Level}  EXP {hero.Experience}/{hero.ExperienceToNextLevel}\n\u751f\u547d {hero.CurrentHealth}/{hero.MaxHealthWithGrowth}\n\u653b\u51fb {hero.AttackWithGrowth}\n\u9632\u5fa1 {hero.DefenseWithGrowth}\n\u901f\u5ea6 {hero.speed}";
                 SetTextStyle(stats, new Color(0.84f, 0.78f, 0.66f), false);
 
-                CreateButton(card, selected ? "\u53d6\u6d88" : "\u9009\u62e9", new Vector2(165f, -148f), () => onToggleHero?.Invoke(hero), true, null);
+                CreateButton(card, selected ? "\u53d6\u6d88" : "\u9009\u62e9", new Vector2(125f, -148f), () => onToggleHero?.Invoke(hero), true, null);
             }
 
             var lineup = selectedHeroes.Count == 0
@@ -441,6 +443,74 @@ namespace ClockworkWasteland.Combat
             }
 
             CreateButton(panel, "\u8fd4\u56de", new Vector2(430f, -562f), () => onBack?.Invoke(), true, null);
+        }
+
+        public void ShowTavern(
+            IReadOnlyList<CombatantDefinition> recruitableHeroes,
+            int currentGold,
+            Action<CombatantDefinition> onRecruit,
+            Action onBack)
+        {
+            EnsureOverlay();
+            overlayPanel.gameObject.SetActive(true);
+            ClearChildren(overlayPanel);
+
+            var panel = CreatePanel("TavernPanel", overlayPanel, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(980f, 660f), new Color(0.032f, 0.026f, 0.024f, 0.97f));
+            panel.GetComponent<Image>().sprite = descriptionSprite;
+            panel.GetComponent<Image>().type = Image.Type.Sliced;
+
+            var title = CreateText("Title", panel, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -48f), new Vector2(-80f, 56f), 30, TextAnchor.MiddleCenter);
+            title.text = "\u9152\u9986";
+            SetTextStyle(title, new Color(0.96f, 0.82f, 0.48f), true);
+
+            var goldLine = CreateText("Gold", panel, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -96f), new Vector2(-110f, 34f), 18, TextAnchor.MiddleCenter);
+            goldLine.text = $"\u5f53\u524d\u91d1\u5e01\uff1a{currentGold}";
+            SetTextStyle(goldLine, new Color(1f, 0.78f, 0.34f), true);
+
+            var heroes = recruitableHeroes ?? Array.Empty<CombatantDefinition>();
+            if (heroes.Count == 0)
+            {
+                var empty = CreateText("Empty", panel, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero, 20, TextAnchor.MiddleCenter);
+                empty.text = "\u6240\u6709\u82f1\u96c4\u90fd\u5df2\u52a0\u5165\u961f\u4f0d\u3002";
+                SetTextStyle(empty, new Color(0.82f, 0.72f, 0.54f), false);
+            }
+            else
+            {
+                for (var i = 0; i < heroes.Count; i++)
+                {
+                    var hero = heroes[i];
+                    var card = CreatePanel($"RecruitHero_{i}", panel, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(190f + i * 300f, -330f), new Vector2(260f, 350f), new Color(0.055f, 0.048f, 0.047f, 0.94f));
+                    card.GetComponent<Image>().sprite = panelSprite;
+                    card.GetComponent<Image>().type = Image.Type.Sliced;
+
+                    var nameText = CreateText("Name", card, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -38f), new Vector2(-26f, 50f), 19, TextAnchor.MiddleCenter);
+                    nameText.text = hero.displayName;
+                    SetTextStyle(nameText, new Color(1f, 0.84f, 0.44f), true);
+
+                    var portraitObject = new GameObject("Portrait", typeof(RectTransform), typeof(Image));
+                    portraitObject.transform.SetParent(card, false);
+                    var portraitRect = portraitObject.GetComponent<RectTransform>();
+                    portraitRect.anchorMin = new Vector2(0.5f, 1f);
+                    portraitRect.anchorMax = new Vector2(0.5f, 1f);
+                    portraitRect.pivot = new Vector2(0.5f, 0.5f);
+                    portraitRect.anchoredPosition = new Vector2(0f, -112f);
+                    portraitRect.sizeDelta = new Vector2(96f, 122f);
+                    var portraitImage = portraitObject.GetComponent<Image>();
+                    portraitImage.sprite = ResolveHeroPortrait(hero);
+                    portraitImage.color = portraitImage.sprite != null ? Color.white : new Color(0.18f, 0.14f, 0.12f, 1f);
+                    portraitImage.preserveAspect = true;
+
+                    var stats = CreateText("Stats", card, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero, 15, TextAnchor.UpperLeft);
+                    stats.rectTransform.offsetMin = new Vector2(24f, 74f);
+                    stats.rectTransform.offsetMax = new Vector2(-24f, -196f);
+                    stats.text = $"\u751f\u547d {hero.MaxHealthWithGrowth}\n\u653b\u51fb {hero.AttackWithGrowth}\n\u9632\u5fa1 {hero.DefenseWithGrowth}\n\u901f\u5ea6 {hero.speed}\n\u4ef7\u683c {hero.recruitPrice}\u91d1\u5e01";
+                    SetTextStyle(stats, new Color(0.88f, 0.8f, 0.66f), false);
+
+                    CreateButton(card, "\u62db\u52df", new Vector2(130f, -306f), () => onRecruit?.Invoke(hero), currentGold >= hero.recruitPrice, null);
+                }
+            }
+
+            CreateButton(panel, "\u8fd4\u56de", new Vector2(490f, -602f), () => onBack?.Invoke(), true, null);
         }
 
         public void ShowInventory(

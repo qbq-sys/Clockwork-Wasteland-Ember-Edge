@@ -22,6 +22,10 @@ namespace ClockworkWasteland.Combat
         public int occupiedSlotCount = 1;
         public int corpseHealth = 3;
 
+        [Header("Recruitment")]
+        public bool isUnlocked = true;
+        public int recruitPrice = 500;
+
         [Header("Stats")]
         public int maxHealth = 32;
         public int speed = 5;

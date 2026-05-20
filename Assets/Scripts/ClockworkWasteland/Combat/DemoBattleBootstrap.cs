@@ -69,6 +69,31 @@ namespace ClockworkWasteland.Combat
             };
         }
 
+        public static CombatantDefinition[] CreateBossEnemies()
+        {
+            var defaultEnemies = CreateDefaultEnemies();
+            var bossSkills = defaultEnemies
+                .SelectMany(enemy => enemy.skills ?? new SkillData[0])
+                .Where(skill => skill != null)
+                .Distinct()
+                .Take(2)
+                .ToArray();
+
+            var boss = CreateEnemy("boss_clockwork_warden", "\u53d1\u6761\u76d1\u5de5", 64, 6, "Assets/Art/hero_04_idle.png", bossSkills);
+            boss.attack = 12;
+            boss.defense = 5;
+            boss.visualScale = 1.18f;
+            boss.tint = new Color(1f, 0.78f, 0.55f, 1f);
+            boss.corpseHealth = 8;
+
+            return new[]
+            {
+                boss,
+                defaultEnemies.ElementAtOrDefault(0),
+                defaultEnemies.ElementAtOrDefault(1)
+            }.Where(enemy => enemy != null).ToArray();
+        }
+
         private static CombatantDefinition CreateHero(string characterId, string displayName, int maxHealth, int speed, string idleSpriteSheetPath, params SkillData[] skills)
         {
             var combatant = CreateCombatant(displayName, true, maxHealth, speed, Color.white, skills);

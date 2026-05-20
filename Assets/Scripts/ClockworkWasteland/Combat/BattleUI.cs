@@ -497,6 +497,99 @@ namespace ClockworkWasteland.Combat
             CreateButton(panel, "\u8fd4\u56de", new Vector2(490f, -632f), () => onBack?.Invoke(), true, null);
         }
 
+        public void ShowMap(int step, int totalSteps, IReadOnlyList<MapNodeOption> options, Action<MapNodeOption> onSelect)
+        {
+            EnsureOverlay();
+            overlayPanel.gameObject.SetActive(true);
+            ClearChildren(overlayPanel);
+
+            var panel = CreatePanel("MapPanel", overlayPanel, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(980f, 560f), new Color(0.032f, 0.026f, 0.024f, 0.97f));
+            panel.GetComponent<Image>().sprite = descriptionSprite;
+            panel.GetComponent<Image>().type = Image.Type.Sliced;
+
+            var title = CreateText("Title", panel, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -48f), new Vector2(-80f, 56f), 30, TextAnchor.MiddleCenter);
+            title.text = "\u8def\u7ebf\u9009\u62e9";
+            SetTextStyle(title, new Color(0.96f, 0.82f, 0.48f), true);
+
+            var route = CreateText("Route", panel, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -106f), new Vector2(-120f, 40f), 18, TextAnchor.MiddleCenter);
+            route.text = $"\u8d77\u70b9  >  \u8282\u70b9 {step}/{totalSteps}  >  \u6700\u7ec8 Boss";
+            SetTextStyle(route, new Color(0.82f, 0.72f, 0.54f), false);
+
+            var nodeOptions = options ?? Array.Empty<MapNodeOption>();
+            for (var i = 0; i < nodeOptions.Count; i++)
+            {
+                var option = nodeOptions[i];
+                var cardX = nodeOptions.Count == 2 ? 310f + i * 360f : 190f + i * 300f;
+                var card = CreatePanel($"MapNode_{i}", panel, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(cardX, -286f), new Vector2(260f, 240f), GetMapNodeColor(option.NodeType));
+                card.GetComponent<Image>().sprite = panelSprite;
+                card.GetComponent<Image>().type = Image.Type.Sliced;
+
+                var name = CreateText("Name", card, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -42f), new Vector2(-32f, 52f), 21, TextAnchor.MiddleCenter);
+                name.text = option.DisplayName;
+                SetTextStyle(name, new Color(1f, 0.84f, 0.44f), true);
+
+                var description = CreateText("Description", card, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero, 16, TextAnchor.UpperLeft);
+                description.rectTransform.offsetMin = new Vector2(24f, 72f);
+                description.rectTransform.offsetMax = new Vector2(-24f, -86f);
+                description.text = option.Description;
+                SetTextStyle(description, new Color(0.88f, 0.8f, 0.66f), false);
+
+                CreateButton(card, "\u524d\u5f80", new Vector2(130f, -198f), () => onSelect?.Invoke(option), true, null);
+            }
+        }
+
+        public void ShowRestNode(IReadOnlyList<CombatantDefinition> heroes, Action<CombatantDefinition> onSelectHero)
+        {
+            EnsureOverlay();
+            overlayPanel.gameObject.SetActive(true);
+            ClearChildren(overlayPanel);
+
+            var panel = CreatePanel("RestPanel", overlayPanel, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(840f, 560f), new Color(0.032f, 0.026f, 0.024f, 0.97f));
+            panel.GetComponent<Image>().sprite = descriptionSprite;
+            panel.GetComponent<Image>().type = Image.Type.Sliced;
+
+            var title = CreateText("Title", panel, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -48f), new Vector2(-80f, 56f), 30, TextAnchor.MiddleCenter);
+            title.text = "\u4f11\u606f\u8282\u70b9";
+            SetTextStyle(title, new Color(0.96f, 0.82f, 0.48f), true);
+
+            var subtitle = CreateText("Subtitle", panel, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -98f), new Vector2(-110f, 36f), 18, TextAnchor.MiddleCenter);
+            subtitle.text = "\u9009\u62e9\u4e00\u540d\u82f1\u96c4\u6062\u590d 20 \u751f\u547d";
+            SetTextStyle(subtitle, new Color(0.82f, 0.72f, 0.54f), false);
+
+            var heroList = heroes ?? Array.Empty<CombatantDefinition>();
+            var hasUsableHero = heroList.Any(hero => hero != null && hero.isHero && !hero.IsDead && hero.CurrentHealth < hero.MaxHealthWithGrowth);
+            for (var i = 0; i < heroList.Count && i < 4; i++)
+            {
+                var hero = heroList[i];
+                if (hero == null)
+                {
+                    continue;
+                }
+
+                var y = -172f - i * 74f;
+                var row = CreatePanel($"RestHero_{i}", panel, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, y), new Vector2(-120f, 54f), new Color(0.055f, 0.048f, 0.047f, 0.94f));
+                row.offsetMin = new Vector2(80f, row.offsetMin.y);
+                row.offsetMax = new Vector2(-80f, row.offsetMax.y);
+                row.GetComponent<Image>().sprite = panelSprite;
+                row.GetComponent<Image>().type = Image.Type.Sliced;
+
+                var status = hero.IsDead ? "\u5df2\u6b7b\u4ea1" : $"{hero.CurrentHealth}/{hero.MaxHealthWithGrowth}";
+                var text = CreateText("Hero", row, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero, 17, TextAnchor.MiddleLeft);
+                text.rectTransform.offsetMin = new Vector2(18f, 0f);
+                text.rectTransform.offsetMax = new Vector2(-210f, 0f);
+                text.text = $"{hero.displayName}    \u751f\u547d {status}";
+                SetTextStyle(text, new Color(0.88f, 0.8f, 0.66f), false);
+
+                var usable = hero != null && !hero.IsDead && hero.CurrentHealth < hero.MaxHealthWithGrowth;
+                CreateButton(row, "\u4f11\u606f", new Vector2(610f, -27f), () => onSelectHero?.Invoke(hero), usable, null);
+            }
+
+            if (!hasUsableHero)
+            {
+                CreateButton(panel, "\u7ee7\u7eed", new Vector2(420f, -496f), () => onSelectHero?.Invoke(null), true, null);
+            }
+        }
+
         public void HideOverlay()
         {
             if (overlayPanel != null)
@@ -594,6 +687,20 @@ namespace ClockworkWasteland.Combat
                 case InventoryItemEffectType.Heal:
                 default:
                     return !hero.IsDead && hero.CurrentHealth < hero.MaxHealthWithGrowth;
+            }
+        }
+
+        private static Color GetMapNodeColor(MapNodeType nodeType)
+        {
+            switch (nodeType)
+            {
+                case MapNodeType.Rest:
+                    return new Color(0.045f, 0.075f, 0.06f, 0.96f);
+                case MapNodeType.Chest:
+                    return new Color(0.105f, 0.072f, 0.034f, 0.96f);
+                case MapNodeType.Battle:
+                default:
+                    return new Color(0.075f, 0.044f, 0.04f, 0.96f);
             }
         }
 

@@ -31,9 +31,31 @@ namespace ClockworkWasteland.Combat
         public int Count { get; }
     }
 
+    public enum MapNodeType
+    {
+        Battle,
+        Rest,
+        Chest
+    }
+
+    public readonly struct MapNodeOption
+    {
+        public MapNodeOption(MapNodeType nodeType, string displayName, string description)
+        {
+            NodeType = nodeType;
+            DisplayName = displayName;
+            Description = description;
+        }
+
+        public MapNodeType NodeType { get; }
+        public string DisplayName { get; }
+        public string Description { get; }
+    }
+
     public sealed class BattleController : MonoBehaviour
     {
         private const int MaxFormationSlots = 4;
+        private const int MapNodeCount = 3;
         private const float FormationFeetY = -1.8f;
         private static readonly int[] AnyPosition = { 1, 2, 3, 4 };
 
@@ -45,7 +67,6 @@ namespace ClockworkWasteland.Combat
         [SerializeField] private float heroVisualScale = 0.8f;
         [SerializeField] private Sprite[] battleBackgrounds;
         [SerializeField] private int battleBackgroundIndex = 0;
-        [SerializeField] private int battleSequenceLength = 3;
 
         private readonly List<BattleUnit> heroes = new List<BattleUnit>();
         private readonly List<BattleUnit> enemies = new List<BattleUnit>();
@@ -173,7 +194,7 @@ namespace ClockworkWasteland.Combat
             ui.HideOverlay();
             heroParty = selectedHeroDefinitions.Take(MaxFormationSlots).ToArray();
             SetupHeroUnits();
-            StartCoroutine(BattleSequenceLoop());
+            StartCoroutine(MapExpeditionLoop());
         }
 
         private void ShowShop()
@@ -294,50 +315,169 @@ namespace ClockworkWasteland.Combat
             return item;
         }
 
-        private IEnumerator BattleSequenceLoop()
+        private IEnumerator MapExpeditionLoop()
         {
+            currentBattleNumber = 0;
             ui.AddLog("\u8fdc\u5f81\u5f00\u59cb\u3002");
 
-            var battleCount = Mathf.Max(1, battleSequenceLength);
-            for (currentBattleNumber = 1; currentBattleNumber <= battleCount; currentBattleNumber++)
+            for (var mapStep = 1; mapStep <= MapNodeCount; mapStep++)
             {
-                PrepareBattle(currentBattleNumber);
-                yield return StartCoroutine(BattleLoop());
-
-                if (!heroes.Any(hero => hero.CanAct))
+                var nodeSelected = false;
+                var selectedNode = default(MapNodeOption);
+                ui.ClearActionPanels();
+                ui.SetRound(0);
+                ui.SetTurn($"\u5730\u56fe {mapStep}/{MapNodeCount}");
+                ui.ShowMap(mapStep, MapNodeCount, GenerateMapOptions(mapStep), node =>
                 {
-                    ui.ClearActionPanels();
-                    ui.SetTurn("\u6218\u8d25");
-                    ui.AddLog("\u8fdc\u5f81\u961f\u5012\u4e0b\u4e86\uff0c\u8fdc\u5f81\u7ec8\u6b62\u3002");
-                    var returnRequested = false;
-                    ui.ShowContinuePrompt("\u6218\u8d25", "\u8fd4\u56de\u961f\u4f0d\u914d\u7f6e", () => returnRequested = true);
-                    while (!returnRequested)
-                    {
-                        yield return null;
-                    }
+                    selectedNode = node;
+                    nodeSelected = true;
+                });
 
-                    ShowTeamSelection();
-                    yield break;
-                }
-
-                var rewardResults = GrantVictoryRewards(out var goldGained);
-                var continueRequested = false;
-                ui.SetTurn("\u6218\u6597\u80dc\u5229");
-                ui.ShowRewardScreen(goldGained, gold, rewardResults, () => continueRequested = true);
-                ui.AddLog($"\u7b2c {currentBattleNumber} \u573a\u6218\u6597\u80dc\u5229\uff0c\u961f\u4f0d\u72b6\u6001\u5df2\u4fdd\u7559\u3002");
-
-                while (!continueRequested)
+                while (!nodeSelected)
                 {
                     yield return null;
                 }
+
+                ui.HideOverlay();
+
+                if (selectedNode.NodeType == MapNodeType.Battle)
+                {
+                    currentBattleNumber++;
+                    yield return StartCoroutine(RunCombatEncounter(false));
+
+                    if (!heroes.Any(hero => hero.CanAct))
+                    {
+                        yield return StartCoroutine(ShowDefeatAndReturn());
+                        yield break;
+                    }
+                }
+                else if (selectedNode.NodeType == MapNodeType.Rest)
+                {
+                    yield return StartCoroutine(RunRestNode());
+                }
+                else if (selectedNode.NodeType == MapNodeType.Chest)
+                {
+                    yield return StartCoroutine(RunChestNode());
+                }
+            }
+
+            currentBattleNumber++;
+            ui.AddLog("\u8fdc\u5f81\u8d70\u5230\u5c3d\u5934\uff0cBoss \u51fa\u73b0\u4e86\u3002");
+            yield return StartCoroutine(RunCombatEncounter(true));
+
+            if (!heroes.Any(hero => hero.CanAct))
+            {
+                yield return StartCoroutine(ShowDefeatAndReturn());
+                yield break;
             }
 
             ui.ClearActionPanels();
             ui.SetTurn("\u901a\u5173");
-            ui.AddLog("\u6240\u6709\u6218\u6597\u5df2\u5b8c\u6210\uff0c\u8fdc\u5f81\u901a\u5173\u3002");
+            ui.AddLog("Boss \u5df2\u88ab\u51fb\u8d25\uff0c\u8fdc\u5f81\u901a\u5173\u3002");
             var requestedReturn = false;
             ui.ShowContinuePrompt("\u901a\u5173", "\u8fd4\u56de\u961f\u4f0d\u914d\u7f6e", () => requestedReturn = true);
             while (!requestedReturn)
+            {
+                yield return null;
+            }
+
+            ShowTeamSelection();
+        }
+
+        private IEnumerator RunCombatEncounter(bool bossBattle)
+        {
+            PrepareBattle(currentBattleNumber, bossBattle);
+            yield return StartCoroutine(BattleLoop());
+
+            if (!heroes.Any(hero => hero.CanAct))
+            {
+                yield break;
+            }
+
+            var rewardResults = GrantVictoryRewards(out var goldGained);
+            var continueRequested = false;
+            ui.SetTurn(bossBattle ? "Boss \u6218\u80dc\u5229" : "\u6218\u6597\u80dc\u5229");
+            ui.ShowRewardScreen(goldGained, gold, rewardResults, () => continueRequested = true);
+            ui.AddLog(bossBattle ? "Boss \u6218\u80dc\u5229\u3002" : "\u6218\u6597\u80dc\u5229\uff0c\u961f\u4f0d\u72b6\u6001\u5df2\u4fdd\u7559\u3002");
+
+            while (!continueRequested)
+            {
+                yield return null;
+            }
+        }
+
+        private IEnumerator RunRestNode()
+        {
+            var selected = false;
+            ui.SetTurn("\u4f11\u606f");
+            ui.ShowRestNode(selectedHeroDefinitions, hero =>
+            {
+                if (hero != null)
+                {
+                    var healed = hero.HealOutsideBattle(20);
+                    ui.AddLog(healed > 0
+                        ? $"{hero.displayName} \u5728\u4f11\u606f\u4e2d\u6062\u590d\u4e86 {healed} \u70b9\u751f\u547d\u3002"
+                        : $"{hero.displayName} \u73b0\u5728\u65e0\u9700\u4f11\u606f\u3002");
+                }
+
+                selected = true;
+            });
+
+            while (!selected)
+            {
+                yield return null;
+            }
+
+            ui.HideOverlay();
+        }
+
+        private static IReadOnlyList<MapNodeOption> GenerateMapOptions(int mapStep)
+        {
+            var options = new List<MapNodeOption>
+            {
+                new MapNodeOption(MapNodeType.Battle, "\u6218\u6597\u8282\u70b9", "\u906d\u9047\u4e00\u652f\u968f\u673a\u654c\u4eba\u961f\u4f0d\u3002")
+            };
+
+            if (mapStep % 2 == 0)
+            {
+                options.Add(new MapNodeOption(MapNodeType.Chest, "\u5b9d\u7bb1\u8282\u70b9", "\u83b7\u5f97 50-150 \u91d1\u5e01\u3002"));
+                options.Add(new MapNodeOption(MapNodeType.Rest, "\u4f11\u606f\u8282\u70b9", "\u9009\u62e9\u4e00\u540d\u82f1\u96c4\u6062\u590d 20 \u751f\u547d\u3002"));
+            }
+            else
+            {
+                options.Add(new MapNodeOption(MapNodeType.Rest, "\u4f11\u606f\u8282\u70b9", "\u9009\u62e9\u4e00\u540d\u82f1\u96c4\u6062\u590d 20 \u751f\u547d\u3002"));
+                if (Random.value >= 0.45f)
+                {
+                    options.Add(new MapNodeOption(MapNodeType.Chest, "\u5b9d\u7bb1\u8282\u70b9", "\u83b7\u5f97 50-150 \u91d1\u5e01\u3002"));
+                }
+            }
+
+            return options;
+        }
+
+        private IEnumerator RunChestNode()
+        {
+            var gained = Random.Range(50, 151);
+            gold += gained;
+            ui.SetGold(gold);
+            ui.AddLog($"\u6253\u5f00\u5b9d\u7bb1\uff0c\u83b7\u5f97\u91d1\u5e01 {gained}\u3002");
+
+            var continueRequested = false;
+            ui.ShowContinuePrompt($"\u5b9d\u7bb1\uff1a\u83b7\u5f97 {gained} \u91d1\u5e01", "\u7ee7\u7eed", () => continueRequested = true);
+            while (!continueRequested)
+            {
+                yield return null;
+            }
+        }
+
+        private IEnumerator ShowDefeatAndReturn()
+        {
+            ui.ClearActionPanels();
+            ui.SetTurn("\u6218\u8d25");
+            ui.AddLog("\u8fdc\u5f81\u961f\u5012\u4e0b\u4e86\uff0c\u8fdc\u5f81\u7ec8\u6b62\u3002");
+            var returnRequested = false;
+            ui.ShowContinuePrompt("\u6218\u8d25", "\u8fd4\u56de\u961f\u4f0d\u914d\u7f6e", () => returnRequested = true);
+            while (!returnRequested)
             {
                 yield return null;
             }
@@ -1089,7 +1229,7 @@ namespace ClockworkWasteland.Combat
             LayoutFormation(true);
         }
 
-        private void PrepareBattle(int battleNumber)
+        private void PrepareBattle(int battleNumber, bool bossBattle)
         {
             currentActor = null;
             selectedUnit = null;
@@ -1104,15 +1244,33 @@ namespace ClockworkWasteland.Combat
 
             ClearEnemyUnits();
 
-            var enemyDefinitions = enemyParty != null && enemyParty.Length > 0
-                ? enemyParty
-                : DemoBattleBootstrap.CreateDefaultEnemies();
+            var enemyDefinitions = bossBattle
+                ? DemoBattleBootstrap.CreateBossEnemies()
+                : SelectRandomEnemyEncounter();
             SpawnTeam(enemyDefinitions, enemies, enemySlots, false);
             LayoutFormation(true);
             LayoutFormation(false);
             RefreshViews();
             ui.SetRound(1);
-            ui.SetTurn($"\u7b2c {battleNumber} \u573a\u6218\u6597");
+            ui.SetTurn(bossBattle ? "\u6700\u7ec8 Boss \u6218" : $"\u7b2c {battleNumber} \u573a\u6218\u6597");
+        }
+
+        private CombatantDefinition[] SelectRandomEnemyEncounter()
+        {
+            var pool = enemyParty != null && enemyParty.Length > 0
+                ? enemyParty.Where(enemy => enemy != null).ToArray()
+                : DemoBattleBootstrap.CreateDefaultEnemies();
+
+            if (pool.Length == 0)
+            {
+                return DemoBattleBootstrap.CreateDefaultEnemies();
+            }
+
+            var count = Mathf.Clamp(Random.Range(2, 4), 1, Mathf.Min(MaxFormationSlots, pool.Length));
+            return pool
+                .OrderBy(_ => Random.value)
+                .Take(count)
+                .ToArray();
         }
 
         private void ClearEnemyUnits()

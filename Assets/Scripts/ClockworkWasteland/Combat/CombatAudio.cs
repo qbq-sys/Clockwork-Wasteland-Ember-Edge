@@ -34,53 +34,45 @@ namespace ClockworkWasteland.Combat
 
         public void PlayUiClick()
         {
-            PlayOneShot("UI\u70b9\u51fb\u97f3\u65481", 0.55f);
+            PlayOneShot(FindClip("\u70b9\u51fb", "UI"), 0.55f);
         }
 
         public void PlayStartExpedition()
         {
-            PlayOneShot("\u5f00\u59cb\u4efb\u52a1\u70b9\u51fb\u97f3\u6548", 0.7f);
+            PlayOneShot(FindClip("\u5f00\u59cb\u4efb\u52a1"), 0.8f);
         }
 
         public void PlayAttack(SkillData skill)
         {
             if (skill != null && IsGunLikeSkill(skill))
             {
-                PlayOneShot("\u67aa\u51fb\u97f3\u65481", 0.75f);
+                PlayOneShot(FindClip("\u67aa\u51fb"), 1f);
                 return;
             }
 
-            var slashClips = new[] { "\u5200\u780d\u97f3\u65481", "\u5200\u780d\u97f3\u65482", "\u5200\u780d\u97f3\u65483" }
-                .Where(HasClip)
-                .ToArray();
-            if (slashClips.Length > 0)
+            var slashClip = FindRandomClip("\u5200\u780d");
+            if (slashClip != null)
             {
-                PlayOneShot(slashClips[Random.Range(0, slashClips.Length)], 0.72f);
+                PlayOneShot(slashClip, 1f);
                 return;
             }
 
-            PlayOneShot("\u6280\u80fd\u6253\u51fb\u97f3\u65481", 0.72f);
+            PlayOneShot(FindClip("\u6280\u80fd\u6253\u51fb"), 0.95f);
         }
 
         public void PlayImpact()
         {
-            var impactClips = new[] { "\u6280\u80fd\u6253\u51fb\u97f3\u65481", "\u901a\u7528\u6253\u51fb\u97f3\u65481" }
-                .Where(HasClip)
-                .ToArray();
-            if (impactClips.Length > 0)
-            {
-                PlayOneShot(impactClips[Random.Range(0, impactClips.Length)], 0.7f);
-            }
+            PlayOneShot(FindRandomClip("\u6253\u51fb"), 0.95f);
         }
 
         public void PlayHeal()
         {
-            PlayOneShot("\u56de\u8840\u6cbb\u7597\u97f3\u65481", 0.75f);
+            PlayOneShot(FindClip("\u56de\u8840", "\u6cbb\u7597"), 0.95f);
         }
 
         public void PlayBossMusic()
         {
-            var clip = GetClip("boss\u6218\u80cc\u666f\u97f3\u4e501");
+            var clip = FindClip("boss", "\u80cc\u666f\u97f3\u4e50");
             if (clip == null || musicSource.clip == clip && musicSource.isPlaying)
             {
                 return;
@@ -116,28 +108,35 @@ namespace ClockworkWasteland.Combat
             LoadClips();
         }
 
-        private void PlayOneShot(string clipName, float volume)
+        private void PlayOneShot(AudioClip clip, float volume)
         {
-            var clip = GetClip(clipName);
             if (clip != null)
             {
                 sfxSource.PlayOneShot(clip, volume);
             }
         }
 
-        private bool HasClip(string clipName)
+        private AudioClip FindClip(params string[] keywords)
         {
-            return GetClip(clipName) != null;
+            return clips.Values.FirstOrDefault(clip => MatchesKeywords(clip, keywords));
         }
 
-        private AudioClip GetClip(string clipName)
+        private AudioClip FindRandomClip(params string[] keywords)
         {
-            if (clips.TryGetValue(clipName, out var clip))
+            var matches = clips.Values
+                .Where(clip => MatchesKeywords(clip, keywords))
+                .ToArray();
+            return matches.Length > 0 ? matches[Random.Range(0, matches.Length)] : null;
+        }
+
+        private static bool MatchesKeywords(AudioClip clip, params string[] keywords)
+        {
+            if (clip == null || keywords == null || keywords.Length == 0)
             {
-                return clip;
+                return false;
             }
 
-            return null;
+            return keywords.Any(keyword => !string.IsNullOrWhiteSpace(keyword) && clip.name.Contains(keyword));
         }
 
         private static bool IsGunLikeSkill(SkillData skill)

@@ -1,0 +1,47 @@
+%YAML 1.1
+%TAG !u! tag:yousandi.cn,2023:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 55b526a2479a1ac4fa2357ba61b423b6, type: 3}
+  m_Name: "\u82F1\u96C4\u56DB"
+  m_EditorClassIdentifier: 
+  displayName: "\u82F1\u96C4\u56DB"
+  isHero: 1
+  portrait: {fileID: 0}
+  battleSprite: {fileID: 0}
+  idleAnimationFrames:
+  - {fileID: -814003841, guid: 09d235f701d0aea4898dd598d2207d22, type: 3}
+  - {fileID: -449049305, guid: 09d235f701d0aea4898dd598d2207d22, type: 3}
+  - {fileID: 68604230, guid: 09d235f701d0aea4898dd598d2207d22, type: 3}
+  - {fileID: 640307086, guid: 09d235f701d0aea4898dd598d2207d22, type: 3}
+  - {fileID: -1685511175, guid: 09d235f701d0aea4898dd598d2207d22, type: 3}
+  - {fileID: 1488797930, guid: 09d235f701d0aea4898dd598d2207d22, type: 3}
+  - {fileID: -1155542560, guid: 09d235f701d0aea4898dd598d2207d22, type: 3}
+  - {fileID: -1715454751, guid: 09d235f701d0aea4898dd598d2207d22, type: 3}
+  - {fileID: 1145324977, guid: 09d235f701d0aea4898dd598d2207d22, type: 3}
+  - {fileID: -31724680, guid: 09d235f701d0aea4898dd598d2207d22, type: 3}
+  - {fileID: 1184281760, guid: 09d235f701d0aea4898dd598d2207d22, type: 3}
+  - {fileID: -1908876316, guid: 09d235f701d0aea4898dd598d2207d22, type: 3}
+  - {fileID: -1012026115, guid: 09d235f701d0aea4898dd598d2207d22, type: 3}
+  - {fileID: -683290685, guid: 09d235f701d0aea4898dd598d2207d22, type: 3}
+  - {fileID: -41518270, guid: 09d235f701d0aea4898dd598d2207d22, type: 3}
+  - {fileID: -1813849465, guid: 09d235f701d0aea4898dd598d2207d22, type: 3}
+  - {fileID: -415139837, guid: 09d235f701d0aea4898dd598d2207d22, type: 3}
+  - {fileID: -1394702847, guid: 09d235f701d0aea4898dd598d2207d22, type: 3}
+  - {fileID: -1046024882, guid: 09d235f701d0aea4898dd598d2207d22, type: 3}
+  - {fileID: -1953125799, guid: 09d235f701d0aea4898dd598d2207d22, type: 3}
+  - {fileID: -21631297, guid: 09d235f701d0aea4898dd598d2207d22, type: 3}
+  tint: {r: 1, g: 1, b: 1, a: 1}
+  visualScale: 1
+  maxHealth: 34
+  speed: 5
+  skills:
+  - {fileID: 11400000, guid: 46ba23410b28e73469772da701f356c9, type: 2}
+  - {fileID: 11400000, guid: 83d12756417b50a4e97bb25a08cacd78, type: 2}

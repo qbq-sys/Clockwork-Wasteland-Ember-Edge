@@ -1,0 +1,62 @@
+%YAML 1.1
+%TAG !u! tag:yousandi.cn,2023:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 55b526a2479a1ac4fa2357ba61b423b6, type: 3}
+  m_Name: "\u82F1\u96C4\u4E00"
+  m_EditorClassIdentifier: 
+  displayName: "\u82F1\u96C4\u4E00"
+  isHero: 1
+  portrait: {fileID: 0}
+  battleSprite: {fileID: 0}
+  idleAnimationFrames:
+  - {fileID: 1339177080, guid: 21aecb6881261974aae268cb8afec04e, type: 3}
+  - {fileID: -486803096, guid: 21aecb6881261974aae268cb8afec04e, type: 3}
+  - {fileID: -1958873294, guid: 21aecb6881261974aae268cb8afec04e, type: 3}
+  - {fileID: 1583707971, guid: 21aecb6881261974aae268cb8afec04e, type: 3}
+  - {fileID: 1475183269, guid: 21aecb6881261974aae268cb8afec04e, type: 3}
+  - {fileID: -1055711066, guid: 21aecb6881261974aae268cb8afec04e, type: 3}
+  - {fileID: -1365724330, guid: 21aecb6881261974aae268cb8afec04e, type: 3}
+  - {fileID: 701192544, guid: 21aecb6881261974aae268cb8afec04e, type: 3}
+  - {fileID: 1493295703, guid: 21aecb6881261974aae268cb8afec04e, type: 3}
+  - {fileID: -459370440, guid: 21aecb6881261974aae268cb8afec04e, type: 3}
+  - {fileID: 262294378, guid: 21aecb6881261974aae268cb8afec04e, type: 3}
+  - {fileID: 2042410353, guid: 21aecb6881261974aae268cb8afec04e, type: 3}
+  - {fileID: -1892975745, guid: 21aecb6881261974aae268cb8afec04e, type: 3}
+  - {fileID: 359200331, guid: 21aecb6881261974aae268cb8afec04e, type: 3}
+  - {fileID: -1371880014, guid: 21aecb6881261974aae268cb8afec04e, type: 3}
+  - {fileID: -411143932, guid: 21aecb6881261974aae268cb8afec04e, type: 3}
+  - {fileID: 457493387, guid: 21aecb6881261974aae268cb8afec04e, type: 3}
+  - {fileID: -2018995116, guid: 21aecb6881261974aae268cb8afec04e, type: 3}
+  - {fileID: 1862202315, guid: 21aecb6881261974aae268cb8afec04e, type: 3}
+  - {fileID: 1357151728, guid: 21aecb6881261974aae268cb8afec04e, type: 3}
+  - {fileID: 1758388364, guid: 21aecb6881261974aae268cb8afec04e, type: 3}
+  - {fileID: 2002318846, guid: 21aecb6881261974aae268cb8afec04e, type: 3}
+  - {fileID: 936071931, guid: 21aecb6881261974aae268cb8afec04e, type: 3}
+  - {fileID: 1190924270, guid: 21aecb6881261974aae268cb8afec04e, type: 3}
+  - {fileID: -362804808, guid: 21aecb6881261974aae268cb8afec04e, type: 3}
+  - {fileID: 703311311, guid: 21aecb6881261974aae268cb8afec04e, type: 3}
+  - {fileID: -154194482, guid: 21aecb6881261974aae268cb8afec04e, type: 3}
+  - {fileID: 1067772828, guid: 21aecb6881261974aae268cb8afec04e, type: 3}
+  - {fileID: -235668314, guid: 21aecb6881261974aae268cb8afec04e, type: 3}
+  - {fileID: 1161143705, guid: 21aecb6881261974aae268cb8afec04e, type: 3}
+  - {fileID: -766448490, guid: 21aecb6881261974aae268cb8afec04e, type: 3}
+  - {fileID: -1131530007, guid: 21aecb6881261974aae268cb8afec04e, type: 3}
+  - {fileID: 1929181846, guid: 21aecb6881261974aae268cb8afec04e, type: 3}
+  - {fileID: 506941255, guid: 21aecb6881261974aae268cb8afec04e, type: 3}
+  - {fileID: 356925075, guid: 21aecb6881261974aae268cb8afec04e, type: 3}
+  - {fileID: 2020786879, guid: 21aecb6881261974aae268cb8afec04e, type: 3}
+  tint: {r: 1, g: 1, b: 1, a: 1}
+  visualScale: 1
+  maxHealth: 38
+  speed: 4
+  skills:
+  - {fileID: 11400000, guid: 46ba23410b28e73469772da701f356c9, type: 2}
+  - {fileID: 11400000, guid: c5f2c545b01680248a2cbe5cac00b164, type: 2}

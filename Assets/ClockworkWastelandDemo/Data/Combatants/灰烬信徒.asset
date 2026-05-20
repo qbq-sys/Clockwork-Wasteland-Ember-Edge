@@ -1,0 +1,61 @@
+%YAML 1.1
+%TAG !u! tag:yousandi.cn,2023:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 55b526a2479a1ac4fa2357ba61b423b6, type: 3}
+  m_Name: "\u7070\u70EC\u4FE1\u5F92"
+  m_EditorClassIdentifier: 
+  displayName: "\u7070\u70EC\u4FE1\u5F92"
+  isHero: 0
+  portrait: {fileID: 0}
+  battleSprite: {fileID: 0}
+  idleAnimationFrames:
+  - {fileID: 1333011926, guid: 6b3e49a72492dc545a6f0003022af619, type: 3}
+  - {fileID: 465642070, guid: 6b3e49a72492dc545a6f0003022af619, type: 3}
+  - {fileID: 620593738, guid: 6b3e49a72492dc545a6f0003022af619, type: 3}
+  - {fileID: 1845584949, guid: 6b3e49a72492dc545a6f0003022af619, type: 3}
+  - {fileID: 1909475024, guid: 6b3e49a72492dc545a6f0003022af619, type: 3}
+  - {fileID: -1251641945, guid: 6b3e49a72492dc545a6f0003022af619, type: 3}
+  - {fileID: 236377770, guid: 6b3e49a72492dc545a6f0003022af619, type: 3}
+  - {fileID: -150943643, guid: 6b3e49a72492dc545a6f0003022af619, type: 3}
+  - {fileID: 108985276, guid: 6b3e49a72492dc545a6f0003022af619, type: 3}
+  - {fileID: -809248283, guid: 6b3e49a72492dc545a6f0003022af619, type: 3}
+  - {fileID: 1949897628, guid: 6b3e49a72492dc545a6f0003022af619, type: 3}
+  - {fileID: -1906694669, guid: 6b3e49a72492dc545a6f0003022af619, type: 3}
+  - {fileID: -1275515507, guid: 6b3e49a72492dc545a6f0003022af619, type: 3}
+  - {fileID: 1017490771, guid: 6b3e49a72492dc545a6f0003022af619, type: 3}
+  - {fileID: 90686910, guid: 6b3e49a72492dc545a6f0003022af619, type: 3}
+  - {fileID: 1459888515, guid: 6b3e49a72492dc545a6f0003022af619, type: 3}
+  - {fileID: 166246030, guid: 6b3e49a72492dc545a6f0003022af619, type: 3}
+  - {fileID: -289463058, guid: 6b3e49a72492dc545a6f0003022af619, type: 3}
+  - {fileID: -1354732633, guid: 6b3e49a72492dc545a6f0003022af619, type: 3}
+  - {fileID: 1210279579, guid: 6b3e49a72492dc545a6f0003022af619, type: 3}
+  - {fileID: 136328288, guid: 6b3e49a72492dc545a6f0003022af619, type: 3}
+  - {fileID: 1299514939, guid: 6b3e49a72492dc545a6f0003022af619, type: 3}
+  - {fileID: 1715840270, guid: 6b3e49a72492dc545a6f0003022af619, type: 3}
+  - {fileID: 665300862, guid: 6b3e49a72492dc545a6f0003022af619, type: 3}
+  - {fileID: -1117765530, guid: 6b3e49a72492dc545a6f0003022af619, type: 3}
+  - {fileID: -355244174, guid: 6b3e49a72492dc545a6f0003022af619, type: 3}
+  - {fileID: -1453413298, guid: 6b3e49a72492dc545a6f0003022af619, type: 3}
+  - {fileID: 550679980, guid: 6b3e49a72492dc545a6f0003022af619, type: 3}
+  - {fileID: -1117337879, guid: 6b3e49a72492dc545a6f0003022af619, type: 3}
+  - {fileID: -120080051, guid: 6b3e49a72492dc545a6f0003022af619, type: 3}
+  - {fileID: -1539729076, guid: 6b3e49a72492dc545a6f0003022af619, type: 3}
+  - {fileID: -323287518, guid: 6b3e49a72492dc545a6f0003022af619, type: 3}
+  - {fileID: -1271398299, guid: 6b3e49a72492dc545a6f0003022af619, type: 3}
+  - {fileID: -2002240716, guid: 6b3e49a72492dc545a6f0003022af619, type: 3}
+  - {fileID: 1646867891, guid: 6b3e49a72492dc545a6f0003022af619, type: 3}
+  - {fileID: -1469168330, guid: 6b3e49a72492dc545a6f0003022af619, type: 3}
+  tint: {r: 1, g: 1, b: 1, a: 1}
+  visualScale: 1
+  maxHealth: 22
+  speed: 7
+  skills:
+  - {fileID: 11400000, guid: ed97969e4cc2fab47adb8b8116df4f69, type: 2}

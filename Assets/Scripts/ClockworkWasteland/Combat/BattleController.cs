@@ -1,0 +1,1145 @@
+﻿using System.Collections;
+using System.Collections.Generic;
+using System.Linq;
+using UnityEngine;
+
+namespace ClockworkWasteland.Combat
+{
+    public sealed class BattleController : MonoBehaviour
+    {
+        private const int MaxFormationSlots = 4;
+        private const float FormationFeetY = -1.8f;
+        private static readonly int[] AnyPosition = { 1, 2, 3, 4 };
+
+        [SerializeField] private CombatantDefinition[] heroParty;
+        [SerializeField] private CombatantDefinition[] enemyParty;
+
+        [Header("Presentation")]
+        [SerializeField] private BattleUI battleUIPrefab;
+        [SerializeField] private float heroVisualScale = 0.8f;
+        [SerializeField] private Sprite[] battleBackgrounds;
+        [SerializeField] private int battleBackgroundIndex = 0;
+        [SerializeField] private int battleSequenceLength = 3;
+
+        private readonly List<BattleUnit> heroes = new List<BattleUnit>();
+        private readonly List<BattleUnit> enemies = new List<BattleUnit>();
+        private readonly BattleUnit[] heroSlots = new BattleUnit[MaxFormationSlots];
+        private readonly BattleUnit[] enemySlots = new BattleUnit[MaxFormationSlots];
+        private readonly Dictionary<BattleUnit, CombatantView> views = new Dictionary<BattleUnit, CombatantView>();
+        private readonly List<BattleUnit> turnQueue = new List<BattleUnit>();
+
+        private BattleUI ui;
+        private Sprite fallbackSprite;
+        private bool waitingForPlayer;
+        private BattleUnit currentActor;
+        private BattleUnit selectedUnit;
+        private SkillDefinition selectedSkill;
+        private BattleUnit[] validSelectedTargets = new BattleUnit[0];
+        private bool resolvingPlayerAction;
+        private int round;
+        private Vector3 defaultCameraPosition;
+        private float defaultCameraSize;
+        private SkillDefinition swapSkill;
+        private int currentBattleNumber;
+        private CombatantDefinition[] availableHeroPool = new CombatantDefinition[0];
+        private readonly List<CombatantDefinition> selectedHeroDefinitions = new List<CombatantDefinition>();
+
+        public void Configure(CombatantDefinition[] heroesToUse, CombatantDefinition[] enemiesToUse, BattleUI uiPrefabToUse = null)
+        {
+            heroParty = heroesToUse;
+            enemyParty = enemiesToUse;
+            battleUIPrefab = uiPrefabToUse;
+        }
+
+        private void Start()
+        {
+            fallbackSprite = CreateFallbackSprite();
+            swapSkill = CreateSwapSkill();
+            SetupScene();
+            CacheDefaultCamera();
+            availableHeroPool = DemoBattleBootstrap.CreateHeroPool();
+            selectedHeroDefinitions.AddRange(availableHeroPool.Take(MaxFormationSlots));
+            ShowTeamSelection();
+        }
+
+        public void RunAttackFlowByIndices(int attackerIndex, int skillIndex, int targetIndex)
+        {
+            var attacker = heroes.Concat(enemies).Where(unit => unit.CanAct).ElementAtOrDefault(attackerIndex);
+            var skills = attacker != null ? GetSkillList(attacker).ToArray() : new SkillDefinition[0];
+            if (attacker == null || skillIndex < 0 || skillIndex >= skills.Length)
+            {
+                ui?.AddLog("\u653b\u51fb\u6d41\u7a0b\u53c2\u6570\u65e0\u6548\u3002");
+                return;
+            }
+
+            var skill = skills[skillIndex];
+            var state = GetSkillUseState(attacker, skill);
+            if (!state.CanUse)
+            {
+                ui?.AddLog($"\u6280\u80fd\u4e0d\u53ef\u7528\uff1a{state.DisabledReason}\u3002");
+                return;
+            }
+
+            var candidates = GetValidTargets(attacker, skill).ToArray();
+            if (targetIndex < 0 || targetIndex >= candidates.Length)
+            {
+                ui?.AddLog("\u76ee\u6807\u7d22\u5f15\u65e0\u6548\u3002");
+                return;
+            }
+
+            StartCoroutine(ExecuteSkill(attacker, skill, candidates[targetIndex]));
+        }
+
+        private void ShowTeamSelection()
+        {
+            ClearAllUnits();
+            ui.ClearActionPanels();
+            ui.SetRound(0);
+            ui.SetTurn("\u961f\u4f0d\u914d\u7f6e");
+            ui.ShowTeamSelection(availableHeroPool, selectedHeroDefinitions, ToggleHeroSelection, StartSelectedBattleSequence);
+        }
+
+        private void ToggleHeroSelection(CombatantDefinition hero)
+        {
+            if (hero == null)
+            {
+                return;
+            }
+
+            if (selectedHeroDefinitions.Contains(hero))
+            {
+                selectedHeroDefinitions.Remove(hero);
+            }
+            else if (selectedHeroDefinitions.Count < MaxFormationSlots)
+            {
+                selectedHeroDefinitions.Add(hero);
+            }
+            else
+            {
+                ui.AddLog("\u6700\u591a\u53ea\u80fd\u9009\u62e9 4 \u540d\u82f1\u96c4\u3002");
+            }
+
+            ui.ShowTeamSelection(availableHeroPool, selectedHeroDefinitions, ToggleHeroSelection, StartSelectedBattleSequence);
+        }
+
+        private void StartSelectedBattleSequence()
+        {
+            if (selectedHeroDefinitions.Count == 0)
+            {
+                ui.AddLog("\u8bf7\u81f3\u5c11\u9009\u62e9 1 \u540d\u82f1\u96c4\u3002");
+                return;
+            }
+
+            ClearAllUnits();
+            ui.HideOverlay();
+            heroParty = selectedHeroDefinitions.Take(MaxFormationSlots).ToArray();
+            SetupHeroUnits();
+            StartCoroutine(BattleSequenceLoop());
+        }
+
+        private IEnumerator BattleSequenceLoop()
+        {
+            ui.AddLog("\u8fdc\u5f81\u5f00\u59cb\u3002");
+
+            var battleCount = Mathf.Max(1, battleSequenceLength);
+            for (currentBattleNumber = 1; currentBattleNumber <= battleCount; currentBattleNumber++)
+            {
+                PrepareBattle(currentBattleNumber);
+                yield return StartCoroutine(BattleLoop());
+
+                if (!heroes.Any(hero => hero.CanAct))
+                {
+                    ui.ClearActionPanels();
+                    ui.SetTurn("\u6218\u8d25");
+                    ui.AddLog("\u8fdc\u5f81\u961f\u5012\u4e0b\u4e86\uff0c\u8fdc\u5f81\u7ec8\u6b62\u3002");
+                    var returnRequested = false;
+                    ui.ShowContinuePrompt("\u6218\u8d25", "\u8fd4\u56de\u961f\u4f0d\u914d\u7f6e", () => returnRequested = true);
+                    while (!returnRequested)
+                    {
+                        yield return null;
+                    }
+
+                    ShowTeamSelection();
+                    yield break;
+                }
+
+                if (currentBattleNumber < battleCount)
+                {
+                    var continueRequested = false;
+                    ui.SetTurn("\u6218\u6597\u80dc\u5229");
+                    ui.ShowContinuePrompt("\u6218\u6597\u80dc\u5229\uff0c\u8fdb\u5165\u4e0b\u4e00\u573a", "\u7ee7\u7eed", () => continueRequested = true);
+                    ui.AddLog($"\u7b2c {currentBattleNumber} \u573a\u6218\u6597\u80dc\u5229\uff0c\u961f\u4f0d\u72b6\u6001\u5df2\u4fdd\u7559\u3002");
+
+                    while (!continueRequested)
+                    {
+                        yield return null;
+                    }
+                }
+            }
+
+            ui.ClearActionPanels();
+            ui.SetTurn("\u901a\u5173");
+            ui.AddLog("\u6240\u6709\u6218\u6597\u5df2\u5b8c\u6210\uff0c\u8fdc\u5f81\u901a\u5173\u3002");
+            var requestedReturn = false;
+            ui.ShowContinuePrompt("\u901a\u5173", "\u8fd4\u56de\u961f\u4f0d\u914d\u7f6e", () => requestedReturn = true);
+            while (!requestedReturn)
+            {
+                yield return null;
+            }
+
+            ShowTeamSelection();
+        }
+
+        private IEnumerator BattleLoop()
+        {
+            ui.AddLog($"\u7b2c {currentBattleNumber} \u573a\u6218\u6597\u5f00\u59cb\u3002");
+
+            while (!IsBattleOver())
+            {
+                round++;
+                ui.SetRound(round);
+                RebuildTurnQueue();
+
+                foreach (var actor in turnQueue.ToArray())
+                {
+                    if (!actor.CanAct || IsBattleOver())
+                    {
+                        continue;
+                    }
+
+                    currentActor = actor;
+                    actor.ResetActionPoints();
+                    yield return StartCoroutine(RunTurn(actor));
+                }
+            }
+
+            ui.ClearActionPanels();
+            ui.SetTurn(heroes.Any(hero => hero.CanAct) ? "\u80dc\u5229" : "\u5931\u8d25");
+            ui.AddLog(heroes.Any(hero => hero.CanAct) ? "\u5c0f\u961f\u6491\u8fc7\u4e86\u8fd9\u573a\u906d\u9047\u3002" : "\u8fdc\u5f81\u961f\u5012\u4e0b\u4e86\u3002");
+        }
+
+        private IEnumerator RunTurn(BattleUnit actor)
+        {
+            var statusDamage = actor.TickStatuses();
+            if (!actor.IsAlive)
+            {
+                HandleDefeatedUnit(actor, null);
+            }
+
+            RefreshViews();
+
+            if (statusDamage > 0)
+            {
+                ui.AddLog($"{actor.DisplayName} \u53d7\u5230 {statusDamage} \u70b9\u72b6\u6001\u4f24\u5bb3\u3002");
+                yield return new WaitForSeconds(0.45f);
+            }
+
+            if (!actor.CanAct)
+            {
+                yield break;
+            }
+
+            if (actor.IsHero)
+            {
+                waitingForPlayer = true;
+                selectedUnit = actor;
+                selectedSkill = null;
+                validSelectedTargets = new BattleUnit[0];
+                SetTargetHighlights(validSelectedTargets);
+                ui.RenderPlayerTurn(actor, GetSkillUseStates(actor), SelectSkill);
+
+                while (waitingForPlayer)
+                {
+                    yield return null;
+                }
+            }
+            else
+            {
+                yield return new WaitForSeconds(0.45f);
+                var skill = GetSkillList(actor).FirstOrDefault(item => item != null && GetSkillUseState(actor, item).CanUse);
+                var target = skill != null ? GetValidTargets(actor, skill).OrderBy(unit => unit.Health).FirstOrDefault() : null;
+                if (skill != null && target != null)
+                {
+                    yield return StartCoroutine(ExecuteSkill(actor, skill, target));
+                }
+            }
+        }
+
+        private void SelectSkill(SkillDefinition skill)
+        {
+            if (!waitingForPlayer || resolvingPlayerAction || currentActor == null || selectedUnit != currentActor)
+            {
+                return;
+            }
+
+            var state = GetSkillUseState(currentActor, skill);
+            if (!state.CanUse)
+            {
+                ui.AddLog($"\u65e0\u6cd5\u4f7f\u7528 {skill.displayName}\uff1a{state.DisabledReason}\u3002");
+                ui.RenderUnitPanel(selectedUnit, currentActor, GetSkillUseStates(selectedUnit), SelectSkill);
+                return;
+            }
+
+            selectedSkill = skill;
+            validSelectedTargets = GetValidTargets(currentActor, skill).ToArray();
+            SetTargetHighlights(validSelectedTargets);
+
+            if (validSelectedTargets.Length == 1 && skill.targetType == SkillTargetType.Self)
+            {
+                SelectTarget(validSelectedTargets[0]);
+                return;
+            }
+
+            ui.RenderTargets(skill, validSelectedTargets, SelectTarget);
+        }
+
+        private void HandleUnitClicked(BattleUnit unit)
+        {
+            if (resolvingPlayerAction || unit == null || !unit.IsAlive)
+            {
+                return;
+            }
+
+            if (waitingForPlayer && selectedSkill != null && validSelectedTargets.Contains(unit))
+            {
+                SelectTarget(unit);
+                return;
+            }
+
+            if (waitingForPlayer && selectedSkill != null)
+            {
+                ui.AddLog("\u8be5\u6280\u80fd\u65e0\u6cd5\u653b\u51fb\u8fd9\u4e2a\u76ee\u6807\u3002");
+                SetTargetHighlights(validSelectedTargets);
+                return;
+            }
+
+            selectedUnit = unit;
+            selectedSkill = null;
+            validSelectedTargets = new BattleUnit[0];
+            SetTargetHighlights(validSelectedTargets);
+            ui.RenderUnitPanel(selectedUnit, waitingForPlayer ? currentActor : null, GetSkillUseStates(selectedUnit), SelectSkill);
+        }
+
+        private void SelectTarget(BattleUnit target)
+        {
+            if (!waitingForPlayer || resolvingPlayerAction || currentActor == null || selectedSkill == null)
+            {
+                return;
+            }
+
+            if (!IsValidTarget(currentActor, selectedSkill, target))
+            {
+                ui.AddLog("\u8be5\u76ee\u6807\u5df2\u4e0d\u518d\u5408\u6cd5\uff0c\u8bf7\u91cd\u65b0\u9009\u62e9\u3002");
+                validSelectedTargets = GetValidTargets(currentActor, selectedSkill).ToArray();
+                SetTargetHighlights(validSelectedTargets);
+                return;
+            }
+
+            StartCoroutine(ResolvePlayerAction(target));
+        }
+
+        private IEnumerator ResolvePlayerAction(BattleUnit target)
+        {
+            resolvingPlayerAction = true;
+            ui.ClearActionPanels();
+            SetTargetHighlights(new BattleUnit[0]);
+            yield return StartCoroutine(ExecuteSkill(currentActor, selectedSkill, target));
+            validSelectedTargets = new BattleUnit[0];
+            selectedSkill = null;
+            resolvingPlayerAction = false;
+            waitingForPlayer = false;
+        }
+
+        private IEnumerator ExecuteSkill(BattleUnit actor, SkillDefinition skill, BattleUnit primaryTarget)
+        {
+            if (!actor.CanAct || !GetSkillUseState(actor, skill).CanUse || !IsValidTarget(actor, skill, primaryTarget))
+            {
+                ui.AddLog("\u884c\u52a8\u5df2\u5931\u6548\uff0c\u8bf7\u91cd\u65b0\u9009\u62e9\u3002");
+                yield break;
+            }
+
+            if (skill.isSwapSkill)
+            {
+                yield return StartCoroutine(ExecuteSwap(actor, primaryTarget, skill));
+                yield break;
+            }
+
+            var targets = ResolveTargets(actor, skill, primaryTarget).Where(target => IsValidTarget(actor, skill, target)).ToArray();
+            if (targets.Length == 0)
+            {
+                yield break;
+            }
+
+            if (!views.TryGetValue(actor, out var actorView))
+            {
+                yield break;
+            }
+
+            actor.SpendResourcesFor(skill);
+
+            var mainTarget = targets[0];
+            views.TryGetValue(mainTarget, out var mainTargetView);
+            SetTargetHighlights(new[] { mainTarget });
+
+            yield return StartCoroutine(FocusCamera(actorView.transform.position));
+
+            var overlayDuration = Mathf.Max(0.05f, skill.overlayDuration);
+            if (mainTargetView != null)
+            {
+                var attackSprite = ResolveAttackSprite(actor, skill);
+                var hitSprite = ResolveHitSprite(mainTarget, skill);
+                yield return StartCoroutine(PlayAttackAndHitOverlays(actorView, mainTargetView, attackSprite, hitSprite, overlayDuration));
+            }
+            else
+            {
+                yield return StartCoroutine(actorView.PlayOverlay(ResolveAttackSprite(actor, skill), overlayDuration));
+            }
+
+            yield return StartCoroutine(ScreenShake(GetShakeStrength(skill), Mathf.Clamp(skill.power * 0.015f, 0.1f, 0.2f)));
+
+            var hitRoll = Random.Range(0, 100);
+            if (hitRoll >= skill.accuracy)
+            {
+                ui.AddLog($"{actor.DisplayName} \u7684 {skill.displayName} \u672a\u547d\u4e2d\u3002");
+                if (mainTargetView != null)
+                {
+                    mainTargetView.ShowFloatingText("MISS", Color.white);
+                }
+
+                yield return StartCoroutine(RestoreCamera());
+                SetTargetHighlights(new BattleUnit[0]);
+                yield break;
+            }
+
+            foreach (var target in targets)
+            {
+                if (skill.effectType == SkillEffectType.Damage)
+                {
+                    var damage = CalculateDamage(actor, skill, target);
+                    target.TakeDamage(damage.Amount);
+                    ui.AddLog(damage.IsCritical
+                        ? $"{actor.DisplayName} \u4f7f\u7528 {skill.displayName}\u66b4\u51fb\uff01{target.DisplayName} \u53d7\u5230 {damage.Amount} \u70b9\u4f24\u5bb3\u3002"
+                        : $"{actor.DisplayName} \u4f7f\u7528 {skill.displayName}\uff0c{target.DisplayName} \u53d7\u5230 {damage.Amount} \u70b9\u4f24\u5bb3\u3002");
+
+                    if (views.TryGetValue(target, out var targetView))
+                    {
+                        targetView.ShowFloatingText(damage.IsCritical ? $"-{damage.Amount}!" : $"-{damage.Amount}", Color.red, damage.IsCritical ? 1.55f : 1f);
+                        if (!target.IsAlive)
+                        {
+                            yield return StartCoroutine(targetView.PlayDeathCue());
+                            HandleDefeatedUnit(target, skill);
+                        }
+                    }
+                }
+                else
+                {
+                    var amount = CalculateHealingAmount(actor, skill);
+                    target.Heal(amount);
+                    ui.AddLog($"{actor.DisplayName} \u4f7f\u7528 {skill.displayName}\uff0c{target.DisplayName} \u6062\u590d {amount} \u70b9\u751f\u547d\u3002");
+
+                    if (views.TryGetValue(target, out var targetView))
+                    {
+                        targetView.ShowFloatingText("+" + amount, GetDamageColor(skill.damageType, skill.effectType));
+                    }
+                }
+
+                if (skill.AppliesStatus && target.CanAct)
+                {
+                    target.AddOrRefreshStatus(skill.statusName, skill.statusDuration, skill.statusTickDamage);
+                    ui.AddLog($"{target.DisplayName} \u83b7\u5f97\u72b6\u6001\uff1a{skill.statusName}\u3002");
+                }
+            }
+
+            RefreshViews();
+            LayoutFormation(true);
+            LayoutFormation(false);
+            yield return StartCoroutine(RestoreCamera());
+            SetTargetHighlights(new BattleUnit[0]);
+            yield return new WaitForSeconds(0.25f);
+        }
+
+        private IEnumerator ExecuteSwap(BattleUnit actor, BattleUnit target, SkillDefinition skill)
+        {
+            if (actor == target)
+            {
+                ui.AddLog("\u4e0d\u80fd\u548c\u81ea\u5df1\u6362\u4f4d\u3002");
+                yield break;
+            }
+
+            actor.SpendResourcesFor(skill);
+            var slots = actor.IsHero ? heroSlots : enemySlots;
+            var actorIndex = actor.CurrentPosition - 1;
+            var targetIndex = target.CurrentPosition - 1;
+            var actorTargetPosition = target.CurrentPosition;
+            var targetTargetPosition = actor.CurrentPosition;
+            slots[actorIndex] = target;
+            slots[targetIndex] = actor;
+
+            actor.CurrentPosition = actorTargetPosition;
+            target.CurrentPosition = targetTargetPosition;
+            yield return StartCoroutine(AnimateSwap(actor, target));
+
+            RefreshViews();
+            ui.AddLog($"{actor.DisplayName} \u548c {target.DisplayName} \u4ea4\u6362\u4e86\u7ad9\u4f4d\u3002");
+        }
+
+        private IEnumerator AnimateSwap(BattleUnit actor, BattleUnit target)
+        {
+            if (!views.TryGetValue(actor, out var actorView) || !views.TryGetValue(target, out var targetView))
+            {
+                LayoutFormation(actor.IsHero);
+                yield break;
+            }
+
+            const float duration = 0.28f;
+            var actorMove = actorView.StartCoroutine(actorView.MoveToFormation(GetSlotX(actor.IsHero, actor.CurrentPosition), FormationFeetY, duration));
+            var targetMove = targetView.StartCoroutine(targetView.MoveToFormation(GetSlotX(target.IsHero, target.CurrentPosition), FormationFeetY, duration));
+            yield return actorMove;
+            yield return targetMove;
+        }
+
+        private SkillUseState GetSkillUseState(BattleUnit actor, SkillDefinition skill)
+        {
+            if (actor == null || skill == null || !actor.CanAct)
+            {
+                return new SkillUseState(skill, false, "\u65e0\u6cd5\u884c\u52a8");
+            }
+
+            if (!IsPositionAllowed(actor.CurrentPosition, skill.casterAllowedPositions))
+            {
+                return new SkillUseState(skill, false, "\u7ad9\u4f4d\u9519\u8bef");
+            }
+
+            if (!actor.HasResourcesFor(skill))
+            {
+                return new SkillUseState(skill, false, "\u8d44\u6e90\u4e0d\u8db3");
+            }
+
+            if (skill.cooldownTurns > 0)
+            {
+                return new SkillUseState(skill, false, $"{skill.cooldownTurns}\u56de\u5408");
+            }
+
+            if (!GetValidTargets(actor, skill).Any())
+            {
+                return new SkillUseState(skill, false, "\u65e0\u6709\u6548\u76ee\u6807");
+            }
+
+            return new SkillUseState(skill, true, string.Empty);
+        }
+
+        private IReadOnlyList<SkillUseState> GetSkillUseStates(BattleUnit unit)
+        {
+            if (unit == null || !unit.IsHero)
+            {
+                return new SkillUseState[0];
+            }
+
+            return GetSkillList(unit).Select(skill => GetSkillUseState(unit, skill)).ToArray();
+        }
+
+        private IEnumerable<SkillDefinition> GetSkillList(BattleUnit unit)
+        {
+            var definedSkills = unit?.Definition.skills != null
+                ? unit.Definition.skills.Where(skill => skill != null)
+                : Enumerable.Empty<SkillDefinition>();
+
+            return unit != null && unit.IsHero ? definedSkills.Concat(new[] { swapSkill }) : definedSkills;
+        }
+
+        private IEnumerable<BattleUnit> GetValidTargets(BattleUnit actor, SkillDefinition skill)
+        {
+            return GetCandidateTargets(actor, skill).Where(target => IsValidTarget(actor, skill, target));
+        }
+
+        private IEnumerable<BattleUnit> GetCandidateTargets(BattleUnit actor, SkillDefinition skill)
+        {
+            switch (skill.targetType)
+            {
+                case SkillTargetType.SingleAlly:
+                case SkillTargetType.AllAllies:
+                    return GetOccupiedSlots(actor.IsHero);
+                case SkillTargetType.Self:
+                    return new[] { actor };
+                case SkillTargetType.AllEnemies:
+                case SkillTargetType.SingleEnemy:
+                default:
+                    return GetOccupiedSlots(!actor.IsHero);
+            }
+        }
+
+        private bool IsValidTarget(BattleUnit actor, SkillDefinition skill, BattleUnit target)
+        {
+            if (actor == null || skill == null || target == null || !target.IsAlive)
+            {
+                return false;
+            }
+
+            if (target.IsCorpse && !CanSkillTargetCorpse(skill))
+            {
+                return false;
+            }
+
+            switch (skill.targetType)
+            {
+                case SkillTargetType.Self:
+                    return target == actor;
+                case SkillTargetType.SingleAlly:
+                    return target.IsHero == actor.IsHero && IsPositionAllowed(target.CurrentPosition, skill.targetAllowedPositions);
+                case SkillTargetType.SingleEnemy:
+                    return target.IsHero != actor.IsHero && IsPositionAllowed(target.CurrentPosition, skill.targetAllowedPositions);
+                case SkillTargetType.AllAllies:
+                    return target.IsHero == actor.IsHero;
+                case SkillTargetType.AllEnemies:
+                    return target.IsHero != actor.IsHero;
+                default:
+                    return false;
+            }
+        }
+
+        private static bool CanSkillTargetCorpse(SkillDefinition skill)
+        {
+            return skill.canTargetDead || skill.targetType == SkillTargetType.SingleEnemy && skill.effectType == SkillEffectType.Damage;
+        }
+
+        private IEnumerable<BattleUnit> ResolveTargets(BattleUnit actor, SkillDefinition skill, BattleUnit primaryTarget)
+        {
+            switch (skill.targetType)
+            {
+                case SkillTargetType.AllAllies:
+                case SkillTargetType.AllEnemies:
+                    return GetValidTargets(actor, skill);
+                case SkillTargetType.Self:
+                    return new[] { actor };
+                default:
+                    return new[] { primaryTarget };
+            }
+        }
+
+        private void HandleDefeatedUnit(BattleUnit unit, SkillDefinition killingSkill)
+        {
+            if (unit == null)
+            {
+                return;
+            }
+
+            var obliterate = killingSkill != null && killingSkill.obliteratesTarget;
+            if (!unit.IsCorpse && !obliterate)
+            {
+                unit.ConvertToCorpse();
+                ui.AddLog($"{unit.Definition.displayName} \u5012\u4e0b\uff0c\u7559\u4e0b\u4e86\u5c38\u4f53\u3002");
+                RefreshViews();
+                return;
+            }
+
+            RemoveUnitFromFormation(unit);
+            ui.AddLog(unit.IsCorpse ? $"{unit.DisplayName} \u88ab\u6e05\u9664\u4e86\u3002" : $"{unit.DisplayName} \u88ab\u5f7b\u5e95\u6d88\u706d\u3002");
+        }
+
+        private void RemoveUnitFromFormation(BattleUnit unit)
+        {
+            var slots = unit.IsHero ? heroSlots : enemySlots;
+            var index = unit.CurrentPosition - 1;
+            if (index >= 0 && index < slots.Length && slots[index] == unit)
+            {
+                slots[index] = null;
+            }
+
+            if (views.TryGetValue(unit, out var view))
+            {
+                view.gameObject.SetActive(false);
+            }
+
+            CompactFormation(unit.IsHero);
+        }
+
+        private void CompactFormation(bool isHero)
+        {
+            var slots = isHero ? heroSlots : enemySlots;
+            for (var i = 0; i < slots.Length; i++)
+            {
+                if (slots[i] != null)
+                {
+                    continue;
+                }
+
+                for (var j = i + 1; j < slots.Length; j++)
+                {
+                    if (slots[j] == null)
+                    {
+                        continue;
+                    }
+
+                    slots[i] = slots[j];
+                    slots[j] = null;
+                    slots[i].CurrentPosition = i + 1;
+                    break;
+                }
+            }
+
+            LayoutFormation(isHero);
+        }
+
+        private static bool IsPositionAllowed(int position, int[] allowedPositions)
+        {
+            return allowedPositions == null || allowedPositions.Length == 0 || allowedPositions.Contains(position);
+        }
+
+        private IEnumerable<BattleUnit> GetOccupiedSlots(bool isHero)
+        {
+            return (isHero ? heroSlots : enemySlots).Where(unit => unit != null && unit.IsAlive);
+        }
+
+        private static IEnumerator PlayAttackAndHitOverlays(CombatantView actorView, CombatantView targetView, Sprite attackSprite, Sprite hitSprite, float duration)
+        {
+            var attack = actorView.StartCoroutine(actorView.PlayOverlay(attackSprite, duration));
+            var hit = targetView.StartCoroutine(targetView.PlayOverlay(hitSprite, duration));
+            yield return attack;
+            yield return hit;
+        }
+
+        private static Sprite ResolveAttackSprite(BattleUnit actor, SkillDefinition skill)
+        {
+            var characterId = ResolveId(actor.Definition.characterId, actor.Definition.name, actor.DisplayName);
+            var skillId = ResolveId(skill.skillId, skill.name, skill.displayName);
+            var characterSpecificPath = $"Assets/Art/VFX/Combat/CharacterSpecific/{characterId}/{skillId}_attack.png";
+            var genericPath = $"Assets/Art/VFX/Combat/AttackSprites/{skillId}_attack.png";
+            return EditorSpriteSheetLoader.LoadSprite(characterSpecificPath)
+                ?? EditorSpriteSheetLoader.LoadSprite(genericPath)
+                ?? skill.attackSprite;
+        }
+
+        private static Sprite ResolveHitSprite(BattleUnit target, SkillDefinition skill)
+        {
+            var characterId = ResolveId(target.Definition.characterId, target.Definition.name, target.DisplayName);
+            var skillId = ResolveId(skill.skillId, skill.name, skill.displayName);
+            var characterSpecificPath = $"Assets/Art/VFX/Combat/CharacterSpecific/{characterId}/{skillId}_hit.png";
+            var genericPath = $"Assets/Art/VFX/Combat/HitSprites/{skillId}_hit.png";
+            return EditorSpriteSheetLoader.LoadSprite(characterSpecificPath)
+                ?? EditorSpriteSheetLoader.LoadSprite(genericPath)
+                ?? skill.hitSprite;
+        }
+
+        private static string ResolveId(string explicitId, string assetName, string displayName)
+        {
+            var source = !string.IsNullOrWhiteSpace(explicitId) && explicitId != "skill" && explicitId != "character"
+                ? explicitId
+                : !string.IsNullOrWhiteSpace(assetName)
+                    ? assetName
+                    : displayName;
+
+            return SanitizeId(source);
+        }
+
+        private static string SanitizeId(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return "unnamed";
+            }
+
+            var chars = value.Trim().ToLowerInvariant().Select(character =>
+                char.IsLetterOrDigit(character) ? character : '_').ToArray();
+            return new string(chars).Trim('_');
+        }
+
+        private DamageResult CalculateDamage(BattleUnit actor, SkillDefinition skill, BattleUnit target)
+        {
+            var randomOffset = Random.Range(-2, 3);
+            var baseDamage = Mathf.Max(1, actor.Attack - target.Defense + randomOffset);
+            var amount = Mathf.Max(1, Mathf.RoundToInt(baseDamage * skill.powerMultiplier));
+            var critical = Random.value < 0.1f;
+            if (critical)
+            {
+                amount = Mathf.Max(1, Mathf.RoundToInt(amount * 1.5f));
+            }
+
+            return new DamageResult(amount, critical);
+        }
+
+        private int CalculateHealingAmount(BattleUnit actor, SkillDefinition skill)
+        {
+            return Mathf.Max(1, Mathf.RoundToInt((skill.power + actor.Attack * 0.5f) * skill.powerMultiplier));
+        }
+
+        private static Color GetDamageColor(DamageType damageType, SkillEffectType effectType)
+        {
+            if (effectType == SkillEffectType.Heal)
+            {
+                return new Color(0.25f, 0.95f, 0.38f);
+            }
+
+            switch (damageType)
+            {
+                case DamageType.Witchcraft:
+                    return new Color(0.72f, 0.22f, 0.95f);
+                case DamageType.Mechanical:
+                    return new Color(1f, 0.55f, 0.14f);
+                case DamageType.Physical:
+                default:
+                    return new Color(0.95f, 0.12f, 0.08f);
+            }
+        }
+
+        private static float GetShakeStrength(SkillDefinition skill)
+        {
+            return Mathf.Clamp(0.035f + skill.power * 0.004f, 0.04f, 0.12f);
+        }
+
+        private void CacheDefaultCamera()
+        {
+            var camera = Camera.main;
+            if (camera == null)
+            {
+                return;
+            }
+
+            defaultCameraPosition = camera.transform.position;
+            defaultCameraSize = camera.orthographicSize;
+        }
+
+        private IEnumerator FocusCamera(Vector3 focusPosition)
+        {
+            var camera = Camera.main;
+            if (camera == null)
+            {
+                yield break;
+            }
+
+            var startPosition = camera.transform.position;
+            var startSize = camera.orthographicSize;
+            var targetPosition = new Vector3(focusPosition.x, Mathf.Clamp(focusPosition.y + 0.4f, -0.4f, 1.2f), startPosition.z);
+            var targetSize = Mathf.Max(2.9f, defaultCameraSize * 0.72f);
+            const float duration = 0.18f;
+            var elapsed = 0f;
+
+            while (elapsed < duration)
+            {
+                elapsed += Time.deltaTime;
+                var t = Mathf.Clamp01(elapsed / duration);
+                camera.transform.position = Vector3.Lerp(startPosition, targetPosition, t);
+                camera.orthographicSize = Mathf.Lerp(startSize, targetSize, t);
+                yield return null;
+            }
+        }
+
+        private IEnumerator RestoreCamera()
+        {
+            var camera = Camera.main;
+            if (camera == null)
+            {
+                yield break;
+            }
+
+            var startPosition = camera.transform.position;
+            var startSize = camera.orthographicSize;
+            const float duration = 0.2f;
+            var elapsed = 0f;
+
+            while (elapsed < duration)
+            {
+                elapsed += Time.deltaTime;
+                var t = Mathf.Clamp01(elapsed / duration);
+                camera.transform.position = Vector3.Lerp(startPosition, defaultCameraPosition, t);
+                camera.orthographicSize = Mathf.Lerp(startSize, defaultCameraSize, t);
+                yield return null;
+            }
+
+            camera.transform.position = defaultCameraPosition;
+            camera.orthographicSize = defaultCameraSize;
+        }
+
+        private IEnumerator ScreenShake(float strength, float duration)
+        {
+            var camera = Camera.main;
+            if (camera == null)
+            {
+                yield break;
+            }
+
+            var basePosition = camera.transform.position;
+            var elapsed = 0f;
+
+            while (elapsed < duration)
+            {
+                elapsed += Time.deltaTime;
+                camera.transform.position = basePosition + new Vector3(
+                    Random.Range(-strength, strength),
+                    Random.Range(-strength, strength),
+                    0f);
+                yield return null;
+            }
+
+            camera.transform.position = basePosition;
+        }
+
+        private void SetupScene()
+        {
+            if (Camera.main == null)
+            {
+                var cameraObject = new GameObject("Main Camera");
+                var camera = cameraObject.AddComponent<Camera>();
+                camera.tag = "MainCamera";
+                camera.orthographic = true;
+                camera.orthographicSize = 4.4f;
+                camera.backgroundColor = new Color(0.06f, 0.065f, 0.07f);
+                cameraObject.transform.position = new Vector3(0f, 0f, -10f);
+            }
+
+            CreateBackdrop(ResolveBattleBackground());
+
+            ui = battleUIPrefab != null
+                ? Instantiate(battleUIPrefab)
+                : new GameObject("Battle UI", typeof(RectTransform)).AddComponent<BattleUI>();
+
+            ui.name = "Battle UI";
+            ui.Build();
+        }
+
+        private void SetupHeroUnits()
+        {
+            var heroDefinitions = heroParty != null && heroParty.Length > 0 ? heroParty : DemoBattleBootstrap.CreateDefaultHeroes();
+            SpawnTeam(heroDefinitions, heroes, heroSlots, true);
+            LayoutFormation(true);
+        }
+
+        private void PrepareBattle(int battleNumber)
+        {
+            currentActor = null;
+            selectedUnit = null;
+            selectedSkill = null;
+            waitingForPlayer = false;
+            resolvingPlayerAction = false;
+            validSelectedTargets = new BattleUnit[0];
+            round = 0;
+            battleBackgroundIndex = battleBackgrounds != null && battleBackgrounds.Length > 0
+                ? Mathf.Clamp(battleNumber - 1, 0, battleBackgrounds.Length - 1)
+                : battleBackgroundIndex;
+
+            ClearEnemyUnits();
+
+            var enemyDefinitions = enemyParty != null && enemyParty.Length > 0
+                ? enemyParty
+                : DemoBattleBootstrap.CreateDefaultEnemies();
+            SpawnTeam(enemyDefinitions, enemies, enemySlots, false);
+            LayoutFormation(true);
+            LayoutFormation(false);
+            RefreshViews();
+            ui.SetRound(1);
+            ui.SetTurn($"\u7b2c {battleNumber} \u573a\u6218\u6597");
+        }
+
+        private void ClearEnemyUnits()
+        {
+            foreach (var enemy in enemies.ToArray())
+            {
+                if (views.TryGetValue(enemy, out var view))
+                {
+                    Destroy(view.gameObject);
+                    views.Remove(enemy);
+                }
+            }
+
+            enemies.Clear();
+            for (var i = 0; i < enemySlots.Length; i++)
+            {
+                enemySlots[i] = null;
+            }
+        }
+
+        private void ClearAllUnits()
+        {
+            waitingForPlayer = false;
+            resolvingPlayerAction = false;
+            currentActor = null;
+            selectedUnit = null;
+            selectedSkill = null;
+            validSelectedTargets = new BattleUnit[0];
+            turnQueue.Clear();
+
+            foreach (var view in views.Values.ToArray())
+            {
+                if (view != null)
+                {
+                    Destroy(view.gameObject);
+                }
+            }
+
+            views.Clear();
+            heroes.Clear();
+            enemies.Clear();
+            for (var i = 0; i < MaxFormationSlots; i++)
+            {
+                heroSlots[i] = null;
+                enemySlots[i] = null;
+            }
+        }
+
+        private void SpawnTeam(IReadOnlyList<CombatantDefinition> definitions, ICollection<BattleUnit> destination, BattleUnit[] slots, bool isHero)
+        {
+            for (var i = 0; i < definitions.Count && i < MaxFormationSlots; i++)
+            {
+                definitions[i].isHero = isHero;
+                definitions[i].occupiedSlotCount = Mathf.Max(1, definitions[i].occupiedSlotCount);
+                var unit = new BattleUnit(definitions[i], i + 1);
+                destination.Add(unit);
+                slots[i] = unit;
+
+                var unitObject = new GameObject(unit.DisplayName);
+                unitObject.transform.position = new Vector3(GetSlotX(isHero, unit.CurrentPosition), -0.35f, 0f);
+                var view = unitObject.AddComponent<CombatantView>();
+                view.Initialize(unit, fallbackSprite, heroVisualScale, HandleUnitClicked);
+                view.AlignFeetTo(FormationFeetY);
+                views[unit] = view;
+            }
+        }
+
+        private void LayoutFormation(bool isHero)
+        {
+            var slots = isHero ? heroSlots : enemySlots;
+            for (var i = 0; i < slots.Length; i++)
+            {
+                var unit = slots[i];
+                if (unit == null || !views.TryGetValue(unit, out var view) || !view.gameObject.activeSelf)
+                {
+                    continue;
+                }
+
+                unit.CurrentPosition = i + 1;
+                view.transform.position = new Vector3(GetSlotX(isHero, unit.CurrentPosition), -0.35f, 0f);
+                view.AlignFeetTo(FormationFeetY);
+            }
+        }
+
+        private static float GetSlotX(bool isHero, int position)
+        {
+            return isHero
+                ? -0.8f - (position - 1) * 1.1f
+                : 1.3f + (position - 1) * 1.1f;
+        }
+
+        private void SetTargetHighlights(IReadOnlyCollection<BattleUnit> targets)
+        {
+            foreach (var pair in views)
+            {
+                pair.Value.SetHighlighted(targets != null && targets.Contains(pair.Key));
+            }
+        }
+
+        private void RebuildTurnQueue()
+        {
+            turnQueue.Clear();
+            turnQueue.AddRange(heroes.Concat(enemies).Where(unit => unit.CanAct).OrderByDescending(unit => unit.Speed));
+        }
+
+        private bool IsBattleOver()
+        {
+            return heroes.All(hero => !hero.CanAct) || enemies.All(enemy => !enemy.CanAct);
+        }
+
+        private void RefreshViews()
+        {
+            foreach (var view in views.Values)
+            {
+                view.Refresh();
+            }
+        }
+
+        private static SkillDefinition CreateSwapSkill()
+        {
+            var skill = ScriptableObject.CreateInstance<SkillDefinition>();
+            skill.skillId = "swap_position";
+            skill.displayName = "\u8c03\u6574\u7ad9\u4f4d";
+            skill.description = "\u548c\u4e00\u540d\u961f\u53cb\u4ea4\u6362\u7ad9\u4f4d\u3002";
+            skill.effectType = SkillEffectType.Damage;
+            skill.targetType = SkillTargetType.SingleAlly;
+            skill.casterAllowedPositions = AnyPosition;
+            skill.targetAllowedPositions = AnyPosition;
+            skill.accuracy = 100;
+            skill.power = 0;
+            skill.isSwapSkill = true;
+            return skill;
+        }
+
+        private static Sprite CreateFallbackSprite()
+        {
+            var texture = new Texture2D(32, 48);
+            for (var y = 0; y < texture.height; y++)
+            {
+                for (var x = 0; x < texture.width; x++)
+                {
+                    var edge = x < 2 || y < 2 || x > texture.width - 3 || y > texture.height - 3;
+                    texture.SetPixel(x, y, edge ? new Color(0.05f, 0.05f, 0.05f) : Color.white);
+                }
+            }
+
+            texture.filterMode = FilterMode.Point;
+            texture.Apply();
+            return Sprite.Create(texture, new Rect(0f, 0f, texture.width, texture.height), new Vector2(0.5f, 0.5f), 24f);
+        }
+
+        private Sprite ResolveBattleBackground()
+        {
+            if (battleBackgrounds == null || battleBackgrounds.Length == 0)
+            {
+                battleBackgrounds = new[]
+                {
+                    EditorSpriteSheetLoader.LoadSprite("Assets/Art/Environments/Backgrounds/battle_bg_01.png"),
+                    EditorSpriteSheetLoader.LoadSprite("Assets/Art/Environments/Backgrounds/battle_bg_02.png"),
+                    EditorSpriteSheetLoader.LoadSprite("Assets/Art/Environments/Backgrounds/battle_bg_03.png"),
+                    EditorSpriteSheetLoader.LoadSprite("Assets/Art/Environments/Backgrounds/battle_bg_04.png"),
+                    EditorSpriteSheetLoader.LoadSprite("Assets/Art/Environments/Backgrounds/battle_bg_05.png"),
+                    EditorSpriteSheetLoader.LoadSprite("Assets/Art/Environments/Backgrounds/battle_bg_06.png")
+                }.Where(sprite => sprite != null).ToArray();
+            }
+
+            if (battleBackgrounds == null || battleBackgrounds.Length == 0)
+            {
+                return null;
+            }
+
+            var index = Mathf.Clamp(battleBackgroundIndex, 0, battleBackgrounds.Length - 1);
+            return battleBackgrounds[index];
+        }
+
+        private static void CreateBackdrop(Sprite backgroundSprite)
+        {
+            if (backgroundSprite != null)
+            {
+                var background = new GameObject("Battle Background");
+                var renderer = background.AddComponent<SpriteRenderer>();
+                renderer.sprite = backgroundSprite;
+                renderer.sortingOrder = -20;
+                renderer.color = Color.white;
+                background.transform.position = new Vector3(0f, 0f, 4f);
+
+                var spriteSize = backgroundSprite.bounds.size;
+                if (spriteSize.x > 0f && spriteSize.y > 0f)
+                {
+                    var camera = Camera.main;
+                    var targetHeight = camera != null && camera.orthographic
+                        ? camera.orthographicSize * 2f
+                        : 8.8f;
+                    var targetWidth = camera != null
+                        ? targetHeight * camera.aspect
+                        : 15.7f;
+                    var scale = Mathf.Max(targetWidth / spriteSize.x, targetHeight / spriteSize.y);
+                    background.transform.localScale = new Vector3(scale, scale, 1f);
+                }
+            }
+        }
+
+        private readonly struct DamageResult
+        {
+            public DamageResult(int amount, bool isCritical)
+            {
+                Amount = amount;
+                IsCritical = isCritical;
+            }
+
+            public int Amount { get; }
+            public bool IsCritical { get; }
+        }
+    }
+}
+

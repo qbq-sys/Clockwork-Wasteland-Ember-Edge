@@ -1,0 +1,27 @@
+* text=auto
+
+# Unity YAML assets
+*.meta text
+*.unity text
+*.prefab text
+*.asset text
+*.mat text
+*.anim text
+*.controller text
+
+# Source and config
+*.cs text
+*.shader text
+*.cginc text
+*.json text
+*.txt text
+
+# Binary assets
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.psd binary
+*.aseprite binary
+*.ttf binary
+*.otf binary
+*.pdf binary

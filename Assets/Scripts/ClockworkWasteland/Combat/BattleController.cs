@@ -57,9 +57,9 @@ namespace ClockworkWasteland.Combat
         private const int MaxFormationSlots = 4;
         private const int MapNodeCount = 3;
         private const float FormationFeetY = -1.8f;
-        private const float MinCombatOverlayDuration = 0.36f;
-        private const float BulletTimeDuration = 0.42f;
-        private const float BulletTimeMinScale = 0.16f;
+        private const float MinCombatOverlayDuration = 0.56f;
+        private const float BulletTimeDuration = 0.62f;
+        private const float BulletTimeMinScale = 0.08f;
         private static readonly int[] AnyPosition = { 1, 2, 3, 4 };
 
         [SerializeField] private CombatantDefinition[] heroParty;
@@ -827,7 +827,11 @@ namespace ClockworkWasteland.Combat
             }
 
             actor.SpendResourcesFor(skill);
-            CombatAudio.Instance.PlayAttack(skill);
+            var useImpactPresentation = IsImpactPresentationSkill(skill);
+            if (useImpactPresentation)
+            {
+                CombatAudio.Instance.PlayAttack(skill);
+            }
 
             var mainTarget = targets[0];
             views.TryGetValue(mainTarget, out var mainTargetView);
@@ -836,13 +840,13 @@ namespace ClockworkWasteland.Combat
             yield return StartCoroutine(FocusCamera(actorView.transform.position));
 
             var overlayDuration = Mathf.Max(MinCombatOverlayDuration, skill.overlayDuration);
-            if (mainTargetView != null)
+            if (useImpactPresentation && mainTargetView != null)
             {
                 var attackSprite = ResolveAttackSprite(actor, skill);
                 var hitSprite = ResolveHitSprite(mainTarget, skill);
                 yield return StartCoroutine(PlayAttackAndHitOverlays(actorView, mainTargetView, attackSprite, hitSprite, overlayDuration));
             }
-            else
+            else if (useImpactPresentation)
             {
                 yield return StartCoroutine(actorView.PlayOverlay(ResolveAttackSprite(actor, skill), overlayDuration));
             }
@@ -1138,8 +1142,8 @@ namespace ClockworkWasteland.Combat
         private static IEnumerator PlayAttackAndHitOverlays(CombatantView actorView, CombatantView targetView, Sprite attackSprite, Sprite hitSprite, float duration)
         {
             var bulletTime = actorView.StartCoroutine(PlayBulletTime());
-            var attack = actorView.StartCoroutine(actorView.PlayOverlay(attackSprite, duration));
-            var hit = targetView.StartCoroutine(targetView.PlayOverlay(hitSprite, duration));
+            var attack = actorView.StartCoroutine(actorView.PlayOverlay(attackSprite, duration, 0.1f, 80));
+            var hit = targetView.StartCoroutine(targetView.PlayOverlay(hitSprite, duration, 0.1f, 81));
             yield return attack;
             yield return hit;
             yield return bulletTime;
@@ -1155,11 +1159,11 @@ namespace ClockworkWasteland.Combat
             {
                 elapsed += Time.unscaledDeltaTime;
                 var normalized = Mathf.Clamp01(elapsed / BulletTimeDuration);
-                var slowHold = BulletTimeMinScale + Mathf.Sin(normalized * Mathf.PI * 3f) * 0.035f;
-                var scale = normalized < 0.22f
-                    ? Mathf.Lerp(originalScale, BulletTimeMinScale, Smooth01(normalized / 0.22f))
-                    : normalized > 0.72f
-                        ? Mathf.Lerp(slowHold, originalScale, Smooth01((normalized - 0.72f) / 0.28f))
+                var slowHold = BulletTimeMinScale + Mathf.Sin(normalized * Mathf.PI * 2f) * 0.012f;
+                var scale = normalized < 0.28f
+                    ? Mathf.Lerp(originalScale, BulletTimeMinScale, Smooth01(normalized / 0.28f))
+                    : normalized > 0.7f
+                        ? Mathf.Lerp(slowHold, originalScale, Smooth01((normalized - 0.7f) / 0.3f))
                         : slowHold;
 
                 Time.timeScale = Mathf.Clamp(scale, 0.08f, originalScale);
@@ -1175,6 +1179,11 @@ namespace ClockworkWasteland.Combat
         {
             value = Mathf.Clamp01(value);
             return value * value * (3f - 2f * value);
+        }
+
+        private static bool IsImpactPresentationSkill(SkillData skill)
+        {
+            return skill != null && (skill.skillType == SkillDataType.伤害 || skill.skillType == SkillDataType.控制);
         }
 
         private static Sprite ResolveAttackSprite(BattleUnit actor, SkillData skill)
@@ -1290,14 +1299,14 @@ namespace ClockworkWasteland.Combat
             var startPosition = camera.transform.position;
             var startSize = camera.orthographicSize;
             var targetPosition = new Vector3(focusPosition.x, Mathf.Clamp(focusPosition.y + 0.4f, -0.4f, 1.2f), startPosition.z);
-            var targetSize = Mathf.Max(2.9f, defaultCameraSize * 0.72f);
-            const float duration = 0.18f;
+            var targetSize = Mathf.Max(2.65f, defaultCameraSize * 0.66f);
+            const float duration = 0.3f;
             var elapsed = 0f;
 
             while (elapsed < duration)
             {
-                elapsed += Time.deltaTime;
-                var t = Mathf.Clamp01(elapsed / duration);
+                elapsed += Time.unscaledDeltaTime;
+                var t = Smooth01(elapsed / duration);
                 camera.transform.position = Vector3.Lerp(startPosition, targetPosition, t);
                 camera.orthographicSize = Mathf.Lerp(startSize, targetSize, t);
                 yield return null;

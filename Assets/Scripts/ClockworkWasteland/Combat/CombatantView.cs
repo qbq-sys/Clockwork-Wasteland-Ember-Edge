@@ -34,7 +34,7 @@ namespace ClockworkWasteland.Combat
             var overlayObject = new GameObject("ActionOverlay");
             overlayObject.transform.SetParent(transform, false);
             overlayRenderer = overlayObject.AddComponent<SpriteRenderer>();
-            overlayRenderer.sortingOrder = 8;
+            overlayRenderer.sortingOrder = 80;
             overlayRenderer.enabled = false;
 
             var scale = Mathf.Max(0.1f, battleUnit.Definition.visualScale * scaleMultiplier);
@@ -142,6 +142,11 @@ namespace ClockworkWasteland.Combat
 
         public IEnumerator PlayOverlay(Sprite overlaySprite, float duration)
         {
+            yield return PlayOverlay(overlaySprite, duration, 0f, 80);
+        }
+
+        public IEnumerator PlayOverlay(Sprite overlaySprite, float duration, float worldScaleBonus, int sortingOrder)
+        {
             if (spriteRenderer == null || overlayRenderer == null)
             {
                 yield return new WaitForSecondsRealtime(duration);
@@ -149,12 +154,24 @@ namespace ClockworkWasteland.Combat
             }
 
             overlaySprite = overlaySprite != null ? overlaySprite : spriteRenderer.sprite;
+            var previousScale = overlayRenderer.transform.localScale;
+            var previousPosition = overlayRenderer.transform.localPosition;
+            var previousSortingOrder = overlayRenderer.sortingOrder;
+            var baseWorldScale = Mathf.Max(0.1f, transform.lossyScale.x);
+            var overlayScale = 1f + Mathf.Max(0f, worldScaleBonus) / baseWorldScale;
+
             spriteRenderer.enabled = false;
             overlayRenderer.sprite = overlaySprite;
             overlayRenderer.flipX = spriteRenderer.flipX;
+            overlayRenderer.sortingOrder = sortingOrder;
+            overlayRenderer.transform.localScale = Vector3.one * overlayScale;
+            overlayRenderer.transform.localPosition = new Vector3(0f, 0f, -0.6f);
             overlayRenderer.enabled = true;
             yield return new WaitForSecondsRealtime(duration);
             overlayRenderer.enabled = false;
+            overlayRenderer.sortingOrder = previousSortingOrder;
+            overlayRenderer.transform.localScale = previousScale;
+            overlayRenderer.transform.localPosition = previousPosition;
             spriteRenderer.enabled = true;
         }
 

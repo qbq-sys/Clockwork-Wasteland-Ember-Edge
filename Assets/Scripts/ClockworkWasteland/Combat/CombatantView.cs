@@ -144,7 +144,7 @@ namespace ClockworkWasteland.Combat
         {
             if (spriteRenderer == null || overlayRenderer == null)
             {
-                yield return new WaitForSeconds(duration);
+                yield return new WaitForSecondsRealtime(duration);
                 yield break;
             }
 
@@ -153,7 +153,7 @@ namespace ClockworkWasteland.Combat
             overlayRenderer.sprite = overlaySprite;
             overlayRenderer.flipX = spriteRenderer.flipX;
             overlayRenderer.enabled = true;
-            yield return new WaitForSeconds(duration);
+            yield return new WaitForSecondsRealtime(duration);
             overlayRenderer.enabled = false;
             spriteRenderer.enabled = true;
         }

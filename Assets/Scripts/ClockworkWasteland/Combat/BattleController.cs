@@ -57,6 +57,9 @@ namespace ClockworkWasteland.Combat
         private const int MaxFormationSlots = 4;
         private const int MapNodeCount = 3;
         private const float FormationFeetY = -1.8f;
+        private const float MinCombatOverlayDuration = 0.36f;
+        private const float BulletTimeDuration = 0.42f;
+        private const float BulletTimeMinScale = 0.16f;
         private static readonly int[] AnyPosition = { 1, 2, 3, 4 };
 
         [SerializeField] private CombatantDefinition[] heroParty;
@@ -832,7 +835,7 @@ namespace ClockworkWasteland.Combat
 
             yield return StartCoroutine(FocusCamera(actorView.transform.position));
 
-            var overlayDuration = Mathf.Max(0.05f, skill.overlayDuration);
+            var overlayDuration = Mathf.Max(MinCombatOverlayDuration, skill.overlayDuration);
             if (mainTargetView != null)
             {
                 var attackSprite = ResolveAttackSprite(actor, skill);
@@ -1134,10 +1137,44 @@ namespace ClockworkWasteland.Combat
 
         private static IEnumerator PlayAttackAndHitOverlays(CombatantView actorView, CombatantView targetView, Sprite attackSprite, Sprite hitSprite, float duration)
         {
+            var bulletTime = actorView.StartCoroutine(PlayBulletTime());
             var attack = actorView.StartCoroutine(actorView.PlayOverlay(attackSprite, duration));
             var hit = targetView.StartCoroutine(targetView.PlayOverlay(hitSprite, duration));
             yield return attack;
             yield return hit;
+            yield return bulletTime;
+        }
+
+        private static IEnumerator PlayBulletTime()
+        {
+            var originalScale = Time.timeScale;
+            var originalFixedDeltaTime = Time.fixedDeltaTime;
+            var elapsed = 0f;
+
+            while (elapsed < BulletTimeDuration)
+            {
+                elapsed += Time.unscaledDeltaTime;
+                var normalized = Mathf.Clamp01(elapsed / BulletTimeDuration);
+                var slowHold = BulletTimeMinScale + Mathf.Sin(normalized * Mathf.PI * 3f) * 0.035f;
+                var scale = normalized < 0.22f
+                    ? Mathf.Lerp(originalScale, BulletTimeMinScale, Smooth01(normalized / 0.22f))
+                    : normalized > 0.72f
+                        ? Mathf.Lerp(slowHold, originalScale, Smooth01((normalized - 0.72f) / 0.28f))
+                        : slowHold;
+
+                Time.timeScale = Mathf.Clamp(scale, 0.08f, originalScale);
+                Time.fixedDeltaTime = originalFixedDeltaTime * Time.timeScale;
+                yield return null;
+            }
+
+            Time.timeScale = originalScale;
+            Time.fixedDeltaTime = originalFixedDeltaTime;
+        }
+
+        private static float Smooth01(float value)
+        {
+            value = Mathf.Clamp01(value);
+            return value * value * (3f - 2f * value);
         }
 
         private static Sprite ResolveAttackSprite(BattleUnit actor, SkillData skill)

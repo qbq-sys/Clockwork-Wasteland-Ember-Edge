@@ -17,6 +17,8 @@ namespace ClockworkWasteland.Combat
         private float animationTimer;
         private int animationFrame;
         private Action<BattleUnit> clicked;
+        private Vector3 baseLocalScale;
+        private int baseSortingOrder;
 
         public BattleUnit Unit => unit;
 
@@ -30,6 +32,7 @@ namespace ClockworkWasteland.Combat
             spriteRenderer.sprite = GetInitialSprite(battleUnit, fallbackSprite);
             spriteRenderer.color = battleUnit.Definition.tint;
             spriteRenderer.sortingOrder = 2;
+            baseSortingOrder = spriteRenderer.sortingOrder;
 
             var overlayObject = new GameObject("ActionOverlay");
             overlayObject.transform.SetParent(transform, false);
@@ -39,6 +42,7 @@ namespace ClockworkWasteland.Combat
 
             var scale = Mathf.Max(0.1f, battleUnit.Definition.visualScale * scaleMultiplier);
             transform.localScale = new Vector3(scale, scale, 1f);
+            baseLocalScale = transform.localScale;
             spriteRenderer.flipX = battleUnit.IsHero;
 
             CreateNameplate();
@@ -92,6 +96,17 @@ namespace ClockworkWasteland.Combat
             }
 
             spriteRenderer.color = highlighted ? Color.white : unit.IsCorpse ? new Color(0.32f, 0.3f, 0.28f, 0.78f) : unit.Definition.tint;
+        }
+
+        public void SetCombatEmphasis(bool emphasized, int sortingOrder)
+        {
+            if (spriteRenderer == null)
+            {
+                return;
+            }
+
+            spriteRenderer.sortingOrder = emphasized ? sortingOrder : baseSortingOrder;
+            transform.localScale = emphasized ? baseLocalScale * 1.06f : baseLocalScale;
         }
 
         public void AlignFeetTo(float worldY)

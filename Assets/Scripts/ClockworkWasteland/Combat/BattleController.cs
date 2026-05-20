@@ -1141,12 +1141,16 @@ namespace ClockworkWasteland.Combat
 
         private static IEnumerator PlayAttackAndHitOverlays(CombatantView actorView, CombatantView targetView, Sprite attackSprite, Sprite hitSprite, float duration)
         {
+            actorView.SetCombatEmphasis(true, 60);
+            targetView.SetCombatEmphasis(true, 61);
             var bulletTime = actorView.StartCoroutine(PlayBulletTime());
             var attack = actorView.StartCoroutine(actorView.PlayOverlay(attackSprite, duration, 0.1f, 80));
             var hit = targetView.StartCoroutine(targetView.PlayOverlay(hitSprite, duration, 0.1f, 81));
             yield return attack;
             yield return hit;
             yield return bulletTime;
+            actorView.SetCombatEmphasis(false, 0);
+            targetView.SetCombatEmphasis(false, 0);
         }
 
         private static IEnumerator PlayBulletTime()
@@ -1194,10 +1198,10 @@ namespace ClockworkWasteland.Combat
             var characterDefaultPath = $"Assets/Art/VFX/Combat/CharacterSpecific/{characterId}/default_attack.png";
             var visualFallbackPath = $"Assets/Art/VFX/Combat/CharacterSpecific/{ResolveVisualFallbackId(characterId)}/default_attack.png";
             var genericPath = $"Assets/Art/VFX/Combat/AttackSprites/{skillId}_attack.png";
-            return EditorSpriteSheetLoader.LoadSprite(characterSpecificPath)
-                ?? EditorSpriteSheetLoader.LoadSprite(characterDefaultPath)
-                ?? EditorSpriteSheetLoader.LoadSprite(visualFallbackPath)
-                ?? EditorSpriteSheetLoader.LoadSprite(genericPath)
+            return LoadCombatVfxSprite(characterSpecificPath)
+                ?? LoadCombatVfxSprite(characterDefaultPath)
+                ?? LoadCombatVfxSprite(visualFallbackPath)
+                ?? LoadCombatVfxSprite(genericPath)
                 ?? skill.attackSprite;
         }
 
@@ -1209,11 +1213,17 @@ namespace ClockworkWasteland.Combat
             var characterDefaultPath = $"Assets/Art/VFX/Combat/CharacterSpecific/{characterId}/default_hit.png";
             var visualFallbackPath = $"Assets/Art/VFX/Combat/CharacterSpecific/{ResolveVisualFallbackId(characterId)}/default_hit.png";
             var genericPath = $"Assets/Art/VFX/Combat/HitSprites/{skillId}_hit.png";
-            return EditorSpriteSheetLoader.LoadSprite(characterSpecificPath)
-                ?? EditorSpriteSheetLoader.LoadSprite(characterDefaultPath)
-                ?? EditorSpriteSheetLoader.LoadSprite(visualFallbackPath)
-                ?? EditorSpriteSheetLoader.LoadSprite(genericPath)
+            return LoadCombatVfxSprite(characterSpecificPath)
+                ?? LoadCombatVfxSprite(characterDefaultPath)
+                ?? LoadCombatVfxSprite(visualFallbackPath)
+                ?? LoadCombatVfxSprite(genericPath)
                 ?? skill.hitSprite;
+        }
+
+        private static Sprite LoadCombatVfxSprite(string assetPath)
+        {
+            return EditorSpriteSheetLoader.LoadSprite(assetPath)
+                ?? CombatUiAssetLoader.LoadSprite(assetPath, Vector4.zero);
         }
 
         private static string ResolveVisualFallbackId(string characterId)

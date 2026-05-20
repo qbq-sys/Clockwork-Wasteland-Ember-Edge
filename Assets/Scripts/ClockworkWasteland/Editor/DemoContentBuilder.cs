@@ -1,4 +1,5 @@
 using System.IO;
+using System.Linq;
 using ClockworkWasteland.Combat;
 using UnityEditor;
 using UnityEditor.SceneManagement;
@@ -17,6 +18,7 @@ namespace ClockworkWasteland.EditorTools
         private const string GrowthsPath = Root + "/Data/Growth";
         private const string CombatantsPath = Root + "/Data/Combatants";
         private const string PrefabsPath = Root + "/Prefabs";
+        private const string UnitPrefabsPath = PrefabsPath + "/CombatUnits";
         private const string BattleUIPrefabPath = PrefabsPath + "/BattleUI.prefab";
         private const string CombatUnitPrefabPath = PrefabsPath + "/CombatUnit.prefab";
         private const string CombatNameplatePrefabPath = PrefabsPath + "/CombatNameplate.prefab";
@@ -45,13 +47,15 @@ namespace ClockworkWasteland.EditorTools
         {
             EnsureFolder("Assets", "ClockworkWastelandDemo");
             EnsureFolder(Root, "Prefabs");
+            EnsureFolder(PrefabsPath, "CombatUnits");
 
             CreateCombatNameplatePrefab();
             CreateCombatUnitPrefab();
+            AssignExistingCombatantUnitPrefabs();
 
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
-            EditorUtility.DisplayDialog("Combat Prefabs Created", "Created CombatUnit.prefab and CombatNameplate.prefab under Assets/ClockworkWastelandDemo/Prefabs.", "OK");
+            EditorUtility.DisplayDialog("Combat Prefabs Created", "Created shared combat prefabs and per-combatant unit prefabs.", "OK");
         }
 
         private static CombatNameplate CreateCombatNameplatePrefab()
@@ -159,15 +163,46 @@ namespace ClockworkWasteland.EditorTools
             return AssetDatabase.LoadAssetAtPath<CombatNameplate>(CombatNameplatePrefabPath);
         }
 
+        [MenuItem("Clockwork Wasteland/Create Character Unit Prefabs")]
+        public static void AssignExistingCombatantUnitPrefabs()
+        {
+            EnsureFolder("Assets", "ClockworkWastelandDemo");
+            EnsureFolder(Root, "Prefabs");
+            EnsureFolder(PrefabsPath, "CombatUnits");
+
+            var combatantGuids = AssetDatabase.FindAssets("t:CombatantDefinition", new[] { CombatantsPath });
+            foreach (var guid in combatantGuids)
+            {
+                var path = AssetDatabase.GUIDToAssetPath(guid);
+                var combatant = AssetDatabase.LoadAssetAtPath<CombatantDefinition>(path);
+                if (combatant == null)
+                {
+                    continue;
+                }
+
+                combatant.unitPrefab = CreateCombatUnitPrefab(GetUnitPrefabPath(combatant), GetUnitPrefabName(combatant), GetDefaultOverlayPosition(combatant), GetDefaultOverlayScale(combatant));
+                EditorUtility.SetDirty(combatant);
+            }
+
+            AssetDatabase.SaveAssets();
+            AssetDatabase.Refresh();
+        }
+
         private static CombatantView CreateCombatUnitPrefab()
         {
-            var root = new GameObject("CombatUnit", typeof(SpriteRenderer), typeof(BoxCollider2D), typeof(CombatantView));
+            return CreateCombatUnitPrefab(CombatUnitPrefabPath, "CombatUnit", new Vector3(0f, 0f, -0.6f), Vector3.one);
+        }
+
+        private static CombatantView CreateCombatUnitPrefab(string prefabPath, string prefabName, Vector3 overlayPosition, Vector3 overlayScale)
+        {
+            var root = new GameObject(prefabName, typeof(SpriteRenderer), typeof(BoxCollider2D), typeof(CombatantView));
             var spriteRenderer = root.GetComponent<SpriteRenderer>();
             spriteRenderer.sortingOrder = 2;
 
             var overlay = new GameObject("ActionOverlay", typeof(SpriteRenderer));
             overlay.transform.SetParent(root.transform, false);
-            overlay.transform.localPosition = new Vector3(0f, 0f, -0.6f);
+            overlay.transform.localPosition = overlayPosition;
+            overlay.transform.localScale = overlayScale;
             overlay.GetComponent<SpriteRenderer>().sortingOrder = 80;
             overlay.GetComponent<SpriteRenderer>().enabled = false;
 
@@ -175,9 +210,9 @@ namespace ClockworkWasteland.EditorTools
             nameplatePosition.transform.SetParent(root.transform, false);
             nameplatePosition.transform.localPosition = new Vector3(0f, -0.24f, 0f);
 
-            var prefab = PrefabUtility.SaveAsPrefabAsset(root, CombatUnitPrefabPath);
+            var prefab = PrefabUtility.SaveAsPrefabAsset(root, prefabPath);
             Object.DestroyImmediate(root);
-            return AssetDatabase.LoadAssetAtPath<CombatantView>(CombatUnitPrefabPath);
+            return AssetDatabase.LoadAssetAtPath<CombatantView>(prefabPath);
         }
 
         [MenuItem("Clockwork Wasteland/Create Combat Demo Assets")]
@@ -192,6 +227,7 @@ namespace ClockworkWasteland.EditorTools
             EnsureFolder(Root + "/Data", "Growth");
             EnsureFolder(Root + "/Data", "Combatants");
             EnsureFolder(Root, "Prefabs");
+            EnsureFolder(PrefabsPath, "CombatUnits");
 
             var burn = CreateBuff("burn", "\u707c\u70e7", "\u6bcf\u56de\u5408\u53d7\u5230\u6301\u7eed\u4f24\u5bb3\u3002", 3, false, 2);
             CreateItem("small_potion", "\u5c0f\u836f\u6c34", "\u6218\u6597\u5916\u4f7f\u7528\uff0c\u4e3a\u4e00\u540d\u82f1\u96c4\u6062\u590d 20 \u751f\u547d\u3002", 100, InventoryItemEffectType.Heal, 20, 0.3f);
@@ -219,6 +255,12 @@ namespace ClockworkWasteland.EditorTools
                 CreateCombatant("enemy_02", "\u7070\u70ec\u4fe1\u5f92", false, 22, 7, Color.white, "Assets/Art/hero_02_idle.png", cinderBite),
                 CreateCombatant("enemy_03", "\u9aa8\u8f6e\u866b", false, 18, 9, Color.white, "Assets/Art/hero_03_idle.png", claw)
             };
+
+            foreach (var combatant in heroes.Concat(enemies))
+            {
+                combatant.unitPrefab = CreateCombatUnitPrefab(GetUnitPrefabPath(combatant), GetUnitPrefabName(combatant), GetDefaultOverlayPosition(combatant), GetDefaultOverlayScale(combatant));
+                EditorUtility.SetDirty(combatant);
+            }
 
             var uiPrefab = AssetDatabase.LoadAssetAtPath<BattleUI>(BattleUIPrefabPath);
             if (uiPrefab == null)
@@ -379,6 +421,41 @@ namespace ClockworkWasteland.EditorTools
             }
 
             return displayName.Replace(' ', '_');
+        }
+
+        private static string GetUnitPrefabPath(CombatantDefinition combatant)
+        {
+            return $"{UnitPrefabsPath}/{GetUnitPrefabName(combatant)}.prefab";
+        }
+
+        private static string GetUnitPrefabName(CombatantDefinition combatant)
+        {
+            var id = string.IsNullOrWhiteSpace(combatant.characterId) ? ToAssetName(combatant.displayName) : combatant.characterId;
+            return $"{id}_Unit";
+        }
+
+        private static Vector3 GetDefaultOverlayPosition(CombatantDefinition combatant)
+        {
+            return combatant.characterId switch
+            {
+                "hero_02" => new Vector3(0f, 0.05f, -0.6f),
+                "hero_03" => new Vector3(0f, 0.12f, -0.6f),
+                "hero_04" => new Vector3(0f, 0.08f, -0.6f),
+                "enemy_02" => new Vector3(0f, 0.05f, -0.6f),
+                "enemy_03" => new Vector3(0f, 0.12f, -0.6f),
+                _ => new Vector3(0f, 0f, -0.6f)
+            };
+        }
+
+        private static Vector3 GetDefaultOverlayScale(CombatantDefinition combatant)
+        {
+            return combatant.characterId switch
+            {
+                "hero_03" => new Vector3(1.12f, 1.12f, 1f),
+                "hero_04" => new Vector3(1.06f, 1.06f, 1f),
+                "enemy_03" => new Vector3(1.12f, 1.12f, 1f),
+                _ => Vector3.one
+            };
         }
     }
 }

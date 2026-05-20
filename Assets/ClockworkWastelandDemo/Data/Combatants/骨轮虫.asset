@@ -1,4 +1,4 @@
-%YAML 1.1
+﻿%YAML 1.1
 %TAG !u! tag:yousandi.cn,2023:
 --- !u!114 &11400000
 MonoBehaviour:
@@ -12,6 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 55b526a2479a1ac4fa2357ba61b423b6, type: 3}
   m_Name: "\u9AA8\u8F6E\u866B"
   m_EditorClassIdentifier: 
+  characterId: enemy_03
   displayName: "\u9AA8\u8F6E\u866B"
   isHero: 0
   portrait: {fileID: 0}
@@ -53,6 +54,7 @@ MonoBehaviour:
   - {fileID: -1004041818, guid: 47328aea98cdf4d478516230d443cbeb, type: 3}
   - {fileID: -1915338801, guid: 47328aea98cdf4d478516230d443cbeb, type: 3}
   - {fileID: 1517120569, guid: 47328aea98cdf4d478516230d443cbeb, type: 3}
+  unitPrefab: {fileID: 4429785199804319837, guid: TVt3VerciiE3EyhiyKQQRisKeixKaM/vFpFC+CAfwks=, type: 3}
   tint: {r: 1, g: 1, b: 1, a: 1}
   visualScale: 1
   maxHealth: 18

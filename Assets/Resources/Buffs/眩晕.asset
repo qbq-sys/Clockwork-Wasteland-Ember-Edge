@@ -9,7 +9,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: cfd0a1db36658bdb7c053cdee9dd8471, type: 3}
+  m_Script: {fileID: 11500000, guid: DStM5CKlVC8VSS0OWLKjEp7tM15HrR4oW2t48U3GCUeWdRE2iVQ1Lw8=, type: 3}
   m_Name: "\u7729\u6655"
   m_EditorClassIdentifier: 
   buffId: stun

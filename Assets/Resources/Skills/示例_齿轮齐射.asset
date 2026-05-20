@@ -9,7 +9,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: XXJN43ivUy4GOmdRQ8cehpsOI15zz5i18dSAwoMl1ktJxBqOy+es4Vs=, type: 3}
+  m_Script: {fileID: 11500000, guid: 8bfb2be02585054fa81393e61b4ab45e, type: 3}
   m_Name: "\u793a\u4f8b_\u9f7f\u8f6e\u9f50\u5c04"
   m_EditorClassIdentifier: 
   skillId: scrap_volley

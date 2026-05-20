@@ -1287,6 +1287,7 @@ namespace ClockworkWasteland.Combat
                 cameraObject.transform.position = new Vector3(0f, 0f, -10f);
             }
 
+            EnsureAudioListener();
             CreateBackdrop(ResolveBattleBackground());
 
             ui = battleUIPrefab != null
@@ -1295,6 +1296,20 @@ namespace ClockworkWasteland.Combat
 
             ui.name = "Battle UI";
             ui.Build();
+        }
+
+        private static void EnsureAudioListener()
+        {
+            if (Object.FindObjectOfType<AudioListener>() != null)
+            {
+                return;
+            }
+
+            var camera = Camera.main;
+            if (camera != null)
+            {
+                camera.gameObject.AddComponent<AudioListener>();
+            }
         }
 
         private void SetupHeroUnits()

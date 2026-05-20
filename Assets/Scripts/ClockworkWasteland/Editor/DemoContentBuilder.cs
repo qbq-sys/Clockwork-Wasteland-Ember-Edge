@@ -12,6 +12,7 @@ namespace ClockworkWasteland.EditorTools
         private const string Root = "Assets/ClockworkWastelandDemo";
         private const string SkillsPath = Root + "/Data/Skills";
         private const string BuffsPath = Root + "/Data/Buffs";
+        private const string GrowthsPath = Root + "/Data/Growth";
         private const string CombatantsPath = Root + "/Data/Combatants";
         private const string PrefabsPath = Root + "/Prefabs";
         private const string BattleUIPrefabPath = PrefabsPath + "/BattleUI.prefab";
@@ -42,6 +43,7 @@ namespace ClockworkWasteland.EditorTools
             EnsureFolder(Root, "Data");
             EnsureFolder(Root + "/Data", "Skills");
             EnsureFolder(Root + "/Data", "Buffs");
+            EnsureFolder(Root + "/Data", "Growth");
             EnsureFolder(Root + "/Data", "Combatants");
             EnsureFolder(Root, "Prefabs");
 
@@ -143,10 +145,31 @@ namespace ClockworkWasteland.EditorTools
             combatant.tint = tint;
             combatant.visualScale = 1f;
             combatant.corpseHealth = 3;
+            combatant.growthData = isHero ? CreateDefaultGrowthData() : null;
+            combatant.currentLevel = Mathf.Max(1, combatant.currentLevel);
+            combatant.currentExperience = Mathf.Max(0, combatant.currentExperience);
             combatant.idleAnimationFrames = string.IsNullOrWhiteSpace(idleSpriteSheetPath) ? new Sprite[0] : EditorSpriteSheetLoader.LoadSprites(idleSpriteSheetPath);
             combatant.skills = skills;
             EditorUtility.SetDirty(combatant);
             return combatant;
+        }
+
+        private static HeroGrowthData CreateDefaultGrowthData()
+        {
+            const string assetPath = GrowthsPath + "/DefaultHeroGrowth.asset";
+            var growth = AssetDatabase.LoadAssetAtPath<HeroGrowthData>(assetPath);
+            if (growth == null)
+            {
+                growth = ScriptableObject.CreateInstance<HeroGrowthData>();
+                AssetDatabase.CreateAsset(growth, assetPath);
+            }
+
+            growth.experiencePerLevel = 100;
+            growth.maxHealthPerLevel = 5;
+            growth.attackPerLevel = 2;
+            growth.defensePerLevel = 1;
+            EditorUtility.SetDirty(growth);
+            return growth;
         }
 
         private static void CreateScene(CombatantDefinition[] heroes, CombatantDefinition[] enemies, BattleUI uiPrefab)

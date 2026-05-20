@@ -5,6 +5,20 @@ using UnityEngine;
 
 namespace ClockworkWasteland.Combat
 {
+    public readonly struct BattleRewardResult
+    {
+        public BattleRewardResult(CombatantDefinition hero, int experienceGained, int levelsGained)
+        {
+            Hero = hero;
+            ExperienceGained = experienceGained;
+            LevelsGained = levelsGained;
+        }
+
+        public CombatantDefinition Hero { get; }
+        public int ExperienceGained { get; }
+        public int LevelsGained { get; }
+    }
+
     public sealed class BattleController : MonoBehaviour
     {
         private const int MaxFormationSlots = 4;
@@ -41,6 +55,7 @@ namespace ClockworkWasteland.Combat
         private float defaultCameraSize;
         private SkillData swapSkill;
         private int currentBattleNumber;
+        private int gold;
         private CombatantDefinition[] availableHeroPool = new CombatantDefinition[0];
         private readonly List<CombatantDefinition> selectedHeroDefinitions = new List<CombatantDefinition>();
 
@@ -57,6 +72,7 @@ namespace ClockworkWasteland.Combat
             swapSkill = CreateSwapSkill();
             SetupScene();
             CacheDefaultCamera();
+            ui.SetGold(gold);
             availableHeroPool = DemoBattleBootstrap.CreateHeroPool();
             selectedHeroDefinitions.AddRange(availableHeroPool.Take(MaxFormationSlots));
             ShowTeamSelection();
@@ -163,17 +179,15 @@ namespace ClockworkWasteland.Combat
                     yield break;
                 }
 
-                if (currentBattleNumber < battleCount)
-                {
-                    var continueRequested = false;
-                    ui.SetTurn("\u6218\u6597\u80dc\u5229");
-                    ui.ShowContinuePrompt("\u6218\u6597\u80dc\u5229\uff0c\u8fdb\u5165\u4e0b\u4e00\u573a", "\u7ee7\u7eed", () => continueRequested = true);
-                    ui.AddLog($"\u7b2c {currentBattleNumber} \u573a\u6218\u6597\u80dc\u5229\uff0c\u961f\u4f0d\u72b6\u6001\u5df2\u4fdd\u7559\u3002");
+                var rewardResults = GrantVictoryRewards(out var goldGained);
+                var continueRequested = false;
+                ui.SetTurn("\u6218\u6597\u80dc\u5229");
+                ui.ShowRewardScreen(goldGained, gold, rewardResults, () => continueRequested = true);
+                ui.AddLog($"\u7b2c {currentBattleNumber} \u573a\u6218\u6597\u80dc\u5229\uff0c\u961f\u4f0d\u72b6\u6001\u5df2\u4fdd\u7559\u3002");
 
-                    while (!continueRequested)
-                    {
-                        yield return null;
-                    }
+                while (!continueRequested)
+                {
+                    yield return null;
                 }
             }
 
@@ -188,6 +202,39 @@ namespace ClockworkWasteland.Combat
             }
 
             ShowTeamSelection();
+        }
+
+        private IReadOnlyList<BattleRewardResult> GrantVictoryRewards(out int goldGained)
+        {
+            goldGained = Random.Range(50, 151);
+            gold += goldGained;
+            ui.SetGold(gold);
+            ui.AddLog($"\u83b7\u5f97\u91d1\u5e01 {goldGained}\u3002");
+
+            var results = new List<BattleRewardResult>();
+            foreach (var hero in heroes.Where(unit => unit.IsHero && unit.IsAlive && !unit.IsCorpse))
+            {
+                var experienceGained = Random.Range(10, 21);
+                var maxHealthBefore = hero.MaxHealth;
+                var levelsGained = hero.Definition.AddExperience(experienceGained);
+                var maxHealthGain = Mathf.Max(0, hero.MaxHealth - maxHealthBefore);
+                hero.RestoreForMaxHealthGain(maxHealthGain);
+
+                results.Add(new BattleRewardResult(hero.Definition, experienceGained, levelsGained));
+                ui.AddLog($"{hero.Definition.displayName} \u83b7\u5f97 {experienceGained} \u7ecf\u9a8c\u3002");
+
+                if (levelsGained > 0)
+                {
+                    var firstNewLevel = hero.Definition.Level - levelsGained + 1;
+                    for (var level = firstNewLevel; level <= hero.Definition.Level; level++)
+                    {
+                        ui.AddLog($"{hero.Definition.displayName} \u5347\u5230\u4e86 {level} \u7ea7\u3002");
+                    }
+                }
+            }
+
+            RefreshViews();
+            return results;
         }
 
         private IEnumerator BattleLoop()

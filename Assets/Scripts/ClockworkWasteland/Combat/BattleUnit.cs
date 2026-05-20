@@ -29,10 +29,11 @@ namespace ClockworkWasteland.Combat
         public IReadOnlyList<StatusInstance> Statuses => statuses;
 
         public string DisplayName => IsCorpse ? $"{Definition.displayName}\u7684\u5c38\u4f53" : Definition.displayName;
-        public int MaxHealth => IsCorpse ? System.Math.Max(1, Definition.corpseHealth) : Definition.maxHealth;
+        public int Level => Definition.Level;
+        public int MaxHealth => IsCorpse ? System.Math.Max(1, Definition.corpseHealth) : Definition.MaxHealthWithGrowth;
         public int Speed => IsCorpse ? 0 : Definition.speed;
-        public int Attack => Definition.attack;
-        public int Defense => Definition.defense;
+        public int Attack => Definition.AttackWithGrowth;
+        public int Defense => Definition.DefenseWithGrowth;
         public bool IsStunned => statuses.Any(status => status.Stun && status.TurnsRemaining > 0);
 
         public void TakeDamage(int amount)
@@ -48,6 +49,14 @@ namespace ClockworkWasteland.Combat
             }
 
             Health = System.Math.Min(MaxHealth, Health + amount);
+        }
+
+        public void RestoreForMaxHealthGain(int amount)
+        {
+            if (!IsCorpse && amount > 0)
+            {
+                Heal(amount);
+            }
         }
 
         public void ResetActionPoints()

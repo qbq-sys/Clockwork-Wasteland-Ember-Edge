@@ -16,6 +16,7 @@ namespace ClockworkWasteland.Combat
         [SerializeField] private Text turnText;
         [SerializeField] private Text logText;
         [SerializeField] private Text infoText;
+        [SerializeField] private Text goldText;
         [SerializeField] private Text skillDescriptionText;
         [SerializeField] private ScrollRect logScrollRect;
         [SerializeField] private RectTransform skillDescriptionPanel;
@@ -50,6 +51,10 @@ namespace ClockworkWasteland.Combat
 
             turnText = CreateText("TurnText", root, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -26f), new Vector2(760f, 42f), 22, TextAnchor.MiddleCenter);
             SetTextStyle(turnText, new Color(0.96f, 0.86f, 0.62f), true);
+
+            goldText = CreateText("GoldText", root, new Vector2(1f, 1f), new Vector2(1f, 1f), new Vector2(-145f, -34f), new Vector2(260f, 38f), 18, TextAnchor.MiddleRight);
+            SetTextStyle(goldText, new Color(1f, 0.82f, 0.36f), true);
+            SetGold(0);
 
             roundText = CreateText("RoundText", root, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -70f), new Vector2(360f, 34f), 18, TextAnchor.MiddleCenter);
             SetTextStyle(roundText, new Color(0.82f, 0.72f, 0.54f), true);
@@ -193,7 +198,10 @@ namespace ClockworkWasteland.Combat
             infoText.text =
                 $"{selectedUnit.DisplayName}\n" +
                 $"{side}{active}\n\n" +
+                $"\u7b49\u7ea7\uff1a{selectedUnit.Level}\n" +
                 $"\u751f\u547d\uff1a{selectedUnit.Health}/{selectedUnit.MaxHealth}\n" +
+                $"\u653b\u51fb\uff1a{selectedUnit.Attack}\n" +
+                $"\u9632\u5fa1\uff1a{selectedUnit.Defense}\n" +
                 $"\u7ad9\u4f4d\uff1a{selectedUnit.CurrentPosition}\n" +
                 $"\u901f\u5ea6\uff1a{selectedUnit.Speed}\n" +
                 $"\u72b6\u6001\uff1a{status}";
@@ -220,6 +228,14 @@ namespace ClockworkWasteland.Combat
             if (turnText != null)
             {
                 turnText.text = text;
+            }
+        }
+
+        public void SetGold(int amount)
+        {
+            if (goldText != null)
+            {
+                goldText.text = $"\u91d1\u5e01\uff1a{Mathf.Max(0, amount)}";
             }
         }
 
@@ -266,6 +282,45 @@ namespace ClockworkWasteland.Combat
             overlayText.text = message;
             var buttonParent = overlayPanel.Find("MessagePanel") as RectTransform ?? overlayPanel;
             ClearRuntimeButtons(buttonParent);
+        }
+
+        public void ShowRewardScreen(int goldGained, int totalGold, IReadOnlyList<BattleRewardResult> results, Action onContinue)
+        {
+            EnsureOverlay();
+            overlayPanel.gameObject.SetActive(true);
+            ClearChildren(overlayPanel);
+
+            var panel = CreatePanel("RewardPanel", overlayPanel, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, 18f), new Vector2(720f, 470f), new Color(0.035f, 0.026f, 0.024f, 0.97f));
+            panel.GetComponent<Image>().sprite = descriptionSprite;
+            panel.GetComponent<Image>().type = Image.Type.Sliced;
+
+            var title = CreateText("Title", panel, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -48f), new Vector2(-56f, 58f), 30, TextAnchor.MiddleCenter);
+            title.text = "\u6218\u540e\u5956\u52b1";
+            SetTextStyle(title, new Color(0.96f, 0.82f, 0.48f), true);
+
+            var goldLine = CreateText("Gold", panel, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -102f), new Vector2(-80f, 36f), 20, TextAnchor.MiddleCenter);
+            goldLine.text = $"\u83b7\u5f97\u91d1\u5e01\uff1a{goldGained}    \u5f53\u524d\u91d1\u5e01\uff1a{totalGold}";
+            SetTextStyle(goldLine, new Color(1f, 0.78f, 0.34f), true);
+
+            var rewardLines = results != null && results.Count > 0
+                ? results.Select(result =>
+                {
+                    var levelText = result.LevelsGained > 0 ? $"  \u5347\u7ea7\uff01\u5f53\u524d {result.Hero.Level} \u7ea7" : $"  {result.Hero.Experience}/{result.Hero.ExperienceToNextLevel}";
+                    return $"{result.Hero.displayName}  +{result.ExperienceGained} EXP{levelText}";
+                })
+                : new[] { "\u6ca1\u6709\u5b58\u6d3b\u82f1\u96c4\u83b7\u5f97\u7ecf\u9a8c\u3002" };
+
+            var rewards = CreateText("Rewards", panel, new Vector2(0f, 0f), new Vector2(1f, 1f), Vector2.zero, Vector2.zero, 18, TextAnchor.UpperLeft);
+            rewards.rectTransform.offsetMin = new Vector2(80f, 92f);
+            rewards.rectTransform.offsetMax = new Vector2(-80f, -132f);
+            rewards.text = string.Join("\n", rewardLines);
+            SetTextStyle(rewards, new Color(0.88f, 0.8f, 0.66f), false);
+
+            CreateButton(panel, "\u7ee7\u7eed", new Vector2(360f, -414f), () =>
+            {
+                HideOverlay();
+                onContinue?.Invoke();
+            }, true, null);
         }
 
         public void ShowTeamSelection(
@@ -318,9 +373,9 @@ namespace ClockworkWasteland.Combat
                 portraitImage.preserveAspect = true;
 
                 var stats = CreateText("Stats", card, new Vector2(0f, 0f), new Vector2(1f, 1f), Vector2.zero, Vector2.zero, 15, TextAnchor.UpperLeft);
-                stats.rectTransform.offsetMin = new Vector2(112f, 46f);
-                stats.rectTransform.offsetMax = new Vector2(-20f, -58f);
-                stats.text = $"\u751f\u547d {hero.maxHealth}\n\u653b\u51fb {hero.attack}\n\u9632\u5fa1 {hero.defense}\n\u901f\u5ea6 {hero.speed}";
+                stats.rectTransform.offsetMin = new Vector2(112f, 36f);
+                stats.rectTransform.offsetMax = new Vector2(-20f, -48f);
+                stats.text = $"\u7b49\u7ea7 {hero.Level}  EXP {hero.Experience}/{hero.ExperienceToNextLevel}\n\u751f\u547d {hero.MaxHealthWithGrowth}\n\u653b\u51fb {hero.AttackWithGrowth}\n\u9632\u5fa1 {hero.DefenseWithGrowth}\n\u901f\u5ea6 {hero.speed}";
                 SetTextStyle(stats, new Color(0.84f, 0.78f, 0.66f), false);
 
                 CreateButton(card, selected ? "\u53d6\u6d88" : "\u9009\u62e9", new Vector2(165f, -148f), () => onToggleHero?.Invoke(hero), true, null);

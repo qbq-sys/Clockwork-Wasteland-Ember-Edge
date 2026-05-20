@@ -24,6 +24,6 @@ namespace ClockworkWasteland.Combat
         public int defense = 2;
 
         [Header("Actions")]
-        public SkillDefinition[] skills;
+        public SkillData[] skills;
     }
 }

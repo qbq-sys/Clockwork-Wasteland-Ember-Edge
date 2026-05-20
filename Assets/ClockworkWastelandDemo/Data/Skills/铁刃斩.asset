@@ -9,15 +9,27 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 90523505884d9d848aaac9312e30719d, type: 3}
+  m_Script: {fileID: 11500000, guid: 1a3c7cf859565f7b4e5357c952ab2450, type: 3}
   m_Name: "\u94C1\u5203\u65A9"
   m_EditorClassIdentifier: 
-  displayName: "\u94C1\u5203\u65A9"
+  skillId: iron_cut
+  skillName: "\u94C1\u5203\u65A9"
   description: "\u7A33\u5B9A\u7684\u5355\u4F53\u4F24\u5BB3\u3002"
-  effectType: 0
+  icon: {fileID: 0}
+  skillType: 0
+  baseValue: 8
+  powerMultiplier: 1
   targetType: 0
-  power: 8
-  accuracy: 95
-  statusName: 
-  statusDuration: 0
-  statusTickDamage: 0
+  casterAllowedPositions:
+  - 1
+  - 2
+  targetAllowedPositions:
+  - 1
+  - 2
+  manaCost: 0
+  cooldown: 0
+  applyBuff: {fileID: 0}
+  attackSprite: {fileID: 0}
+  hitSprite: {fileID: 0}
+  overlayDuration: 0.2
+  isSwapSkill: 0

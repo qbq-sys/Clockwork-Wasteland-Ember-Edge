@@ -10,27 +10,27 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 1a3c7cf859565f7b4e5357c952ab2450, type: 3}
-  m_Name: "\u4F59\u70EC\u5272\u88C2"
+  m_Name: "\u793a\u4f8b_\u9707\u8361\u9501\u94fe"
   m_EditorClassIdentifier: 
-  skillId: ember_rend
-  skillName: "\u4F59\u70EC\u5272\u88C2"
-  description: "\u9020\u6210\u4F24\u5BB3\u5E76\u7559\u4E0B\u707C\u70E7\u3002"
+  skillId: example_stun
+  skillName: "\u9707\u8361\u9501\u94fe"
+  description: "\u5bf9\u5355\u4e2a\u654c\u4eba\u65bd\u52a0\u7729\u6655\uff0c\u53ef\u4f5c\u4e3a\u63a7\u5236\u6280\u80fd\u914d\u7f6e\u8303\u4f8b\u3002"
   icon: {fileID: 0}
-  skillType: 0
-  baseValue: 5
+  skillType: 2
+  baseValue: 0
   powerMultiplier: 1
   targetType: 0
   casterAllowedPositions:
-  - 1
   - 2
   - 3
+  - 4
   targetAllowedPositions:
   - 1
   - 2
   - 3
   manaCost: 0
-  cooldown: 0
-  applyBuff: {fileID: 0}
+  cooldown: 2
+  applyBuff: {fileID: 11400000, guid: 6ce284d0f5ef4e8190aa12935af2d691, type: 2}
   attackSprite: {fileID: 0}
   hitSprite: {fileID: 0}
   overlayDuration: 0.2

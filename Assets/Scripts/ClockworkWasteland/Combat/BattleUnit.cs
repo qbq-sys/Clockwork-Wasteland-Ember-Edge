@@ -6,6 +6,7 @@ namespace ClockworkWasteland.Combat
     public sealed class BattleUnit
     {
         private readonly List<StatusInstance> statuses = new List<StatusInstance>();
+        private readonly Dictionary<SkillData, int> skillCooldowns = new Dictionary<SkillData, int>();
 
         public BattleUnit(CombatantDefinition definition, int currentPosition)
         {
@@ -24,7 +25,7 @@ namespace ClockworkWasteland.Combat
         public bool IsCorpse { get; private set; }
         public bool IsHero => Definition.isHero;
         public bool IsAlive => Health > 0;
-        public bool CanAct => IsAlive && !IsCorpse;
+        public bool CanAct => IsAlive && !IsCorpse && !IsStunned;
         public IReadOnlyList<StatusInstance> Statuses => statuses;
 
         public string DisplayName => IsCorpse ? $"{Definition.displayName}\u7684\u5c38\u4f53" : Definition.displayName;
@@ -54,15 +55,41 @@ namespace ClockworkWasteland.Combat
             ActionPoints = 1;
         }
 
-        public bool HasResourcesFor(SkillDefinition skill)
+        public bool HasResourcesFor(SkillData skill)
         {
-            return ActionPoints >= skill.actionPointCost && Resource >= skill.resourceCost;
+            return ActionPoints >= 1 && Resource >= skill.manaCost;
         }
 
-        public void SpendResourcesFor(SkillDefinition skill)
+        public void SpendResourcesFor(SkillData skill)
         {
-            ActionPoints = System.Math.Max(0, ActionPoints - skill.actionPointCost);
-            Resource = System.Math.Max(0, Resource - skill.resourceCost);
+            ActionPoints = System.Math.Max(0, ActionPoints - 1);
+            Resource = System.Math.Max(0, Resource - skill.manaCost);
+            StartCooldown(skill);
+        }
+
+        public int GetCooldownRemaining(SkillData skill)
+        {
+            return skill != null && skillCooldowns.TryGetValue(skill, out var remaining) ? remaining : 0;
+        }
+
+        public void TickSkillCooldowns()
+        {
+            foreach (var skill in skillCooldowns.Keys.ToArray())
+            {
+                skillCooldowns[skill]--;
+                if (skillCooldowns[skill] <= 0)
+                {
+                    skillCooldowns.Remove(skill);
+                }
+            }
+        }
+
+        private void StartCooldown(SkillData skill)
+        {
+            if (skill != null && skill.cooldown > 0)
+            {
+                skillCooldowns[skill] = skill.cooldown;
+            }
         }
 
         public void ConvertToCorpse()

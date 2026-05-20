@@ -10,26 +10,28 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 1a3c7cf859565f7b4e5357c952ab2450, type: 3}
-  m_Name: "\u4F59\u70EC\u5272\u88C2"
+  m_Name: "\u793a\u4f8b_\u9f7f\u8f6e\u9f50\u5c04"
   m_EditorClassIdentifier: 
-  skillId: ember_rend
-  skillName: "\u4F59\u70EC\u5272\u88C2"
-  description: "\u9020\u6210\u4F24\u5BB3\u5E76\u7559\u4E0B\u707C\u70E7\u3002"
+  skillId: scrap_volley
+  skillName: "\u9f7f\u8f6e\u9f50\u5c04"
+  description: "\u653b\u51fb\u654c\u65b9\u5168\u4f53\uff0c\u53ef\u4f5c\u4e3a\u7fa4\u4f24\u6280\u80fd\u914d\u7f6e\u8303\u4f8b\u3002"
   icon: {fileID: 0}
   skillType: 0
-  baseValue: 5
-  powerMultiplier: 1
-  targetType: 0
+  baseValue: 4
+  powerMultiplier: 0.75
+  targetType: 3
   casterAllowedPositions:
   - 1
   - 2
   - 3
+  - 4
   targetAllowedPositions:
   - 1
   - 2
   - 3
+  - 4
   manaCost: 0
-  cooldown: 0
+  cooldown: 2
   applyBuff: {fileID: 0}
   attackSprite: {fileID: 0}
   hitSprite: {fileID: 0}

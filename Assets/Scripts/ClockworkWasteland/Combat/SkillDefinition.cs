@@ -2,7 +2,6 @@ using UnityEngine;
 
 namespace ClockworkWasteland.Combat
 {
-    [CreateAssetMenu(menuName = "Clockwork Wasteland/Combat/Skill Definition")]
     public sealed class SkillDefinition : ScriptableObject
     {
         [Header("Identity")]

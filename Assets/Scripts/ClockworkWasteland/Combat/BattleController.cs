@@ -33,13 +33,13 @@ namespace ClockworkWasteland.Combat
         private bool waitingForPlayer;
         private BattleUnit currentActor;
         private BattleUnit selectedUnit;
-        private SkillDefinition selectedSkill;
+        private SkillData selectedSkill;
         private BattleUnit[] validSelectedTargets = new BattleUnit[0];
         private bool resolvingPlayerAction;
         private int round;
         private Vector3 defaultCameraPosition;
         private float defaultCameraSize;
-        private SkillDefinition swapSkill;
+        private SkillData swapSkill;
         private int currentBattleNumber;
         private CombatantDefinition[] availableHeroPool = new CombatantDefinition[0];
         private readonly List<CombatantDefinition> selectedHeroDefinitions = new List<CombatantDefinition>();
@@ -65,7 +65,7 @@ namespace ClockworkWasteland.Combat
         public void RunAttackFlowByIndices(int attackerIndex, int skillIndex, int targetIndex)
         {
             var attacker = heroes.Concat(enemies).Where(unit => unit.CanAct).ElementAtOrDefault(attackerIndex);
-            var skills = attacker != null ? GetSkillList(attacker).ToArray() : new SkillDefinition[0];
+            var skills = attacker != null ? GetSkillList(attacker).ToArray() : new SkillData[0];
             if (attacker == null || skillIndex < 0 || skillIndex >= skills.Length)
             {
                 ui?.AddLog("\u653b\u51fb\u6d41\u7a0b\u53c2\u6570\u65e0\u6548\u3002");
@@ -220,6 +220,7 @@ namespace ClockworkWasteland.Combat
 
         private IEnumerator RunTurn(BattleUnit actor)
         {
+            var stunnedAtTurnStart = actor.IsStunned;
             var statusDamage = actor.TickStatuses();
             if (!actor.IsAlive)
             {
@@ -234,10 +235,18 @@ namespace ClockworkWasteland.Combat
                 yield return new WaitForSeconds(0.45f);
             }
 
-            if (!actor.CanAct)
+            if (stunnedAtTurnStart || !actor.CanAct)
             {
+                if (stunnedAtTurnStart)
+                {
+                    ui.AddLog($"{actor.DisplayName} \u88ab\u7729\u6655\uff0c\u65e0\u6cd5\u884c\u52a8\u3002");
+                }
+
+                actor.TickSkillCooldowns();
                 yield break;
             }
+
+            actor.TickSkillCooldowns();
 
             if (actor.IsHero)
             {
@@ -265,7 +274,7 @@ namespace ClockworkWasteland.Combat
             }
         }
 
-        private void SelectSkill(SkillDefinition skill)
+        private void SelectSkill(SkillData skill)
         {
             if (!waitingForPlayer || resolvingPlayerAction || currentActor == null || selectedUnit != currentActor)
             {
@@ -275,7 +284,7 @@ namespace ClockworkWasteland.Combat
             var state = GetSkillUseState(currentActor, skill);
             if (!state.CanUse)
             {
-                ui.AddLog($"\u65e0\u6cd5\u4f7f\u7528 {skill.displayName}\uff1a{state.DisabledReason}\u3002");
+                ui.AddLog($"\u65e0\u6cd5\u4f7f\u7528 {skill.skillName}\uff1a{state.DisabledReason}\u3002");
                 ui.RenderUnitPanel(selectedUnit, currentActor, GetSkillUseStates(selectedUnit), SelectSkill);
                 return;
             }
@@ -284,7 +293,7 @@ namespace ClockworkWasteland.Combat
             validSelectedTargets = GetValidTargets(currentActor, skill).ToArray();
             SetTargetHighlights(validSelectedTargets);
 
-            if (validSelectedTargets.Length == 1 && skill.targetType == SkillTargetType.Self)
+            if (validSelectedTargets.Length == 1 && skill.targetType == SkillDataTargetType.自己)
             {
                 SelectTarget(validSelectedTargets[0]);
                 return;
@@ -350,7 +359,7 @@ namespace ClockworkWasteland.Combat
             waitingForPlayer = false;
         }
 
-        private IEnumerator ExecuteSkill(BattleUnit actor, SkillDefinition skill, BattleUnit primaryTarget)
+        private IEnumerator ExecuteSkill(BattleUnit actor, SkillData skill, BattleUnit primaryTarget)
         {
             if (!actor.CanAct || !GetSkillUseState(actor, skill).CanUse || !IsValidTarget(actor, skill, primaryTarget))
             {
@@ -395,39 +404,28 @@ namespace ClockworkWasteland.Combat
                 yield return StartCoroutine(actorView.PlayOverlay(ResolveAttackSprite(actor, skill), overlayDuration));
             }
 
-            yield return StartCoroutine(ScreenShake(GetShakeStrength(skill), Mathf.Clamp(skill.power * 0.015f, 0.1f, 0.2f)));
-
-            var hitRoll = Random.Range(0, 100);
-            if (hitRoll >= skill.accuracy)
-            {
-                ui.AddLog($"{actor.DisplayName} \u7684 {skill.displayName} \u672a\u547d\u4e2d\u3002");
-                if (mainTargetView != null)
-                {
-                    mainTargetView.ShowFloatingText("MISS", Color.white);
-                }
-
-                yield return StartCoroutine(RestoreCamera());
-                SetTargetHighlights(new BattleUnit[0]);
-                yield break;
-            }
+            yield return StartCoroutine(ScreenShake(GetShakeStrength(skill), Mathf.Clamp(skill.baseValue * 0.015f, 0.1f, 0.2f)));
 
             foreach (var target in targets)
             {
-                if (skill.effectType == SkillEffectType.Damage)
+                if (skill.skillType == SkillDataType.伤害 || skill.skillType == SkillDataType.控制)
                 {
-                    var damage = CalculateDamage(actor, skill, target);
-                    target.TakeDamage(damage.Amount);
-                    ui.AddLog(damage.IsCritical
-                        ? $"{actor.DisplayName} \u4f7f\u7528 {skill.displayName}\u66b4\u51fb\uff01{target.DisplayName} \u53d7\u5230 {damage.Amount} \u70b9\u4f24\u5bb3\u3002"
-                        : $"{actor.DisplayName} \u4f7f\u7528 {skill.displayName}\uff0c{target.DisplayName} \u53d7\u5230 {damage.Amount} \u70b9\u4f24\u5bb3\u3002");
-
-                    if (views.TryGetValue(target, out var targetView))
+                    if (skill.baseValue > 0)
                     {
-                        targetView.ShowFloatingText(damage.IsCritical ? $"-{damage.Amount}!" : $"-{damage.Amount}", Color.red, damage.IsCritical ? 1.55f : 1f);
-                        if (!target.IsAlive)
+                        var damage = CalculateDamage(actor, skill, target);
+                        target.TakeDamage(damage.Amount);
+                        ui.AddLog(damage.IsCritical
+                            ? $"{actor.DisplayName} \u4f7f\u7528 {skill.skillName}\u66b4\u51fb\uff01{target.DisplayName} \u53d7\u5230 {damage.Amount} \u70b9\u4f24\u5bb3\u3002"
+                            : $"{actor.DisplayName} \u4f7f\u7528 {skill.skillName}\uff0c{target.DisplayName} \u53d7\u5230 {damage.Amount} \u70b9\u4f24\u5bb3\u3002");
+
+                        if (views.TryGetValue(target, out var targetView))
                         {
-                            yield return StartCoroutine(targetView.PlayDeathCue());
-                            HandleDefeatedUnit(target, skill);
+                            targetView.ShowFloatingText(damage.IsCritical ? $"-{damage.Amount}!" : $"-{damage.Amount}", Color.red, damage.IsCritical ? 1.55f : 1f);
+                            if (!target.IsAlive)
+                            {
+                                yield return StartCoroutine(targetView.PlayDeathCue());
+                                HandleDefeatedUnit(target, skill);
+                            }
                         }
                     }
                 }
@@ -435,18 +433,18 @@ namespace ClockworkWasteland.Combat
                 {
                     var amount = CalculateHealingAmount(actor, skill);
                     target.Heal(amount);
-                    ui.AddLog($"{actor.DisplayName} \u4f7f\u7528 {skill.displayName}\uff0c{target.DisplayName} \u6062\u590d {amount} \u70b9\u751f\u547d\u3002");
+                    ui.AddLog($"{actor.DisplayName} \u4f7f\u7528 {skill.skillName}\uff0c{target.DisplayName} \u6062\u590d {amount} \u70b9\u751f\u547d\u3002");
 
                     if (views.TryGetValue(target, out var targetView))
                     {
-                        targetView.ShowFloatingText("+" + amount, GetDamageColor(skill.damageType, skill.effectType));
+                        targetView.ShowFloatingText("+" + amount, GetDamageColor(skill.skillType));
                     }
                 }
 
-                if (skill.AppliesStatus && target.CanAct)
+                if (skill.applyBuff != null && target.CanAct)
                 {
-                    target.AddOrRefreshStatus(skill.statusName, skill.statusDuration, skill.statusTickDamage);
-                    ui.AddLog($"{target.DisplayName} \u83b7\u5f97\u72b6\u6001\uff1a{skill.statusName}\u3002");
+                    target.AddOrRefreshBuff(skill.applyBuff);
+                    ui.AddLog($"{target.DisplayName} \u83b7\u5f97\u72b6\u6001\uff1a{skill.applyBuff.buffName}\u3002");
                 }
             }
 
@@ -458,7 +456,7 @@ namespace ClockworkWasteland.Combat
             yield return new WaitForSeconds(0.25f);
         }
 
-        private IEnumerator ExecuteSwap(BattleUnit actor, BattleUnit target, SkillDefinition skill)
+        private IEnumerator ExecuteSwap(BattleUnit actor, BattleUnit target, SkillData skill)
         {
             if (actor == target)
             {
@@ -498,7 +496,7 @@ namespace ClockworkWasteland.Combat
             yield return targetMove;
         }
 
-        private SkillUseState GetSkillUseState(BattleUnit actor, SkillDefinition skill)
+        private SkillUseState GetSkillUseState(BattleUnit actor, SkillData skill)
         {
             if (actor == null || skill == null || !actor.CanAct)
             {
@@ -515,9 +513,10 @@ namespace ClockworkWasteland.Combat
                 return new SkillUseState(skill, false, "\u8d44\u6e90\u4e0d\u8db3");
             }
 
-            if (skill.cooldownTurns > 0)
+            var cooldown = actor.GetCooldownRemaining(skill);
+            if (cooldown > 0)
             {
-                return new SkillUseState(skill, false, $"{skill.cooldownTurns}\u56de\u5408");
+                return new SkillUseState(skill, false, $"{cooldown}\u56de\u5408");
             }
 
             if (!GetValidTargets(actor, skill).Any())
@@ -538,37 +537,38 @@ namespace ClockworkWasteland.Combat
             return GetSkillList(unit).Select(skill => GetSkillUseState(unit, skill)).ToArray();
         }
 
-        private IEnumerable<SkillDefinition> GetSkillList(BattleUnit unit)
+        private IEnumerable<SkillData> GetSkillList(BattleUnit unit)
         {
             var definedSkills = unit?.Definition.skills != null
                 ? unit.Definition.skills.Where(skill => skill != null)
-                : Enumerable.Empty<SkillDefinition>();
+                : Enumerable.Empty<SkillData>();
 
             return unit != null && unit.IsHero ? definedSkills.Concat(new[] { swapSkill }) : definedSkills;
         }
 
-        private IEnumerable<BattleUnit> GetValidTargets(BattleUnit actor, SkillDefinition skill)
+        private IEnumerable<BattleUnit> GetValidTargets(BattleUnit actor, SkillData skill)
         {
             return GetCandidateTargets(actor, skill).Where(target => IsValidTarget(actor, skill, target));
         }
 
-        private IEnumerable<BattleUnit> GetCandidateTargets(BattleUnit actor, SkillDefinition skill)
+        private IEnumerable<BattleUnit> GetCandidateTargets(BattleUnit actor, SkillData skill)
         {
             switch (skill.targetType)
             {
-                case SkillTargetType.SingleAlly:
-                case SkillTargetType.AllAllies:
+                case SkillDataTargetType.单友:
                     return GetOccupiedSlots(actor.IsHero);
-                case SkillTargetType.Self:
+                case SkillDataTargetType.自己:
                     return new[] { actor };
-                case SkillTargetType.AllEnemies:
-                case SkillTargetType.SingleEnemy:
+                case SkillDataTargetType.前排两敌:
+                    return GetOccupiedSlots(!actor.IsHero).Where(unit => unit.CurrentPosition <= 2);
+                case SkillDataTargetType.全体敌:
+                case SkillDataTargetType.单敌:
                 default:
                     return GetOccupiedSlots(!actor.IsHero);
             }
         }
 
-        private bool IsValidTarget(BattleUnit actor, SkillDefinition skill, BattleUnit target)
+        private bool IsValidTarget(BattleUnit actor, SkillData skill, BattleUnit target)
         {
             if (actor == null || skill == null || target == null || !target.IsAlive)
             {
@@ -582,49 +582,49 @@ namespace ClockworkWasteland.Combat
 
             switch (skill.targetType)
             {
-                case SkillTargetType.Self:
+                case SkillDataTargetType.自己:
                     return target == actor;
-                case SkillTargetType.SingleAlly:
+                case SkillDataTargetType.单友:
                     return target.IsHero == actor.IsHero && IsPositionAllowed(target.CurrentPosition, skill.targetAllowedPositions);
-                case SkillTargetType.SingleEnemy:
+                case SkillDataTargetType.单敌:
                     return target.IsHero != actor.IsHero && IsPositionAllowed(target.CurrentPosition, skill.targetAllowedPositions);
-                case SkillTargetType.AllAllies:
-                    return target.IsHero == actor.IsHero;
-                case SkillTargetType.AllEnemies:
+                case SkillDataTargetType.前排两敌:
+                    return target.IsHero != actor.IsHero && target.CurrentPosition <= 2 && IsPositionAllowed(target.CurrentPosition, skill.targetAllowedPositions);
+                case SkillDataTargetType.全体敌:
                     return target.IsHero != actor.IsHero;
                 default:
                     return false;
             }
         }
 
-        private static bool CanSkillTargetCorpse(SkillDefinition skill)
+        private static bool CanSkillTargetCorpse(SkillData skill)
         {
-            return skill.canTargetDead || skill.targetType == SkillTargetType.SingleEnemy && skill.effectType == SkillEffectType.Damage;
+            return skill.targetType == SkillDataTargetType.单敌 && skill.skillType == SkillDataType.伤害;
         }
 
-        private IEnumerable<BattleUnit> ResolveTargets(BattleUnit actor, SkillDefinition skill, BattleUnit primaryTarget)
+        private IEnumerable<BattleUnit> ResolveTargets(BattleUnit actor, SkillData skill, BattleUnit primaryTarget)
         {
             switch (skill.targetType)
             {
-                case SkillTargetType.AllAllies:
-                case SkillTargetType.AllEnemies:
+                case SkillDataTargetType.全体敌:
                     return GetValidTargets(actor, skill);
-                case SkillTargetType.Self:
+                case SkillDataTargetType.前排两敌:
+                    return GetValidTargets(actor, skill).OrderBy(unit => unit.CurrentPosition).Take(2);
+                case SkillDataTargetType.自己:
                     return new[] { actor };
                 default:
                     return new[] { primaryTarget };
             }
         }
 
-        private void HandleDefeatedUnit(BattleUnit unit, SkillDefinition killingSkill)
+        private void HandleDefeatedUnit(BattleUnit unit, SkillData killingSkill)
         {
             if (unit == null)
             {
                 return;
             }
 
-            var obliterate = killingSkill != null && killingSkill.obliteratesTarget;
-            if (!unit.IsCorpse && !obliterate)
+            if (!unit.IsCorpse)
             {
                 unit.ConvertToCorpse();
                 ui.AddLog($"{unit.Definition.displayName} \u5012\u4e0b\uff0c\u7559\u4e0b\u4e86\u5c38\u4f53\u3002");
@@ -633,7 +633,7 @@ namespace ClockworkWasteland.Combat
             }
 
             RemoveUnitFromFormation(unit);
-            ui.AddLog(unit.IsCorpse ? $"{unit.DisplayName} \u88ab\u6e05\u9664\u4e86\u3002" : $"{unit.DisplayName} \u88ab\u5f7b\u5e95\u6d88\u706d\u3002");
+            ui.AddLog($"{unit.DisplayName} \u88ab\u6e05\u9664\u4e86\u3002");
         }
 
         private void RemoveUnitFromFormation(BattleUnit unit)
@@ -698,10 +698,10 @@ namespace ClockworkWasteland.Combat
             yield return hit;
         }
 
-        private static Sprite ResolveAttackSprite(BattleUnit actor, SkillDefinition skill)
+        private static Sprite ResolveAttackSprite(BattleUnit actor, SkillData skill)
         {
             var characterId = ResolveId(actor.Definition.characterId, actor.Definition.name, actor.DisplayName);
-            var skillId = ResolveId(skill.skillId, skill.name, skill.displayName);
+            var skillId = ResolveId(skill.skillId, skill.name, skill.skillName);
             var characterSpecificPath = $"Assets/Art/VFX/Combat/CharacterSpecific/{characterId}/{skillId}_attack.png";
             var genericPath = $"Assets/Art/VFX/Combat/AttackSprites/{skillId}_attack.png";
             return EditorSpriteSheetLoader.LoadSprite(characterSpecificPath)
@@ -709,10 +709,10 @@ namespace ClockworkWasteland.Combat
                 ?? skill.attackSprite;
         }
 
-        private static Sprite ResolveHitSprite(BattleUnit target, SkillDefinition skill)
+        private static Sprite ResolveHitSprite(BattleUnit target, SkillData skill)
         {
             var characterId = ResolveId(target.Definition.characterId, target.Definition.name, target.DisplayName);
-            var skillId = ResolveId(skill.skillId, skill.name, skill.displayName);
+            var skillId = ResolveId(skill.skillId, skill.name, skill.skillName);
             var characterSpecificPath = $"Assets/Art/VFX/Combat/CharacterSpecific/{characterId}/{skillId}_hit.png";
             var genericPath = $"Assets/Art/VFX/Combat/HitSprites/{skillId}_hit.png";
             return EditorSpriteSheetLoader.LoadSprite(characterSpecificPath)
@@ -743,10 +743,10 @@ namespace ClockworkWasteland.Combat
             return new string(chars).Trim('_');
         }
 
-        private DamageResult CalculateDamage(BattleUnit actor, SkillDefinition skill, BattleUnit target)
+        private DamageResult CalculateDamage(BattleUnit actor, SkillData skill, BattleUnit target)
         {
             var randomOffset = Random.Range(-2, 3);
-            var baseDamage = Mathf.Max(1, actor.Attack - target.Defense + randomOffset);
+            var baseDamage = Mathf.Max(1, skill.baseValue + actor.Attack - target.Defense + randomOffset);
             var amount = Mathf.Max(1, Mathf.RoundToInt(baseDamage * skill.powerMultiplier));
             var critical = Random.value < 0.1f;
             if (critical)
@@ -757,33 +757,31 @@ namespace ClockworkWasteland.Combat
             return new DamageResult(amount, critical);
         }
 
-        private int CalculateHealingAmount(BattleUnit actor, SkillDefinition skill)
+        private int CalculateHealingAmount(BattleUnit actor, SkillData skill)
         {
-            return Mathf.Max(1, Mathf.RoundToInt((skill.power + actor.Attack * 0.5f) * skill.powerMultiplier));
+            return Mathf.Max(1, Mathf.RoundToInt((skill.baseValue + actor.Attack * 0.5f) * skill.powerMultiplier));
         }
 
-        private static Color GetDamageColor(DamageType damageType, SkillEffectType effectType)
+        private static Color GetDamageColor(SkillDataType skillType)
         {
-            if (effectType == SkillEffectType.Heal)
+            if (skillType == SkillDataType.治疗)
             {
                 return new Color(0.25f, 0.95f, 0.38f);
             }
 
-            switch (damageType)
+            switch (skillType)
             {
-                case DamageType.Witchcraft:
+                case SkillDataType.控制:
                     return new Color(0.72f, 0.22f, 0.95f);
-                case DamageType.Mechanical:
-                    return new Color(1f, 0.55f, 0.14f);
-                case DamageType.Physical:
+                case SkillDataType.伤害:
                 default:
                     return new Color(0.95f, 0.12f, 0.08f);
             }
         }
 
-        private static float GetShakeStrength(SkillDefinition skill)
+        private static float GetShakeStrength(SkillData skill)
         {
-            return Mathf.Clamp(0.035f + skill.power * 0.004f, 0.04f, 0.12f);
+            return Mathf.Clamp(0.035f + skill.baseValue * 0.004f, 0.04f, 0.12f);
         }
 
         private void CacheDefaultCamera()
@@ -1045,18 +1043,17 @@ namespace ClockworkWasteland.Combat
             }
         }
 
-        private static SkillDefinition CreateSwapSkill()
+        private static SkillData CreateSwapSkill()
         {
-            var skill = ScriptableObject.CreateInstance<SkillDefinition>();
+            var skill = ScriptableObject.CreateInstance<SkillData>();
             skill.skillId = "swap_position";
-            skill.displayName = "\u8c03\u6574\u7ad9\u4f4d";
+            skill.skillName = "\u8c03\u6574\u7ad9\u4f4d";
             skill.description = "\u548c\u4e00\u540d\u961f\u53cb\u4ea4\u6362\u7ad9\u4f4d\u3002";
-            skill.effectType = SkillEffectType.Damage;
-            skill.targetType = SkillTargetType.SingleAlly;
+            skill.skillType = SkillDataType.控制;
+            skill.targetType = SkillDataTargetType.单友;
             skill.casterAllowedPositions = AnyPosition;
             skill.targetAllowedPositions = AnyPosition;
-            skill.accuracy = 100;
-            skill.power = 0;
+            skill.baseValue = 0;
             skill.isSwapSkill = true;
             return skill;
         }

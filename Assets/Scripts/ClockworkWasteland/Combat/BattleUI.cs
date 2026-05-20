@@ -117,7 +117,7 @@ namespace ClockworkWasteland.Combat
             SetTextStyle(skillDescriptionText, new Color(0.94f, 0.84f, 0.65f), false);
         }
 
-        public void RenderPlayerTurn(BattleUnit actor, IReadOnlyList<SkillUseState> skillStates, Action<SkillDefinition> onSkillSelected)
+        public void RenderPlayerTurn(BattleUnit actor, IReadOnlyList<SkillUseState> skillStates, Action<SkillData> onSkillSelected)
         {
             SetTurn($"{actor.DisplayName} \u884c\u52a8");
             ClearRuntimeButtons(targetPanel);
@@ -125,14 +125,14 @@ namespace ClockworkWasteland.Combat
             RenderUnitPanel(actor, actor, skillStates, onSkillSelected);
         }
 
-        public void RenderTargets(SkillDefinition skill, IReadOnlyList<BattleUnit> targets, Action<BattleUnit> onTargetSelected)
+        public void RenderTargets(SkillData skill, IReadOnlyList<BattleUnit> targets, Action<BattleUnit> onTargetSelected)
         {
             ClearRuntimeButtons(targetPanel);
-            AddLog($"\u8bf7\u70b9\u51fb\u573a\u666f\u4e2d\u7684\u76ee\u6807\u6765\u4f7f\u7528 {skill.displayName}\u3002");
-            AppendInfoHint($"\n\n\u5df2\u9009\u6280\u80fd\uff1a{skill.displayName}\n\u8bf7\u70b9\u51fb\u573a\u666f\u4e2d\u7684\u53ef\u9009\u76ee\u6807\u3002");
+            AddLog($"\u8bf7\u70b9\u51fb\u573a\u666f\u4e2d\u7684\u76ee\u6807\u6765\u4f7f\u7528 {skill.skillName}\u3002");
+            AppendInfoHint($"\n\n\u5df2\u9009\u6280\u80fd\uff1a{skill.skillName}\n\u8bf7\u70b9\u51fb\u573a\u666f\u4e2d\u7684\u53ef\u9009\u76ee\u6807\u3002");
         }
 
-        public void RenderUnitPanel(BattleUnit selectedUnit, BattleUnit activeActor, IReadOnlyList<SkillUseState> skillStates, Action<SkillDefinition> onSkillSelected)
+        public void RenderUnitPanel(BattleUnit selectedUnit, BattleUnit activeActor, IReadOnlyList<SkillUseState> skillStates, Action<SkillData> onSkillSelected)
         {
             ClearRuntimeButtons(skillPanel);
             ClearRuntimeButtons(targetPanel);
@@ -155,7 +155,7 @@ namespace ClockworkWasteland.Combat
             }
         }
 
-        private void ShowSkillDescription(SkillDefinition skill)
+        private void ShowSkillDescription(SkillData skill)
         {
             if (skillDescriptionText == null || skill == null)
             {
@@ -164,7 +164,7 @@ namespace ClockworkWasteland.Combat
 
             var casterRequirement = FormatPositionRequirement(skill.casterAllowedPositions, "\u9700\u8981\u7ad9\u5728");
             skillDescriptionText.text =
-                $"{skill.displayName}\n" +
+                $"{skill.skillName}\n" +
                 $"{BuildEffectSummary(skill)}\n" +
                 $"\u65bd\u6cd5\u7ad9\u4f4d\uff1a{casterRequirement}\n" +
                 $"\u76ee\u6807\u7ad9\u4f4d\uff1a{BuildTargetRequirement(skill)}\n" +
@@ -533,7 +533,7 @@ namespace ClockworkWasteland.Combat
             return scroll;
         }
 
-        private void CreateButton(RectTransform parent, string label, Vector2 anchoredPosition, UnityEngine.Events.UnityAction action, bool interactable, SkillDefinition skill)
+        private void CreateButton(RectTransform parent, string label, Vector2 anchoredPosition, UnityEngine.Events.UnityAction action, bool interactable, SkillData skill)
         {
             var buttonObject = new GameObject($"RuntimeButton_{label}", typeof(RectTransform), typeof(Image), typeof(Button));
             buttonObject.transform.SetParent(parent, false);
@@ -648,34 +648,39 @@ namespace ClockworkWasteland.Combat
             return Sprite.Create(texture, new Rect(0f, 0f, size, size), new Vector2(0.5f, 0.5f), 100f, 0, SpriteMeshType.FullRect, new Vector4(10f, 10f, 10f, 10f));
         }
 
-        private static string BuildEffectSummary(SkillDefinition skill)
+        private static string BuildEffectSummary(SkillData skill)
         {
             if (skill.isSwapSkill)
             {
                 return "\u6548\u679c\uff1a\u548c\u4e00\u540d\u961f\u53cb\u4ea4\u6362\u7ad9\u4f4d\u3002";
             }
 
-            if (skill.effectType == SkillEffectType.Heal)
+            if (skill.skillType == SkillDataType.治疗)
             {
-                return $"\u6548\u679c\uff1a\u6cbb\u7597\u76ee\u6807\uff0c\u57fa\u7840\u5f3a\u5ea6 {skill.power}\u3002";
+                return $"\u6548\u679c\uff1a\u6cbb\u7597\u76ee\u6807\uff0c\u57fa\u7840\u5f3a\u5ea6 {skill.baseValue}\u3002";
             }
 
-            return $"\u6548\u679c\uff1a\u9020\u6210\u4f24\u5bb3\uff0c\u57fa\u7840\u6570\u503c {skill.power}\uff0c\u500d\u7387 {skill.powerMultiplier:0.##}\u3002";
+            if (skill.skillType == SkillDataType.控制)
+            {
+                return $"\u6548\u679c\uff1a\u63a7\u5236\u76ee\u6807\uff0c\u57fa\u7840\u6570\u503c {skill.baseValue}\uff0c\u500d\u7387 {skill.powerMultiplier:0.##}\u3002";
+            }
+
+            return $"\u6548\u679c\uff1a\u9020\u6210\u4f24\u5bb3\uff0c\u57fa\u7840\u6570\u503c {skill.baseValue}\uff0c\u500d\u7387 {skill.powerMultiplier:0.##}\u3002";
         }
 
-        private static string BuildTargetRequirement(SkillDefinition skill)
+        private static string BuildTargetRequirement(SkillData skill)
         {
             switch (skill.targetType)
             {
-                case SkillTargetType.Self:
+                case SkillDataTargetType.自己:
                     return "\u81ea\u8eab";
-                case SkillTargetType.AllEnemies:
+                case SkillDataTargetType.全体敌:
                     return "\u654c\u65b9\u5168\u4f53";
-                case SkillTargetType.SingleAlly:
+                case SkillDataTargetType.单友:
                     return FormatPositionRequirement(skill.targetAllowedPositions, "\u53ef\u9009\u53cb\u65b9");
-                case SkillTargetType.AllAllies:
-                    return "\u53cb\u65b9\u5168\u4f53";
-                case SkillTargetType.SingleEnemy:
+                case SkillDataTargetType.前排两敌:
+                    return "\u654c\u65b9\u524d\u6392\u4e24\u4eba";
+                case SkillDataTargetType.单敌:
                 default:
                     return FormatPositionRequirement(skill.targetAllowedPositions, "\u53ef\u6253\u51fb\u654c\u65b9");
             }

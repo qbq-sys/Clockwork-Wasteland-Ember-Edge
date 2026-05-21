@@ -101,6 +101,7 @@ namespace ClockworkWasteland.Combat
             var combatant = CreateCombatant(displayName, true, maxHealth, speed, Color.white, skills);
             combatant.characterId = characterId;
             combatant.idleAnimationFrames = EditorSpriteSheetLoader.LoadSprites(idleSpriteSheetPath);
+            combatant.unitPrefabPath = $"Assets/ClockworkWastelandDemo/Prefabs/CombatUnits/{characterId}_Unit.prefab";
             combatant.visualScale = 1f;
             return combatant;
         }
@@ -110,6 +111,7 @@ namespace ClockworkWasteland.Combat
             var combatant = CreateCombatant(displayName, false, maxHealth, speed, Color.white, skills);
             combatant.characterId = characterId;
             combatant.idleAnimationFrames = EditorSpriteSheetLoader.LoadSprites(idleSpriteSheetPath);
+            combatant.unitPrefabPath = $"Assets/ClockworkWastelandDemo/Prefabs/CombatUnits/{characterId}_Unit.prefab";
             combatant.visualScale = 1f;
             return combatant;
         }

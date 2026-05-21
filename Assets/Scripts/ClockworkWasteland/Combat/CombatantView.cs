@@ -168,21 +168,16 @@ namespace ClockworkWasteland.Combat
             }
 
             overlaySprite = overlaySprite != null ? overlaySprite : spriteRenderer.sprite;
-            var previousScale = overlayRenderer.transform.localScale;
             var previousSortingOrder = overlayRenderer.sortingOrder;
-            var baseWorldScale = Mathf.Max(0.1f, transform.lossyScale.x);
-            var overlayScale = 1f + Mathf.Max(0f, worldScaleBonus) / baseWorldScale;
 
             spriteRenderer.enabled = false;
             overlayRenderer.sprite = overlaySprite;
             overlayRenderer.flipX = spriteRenderer.flipX;
             overlayRenderer.sortingOrder = sortingOrder;
-            overlayRenderer.transform.localScale = previousScale * overlayScale;
             overlayRenderer.enabled = true;
             yield return new WaitForSecondsRealtime(duration);
             overlayRenderer.enabled = false;
             overlayRenderer.sortingOrder = previousSortingOrder;
-            overlayRenderer.transform.localScale = previousScale;
             spriteRenderer.enabled = true;
         }
 

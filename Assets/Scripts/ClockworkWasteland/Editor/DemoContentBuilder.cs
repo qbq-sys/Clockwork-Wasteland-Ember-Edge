@@ -207,6 +207,13 @@ namespace ClockworkWasteland.EditorTools
             overlay.GetComponent<SpriteRenderer>().sortingOrder = 80;
             overlay.GetComponent<SpriteRenderer>().enabled = false;
 
+            var hitOverlay = new GameObject("HitOverlay", typeof(SpriteRenderer));
+            hitOverlay.transform.SetParent(root.transform, false);
+            hitOverlay.transform.localPosition = overlayPosition;
+            hitOverlay.transform.localScale = overlayScale;
+            hitOverlay.GetComponent<SpriteRenderer>().sortingOrder = 81;
+            hitOverlay.GetComponent<SpriteRenderer>().enabled = false;
+
             var nameplatePosition = new GameObject("NameplatePosition");
             nameplatePosition.transform.SetParent(root.transform, false);
             nameplatePosition.transform.localPosition = new Vector3(0f, -0.24f, 0f);

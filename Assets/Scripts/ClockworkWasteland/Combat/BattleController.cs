@@ -1154,7 +1154,7 @@ namespace ClockworkWasteland.Combat
             targetView.SetCombatEmphasis(true, 61);
             var bulletTime = actorView.StartCoroutine(PlayBulletTime());
             var attack = actorView.StartCoroutine(actorView.PlayOverlay(attackSprite, duration, 0.1f, 80));
-            var hit = targetView.StartCoroutine(targetView.PlayOverlay(hitSprite, duration, 0.1f, 81));
+            var hit = targetView.StartCoroutine(targetView.PlayHitOverlay(hitSprite, duration, 81));
             yield return attack;
             yield return hit;
             yield return bulletTime;

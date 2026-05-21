@@ -10,6 +10,7 @@ namespace ClockworkWasteland.Combat
         [Header("Prefab Hooks")]
         [SerializeField] private SpriteRenderer spriteRenderer;
         [SerializeField] private SpriteRenderer overlayRenderer;
+        [SerializeField] private SpriteRenderer hitOverlayRenderer;
         [SerializeField] private Transform nameplatePosition;
 
         private CombatNameplate nameplate;
@@ -45,6 +46,7 @@ namespace ClockworkWasteland.Combat
             baseSortingOrder = spriteRenderer.sortingOrder;
 
             EnsureOverlayRenderer();
+            EnsureHitOverlayRenderer();
             EnsureNameplatePosition();
 
             var scale = Mathf.Max(0.1f, battleUnit.Definition.visualScale * scaleMultiplier);
@@ -156,28 +158,38 @@ namespace ClockworkWasteland.Combat
 
         public IEnumerator PlayOverlay(Sprite overlaySprite, float duration)
         {
-            yield return PlayOverlay(overlaySprite, duration, 0f, 80);
+            yield return PlayOverlay(overlayRenderer, overlaySprite, duration, 80);
         }
 
         public IEnumerator PlayOverlay(Sprite overlaySprite, float duration, float worldScaleBonus, int sortingOrder)
         {
-            if (spriteRenderer == null || overlayRenderer == null)
+            yield return PlayOverlay(overlayRenderer, overlaySprite, duration, sortingOrder);
+        }
+
+        public IEnumerator PlayHitOverlay(Sprite overlaySprite, float duration, int sortingOrder)
+        {
+            yield return PlayOverlay(hitOverlayRenderer, overlaySprite, duration, sortingOrder);
+        }
+
+        private IEnumerator PlayOverlay(SpriteRenderer targetOverlayRenderer, Sprite overlaySprite, float duration, int sortingOrder)
+        {
+            if (spriteRenderer == null || targetOverlayRenderer == null)
             {
                 yield return new WaitForSecondsRealtime(duration);
                 yield break;
             }
 
             overlaySprite = overlaySprite != null ? overlaySprite : spriteRenderer.sprite;
-            var previousSortingOrder = overlayRenderer.sortingOrder;
+            var previousSortingOrder = targetOverlayRenderer.sortingOrder;
 
             spriteRenderer.enabled = false;
-            overlayRenderer.sprite = overlaySprite;
-            overlayRenderer.flipX = spriteRenderer.flipX;
-            overlayRenderer.sortingOrder = sortingOrder;
-            overlayRenderer.enabled = true;
+            targetOverlayRenderer.sprite = overlaySprite;
+            targetOverlayRenderer.flipX = spriteRenderer.flipX;
+            targetOverlayRenderer.sortingOrder = sortingOrder;
+            targetOverlayRenderer.enabled = true;
             yield return new WaitForSecondsRealtime(duration);
-            overlayRenderer.enabled = false;
-            overlayRenderer.sortingOrder = previousSortingOrder;
+            targetOverlayRenderer.enabled = false;
+            targetOverlayRenderer.sortingOrder = previousSortingOrder;
             spriteRenderer.enabled = true;
         }
 
@@ -221,21 +233,33 @@ namespace ClockworkWasteland.Combat
 
         private void EnsureOverlayRenderer()
         {
-            if (overlayRenderer == null)
-            {
-                var overlayTransform = transform.Find("ActionOverlay");
-                overlayRenderer = overlayTransform != null ? overlayTransform.GetComponent<SpriteRenderer>() : null;
-            }
-
-            if (overlayRenderer == null)
-            {
-                var overlayObject = new GameObject("ActionOverlay");
-                overlayObject.transform.SetParent(transform, false);
-                overlayRenderer = overlayObject.AddComponent<SpriteRenderer>();
-                overlayRenderer.sortingOrder = 80;
-            }
-
+            overlayRenderer = EnsureOverlayRenderer(overlayRenderer, "ActionOverlay", 80);
             overlayRenderer.enabled = false;
+        }
+
+        private void EnsureHitOverlayRenderer()
+        {
+            hitOverlayRenderer = EnsureOverlayRenderer(hitOverlayRenderer, "HitOverlay", 81);
+            hitOverlayRenderer.enabled = false;
+        }
+
+        private SpriteRenderer EnsureOverlayRenderer(SpriteRenderer renderer, string childName, int sortingOrder)
+        {
+            if (renderer == null)
+            {
+                var overlayTransform = transform.Find(childName);
+                renderer = overlayTransform != null ? overlayTransform.GetComponent<SpriteRenderer>() : null;
+            }
+
+            if (renderer == null)
+            {
+                var overlayObject = new GameObject(childName);
+                overlayObject.transform.SetParent(transform, false);
+                renderer = overlayObject.AddComponent<SpriteRenderer>();
+                renderer.sortingOrder = sortingOrder;
+            }
+
+            return renderer;
         }
 
         private void EnsureNameplatePosition()

@@ -38,7 +38,7 @@ namespace ClockworkWasteland.Combat
         public string DisplayName => IsCorpse ? $"{Definition.displayName}\u7684\u5c38\u4f53" : Definition.displayName;
         public int Level => Definition.Level;
         public int MaxHealth => IsCorpse ? System.Math.Max(1, Definition.corpseHealth) : Definition.MaxHealthWithGrowth;
-        public int Speed => IsCorpse ? 0 : Definition.speed;
+        public int Speed => IsCorpse ? 0 : Definition.SpeedWithArchetype;
         public int Attack => Definition.AttackWithGrowth;
         public int Defense => Definition.DefenseWithGrowth;
         public bool IsStunned => statuses.Any(status => status.Stun && status.TurnsRemaining > 0);

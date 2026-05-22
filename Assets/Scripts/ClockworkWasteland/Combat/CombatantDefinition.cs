@@ -72,9 +72,14 @@ namespace ClockworkWasteland.Combat
         public int GrowthMaxHealthPerLevel => growthData != null ? growthData.maxHealthPerLevel : DefaultMaxHealthPerLevel;
         public int GrowthAttackPerLevel => growthData != null ? growthData.attackPerLevel : DefaultAttackPerLevel;
         public int GrowthDefensePerLevel => growthData != null ? growthData.defensePerLevel : DefaultDefensePerLevel;
-        public int MaxHealthWithGrowth => maxHealth + (Level - 1) * GrowthMaxHealthPerLevel;
-        public int AttackWithGrowth => attack + (Level - 1) * GrowthAttackPerLevel;
-        public int DefenseWithGrowth => defense + (Level - 1) * GrowthDefensePerLevel;
+        public int ArchetypeMaxHealthBonus => GetArchetypeMaxHealthBonus(archetype);
+        public int ArchetypeAttackBonus => GetArchetypeAttackBonus(archetype);
+        public int ArchetypeDefenseBonus => GetArchetypeDefenseBonus(archetype);
+        public int ArchetypeSpeedBonus => GetArchetypeSpeedBonus(archetype);
+        public int MaxHealthWithGrowth => maxHealth + (Level - 1) * GrowthMaxHealthPerLevel + ArchetypeMaxHealthBonus;
+        public int AttackWithGrowth => attack + (Level - 1) * GrowthAttackPerLevel + ArchetypeAttackBonus;
+        public int DefenseWithGrowth => defense + (Level - 1) * GrowthDefensePerLevel + ArchetypeDefenseBonus;
+        public int SpeedWithArchetype => Mathf.Max(0, speed + ArchetypeSpeedBonus);
         public int CurrentHealth => isHero ? Mathf.Clamp(currentHealth < 0 ? MaxHealthWithGrowth : currentHealth, 0, MaxHealthWithGrowth) : MaxHealthWithGrowth;
         public bool IsDead => isHero && CurrentHealth <= 0;
         public string ArchetypeDisplayName => GetArchetypeDisplayName(archetype);
@@ -150,6 +155,60 @@ namespace ClockworkWasteland.Combat
                     return "治疗和维持队伍节奏更强，输出相对保守。";
                 default:
                     return "尚未定义战斗原型。";
+            }
+        }
+
+        private static int GetArchetypeMaxHealthBonus(CombatArchetype value)
+        {
+            switch (value)
+            {
+                case CombatArchetype.Bulwark:
+                    return 10;
+                case CombatArchetype.Physician:
+                    return 4;
+                default:
+                    return 0;
+            }
+        }
+
+        private static int GetArchetypeAttackBonus(CombatArchetype value)
+        {
+            switch (value)
+            {
+                case CombatArchetype.Executioner:
+                    return 2;
+                case CombatArchetype.Artificer:
+                    return 1;
+                default:
+                    return 0;
+            }
+        }
+
+        private static int GetArchetypeDefenseBonus(CombatArchetype value)
+        {
+            switch (value)
+            {
+                case CombatArchetype.Bulwark:
+                    return 2;
+                case CombatArchetype.Physician:
+                    return 1;
+                default:
+                    return 0;
+            }
+        }
+
+        private static int GetArchetypeSpeedBonus(CombatArchetype value)
+        {
+            switch (value)
+            {
+                case CombatArchetype.Executioner:
+                    return 1;
+                case CombatArchetype.Artificer:
+                    return 2;
+                case CombatArchetype.Bulwark:
+                    return -1;
+                default:
+                    return 0;
             }
         }
 

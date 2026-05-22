@@ -212,6 +212,7 @@ namespace ClockworkWasteland.Combat
             var description =
                 $"{skill.skillName}\n" +
                 $"{BuildEffectSummary(skill)}\n" +
+                $"资源消耗：{skill.manaCost}    冷却：{skill.cooldown}\n" +
                 $"\u65bd\u6cd5\u7ad9\u4f4d\uff1a{casterRequirement}\n" +
                 $"\u76ee\u6807\u7ad9\u4f4d\uff1a{BuildTargetRequirement(skill)}\n" +
                 $"{skill.description}";

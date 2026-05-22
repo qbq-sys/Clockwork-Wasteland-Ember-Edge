@@ -14,7 +14,23 @@ namespace ClockworkWasteland.Combat
         public string DisabledReason { get; }
 
         public string ButtonLabel => CanUse || string.IsNullOrWhiteSpace(DisabledReason)
-            ? Skill.skillName
-            : $"{Skill.skillName}\n{DisabledReason}";
+            ? BuildEnabledLabel()
+            : $"{BuildEnabledLabel()}\n{DisabledReason}";
+
+        private string BuildEnabledLabel()
+        {
+            if (Skill == null)
+            {
+                return string.Empty;
+            }
+
+            var suffix = string.Empty;
+            if (Skill.manaCost > 0 || Skill.cooldown > 0)
+            {
+                suffix = $" [{(Skill.manaCost > 0 ? $"费{Skill.manaCost}" : "费0")}/{(Skill.cooldown > 0 ? $"冷{Skill.cooldown}" : "冷0")}]";
+            }
+
+            return Skill.skillName + suffix;
+        }
     }
 }

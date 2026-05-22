@@ -1944,6 +1944,7 @@ namespace ClockworkWasteland.Combat
             var amount = Mathf.Max(1, Mathf.RoundToInt(baseDamage * skill.powerMultiplier));
 
             amount = ApplyPassiveToDamage(actor, target, amount);
+            amount = ApplyArchetypeToDamage(actor, skill, target, amount);
 
             var critical = Random.value < 0.1f;
             if (critical)
@@ -2001,6 +2002,11 @@ namespace ClockworkWasteland.Combat
                 defense += 4;
             }
 
+            if (unit.Archetype == CombatArchetype.Bulwark)
+            {
+                defense += unit.IsFrontline ? 3 : 1;
+            }
+
             return defense;
         }
 
@@ -2038,6 +2044,52 @@ namespace ClockworkWasteland.Combat
             }
 
             return amount;
+        }
+
+        private int ApplyArchetypeToDamage(BattleUnit actor, SkillData skill, BattleUnit target, int amount)
+        {
+            if (actor == null || skill == null || target == null || amount <= 0)
+            {
+                return amount;
+            }
+
+            switch (actor.Archetype)
+            {
+                case CombatArchetype.Bulwark:
+                    if (actor.IsFrontline && target.IsFrontline)
+                    {
+                        amount = Mathf.RoundToInt(amount * 1.1f);
+                    }
+                    break;
+                case CombatArchetype.Executioner:
+                    amount = Mathf.RoundToInt(amount * 1.1f);
+                    if (target.HealthRatio <= 0.5f)
+                    {
+                        amount = Mathf.RoundToInt(amount * 1.2f);
+                    }
+                    break;
+                case CombatArchetype.Artificer:
+                    if (skill.skillType == SkillDataType.控制)
+                    {
+                        amount = Mathf.RoundToInt(amount * 1.15f);
+                    }
+
+                    if (skill.targetType == SkillDataTargetType.全体敌 || skill.targetType == SkillDataTargetType.前排两敌)
+                    {
+                        amount = Mathf.RoundToInt(amount * 1.15f);
+                    }
+
+                    if (target.IsBackline)
+                    {
+                        amount = Mathf.RoundToInt(amount * 1.15f);
+                    }
+                    break;
+                case CombatArchetype.Physician:
+                    amount = Mathf.RoundToInt(amount * 0.9f);
+                    break;
+            }
+
+            return Mathf.Max(1, amount);
         }
 
         private void ApplyPassiveOnTurnStart(BattleUnit unit)
@@ -2182,7 +2234,13 @@ namespace ClockworkWasteland.Combat
 
         private int CalculateHealingAmount(BattleUnit actor, SkillData skill)
         {
-            return Mathf.Max(1, Mathf.RoundToInt((skill.baseValue + actor.Attack * 0.5f) * skill.powerMultiplier));
+            var amount = Mathf.Max(1, Mathf.RoundToInt((skill.baseValue + actor.Attack * 0.5f) * skill.powerMultiplier));
+            if (actor != null && actor.Archetype == CombatArchetype.Physician)
+            {
+                amount = Mathf.RoundToInt(amount * 1.25f);
+            }
+
+            return Mathf.Max(1, amount);
         }
 
         private static Color GetDamageColor(SkillDataType skillType)

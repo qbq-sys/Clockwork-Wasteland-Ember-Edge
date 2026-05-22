@@ -79,6 +79,7 @@ namespace ClockworkWasteland.Combat
         public bool IsDead => isHero && CurrentHealth <= 0;
         public string ArchetypeDisplayName => GetArchetypeDisplayName(archetype);
         public string PreferredRowDisplayName => GetPreferredRowDisplayName(preferredRow);
+        public string ArchetypeSummary => GetArchetypeSummary(archetype);
 
         public bool PrefersFrontRows => preferredRow == CombatRowPreference.Front;
         public bool PrefersBackRows => preferredRow == CombatRowPreference.Back;
@@ -132,6 +133,23 @@ namespace ClockworkWasteland.Combat
                     return "\u540e\u6392";
                 default:
                     return "\u7075\u6d3b";
+            }
+        }
+
+        private static string GetArchetypeSummary(CombatArchetype value)
+        {
+            switch (value)
+            {
+                case CombatArchetype.Bulwark:
+                    return "前排防御更稳，压制前排目标。";
+                case CombatArchetype.Executioner:
+                    return "专注终结残血目标，单体伤害更强。";
+                case CombatArchetype.Artificer:
+                    return "擅长控场与后排打击，多目标收益更高。";
+                case CombatArchetype.Physician:
+                    return "治疗和维持队伍节奏更强，输出相对保守。";
+                default:
+                    return "尚未定义战斗原型。";
             }
         }
 

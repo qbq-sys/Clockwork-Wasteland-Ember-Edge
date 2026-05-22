@@ -563,6 +563,7 @@ namespace ClockworkWasteland.Combat
                              $"防御力：{selectedHero.DefenseWithGrowth}    (+{selectedHero.GrowthDefensePerLevel}/级)\n" +
                              $"速度：{selectedHero.speed} （{speedDesc}）\n" +
                              $"职能定位：{selectedHero.ArchetypeDisplayName}\n" +
+                             $"原型特征：{selectedHero.ArchetypeSummary}\n" +
                              $"偏好站位：{selectedHero.PreferredRowDisplayName}\n" +
                              $"招募价格：{selectedHero.recruitPrice} 金币";
             CombatUIScreenUtility.SetTextStyle(statsData, new Color(0.82f, 0.78f, 0.66f), false);

@@ -85,6 +85,7 @@ namespace ClockworkWasteland.Combat
         public string ArchetypeDisplayName => GetArchetypeDisplayName(archetype);
         public string PreferredRowDisplayName => GetPreferredRowDisplayName(preferredRow);
         public string ArchetypeSummary => GetArchetypeSummary(archetype);
+        public string PassiveDisplayName => GetPassiveDisplayName(passive);
 
         public bool PrefersFrontRows => preferredRow == CombatRowPreference.Front;
         public bool PrefersBackRows => preferredRow == CombatRowPreference.Back;
@@ -155,6 +156,29 @@ namespace ClockworkWasteland.Combat
                     return "治疗和维持队伍节奏更强，输出相对保守。";
                 default:
                     return "尚未定义战斗原型。";
+            }
+        }
+
+        private static string GetPassiveDisplayName(HeroPassive value)
+        {
+            switch (value)
+            {
+                case HeroPassive.Berserker: return "狂战士";
+                case HeroPassive.Executioner: return "处决者";
+                case HeroPassive.ChainReaction: return "连锁反应";
+                case HeroPassive.Backstab: return "背刺";
+                case HeroPassive.GlassCannon: return "玻璃大炮";
+                case HeroPassive.IronWill: return "铁意志";
+                case HeroPassive.Regenerator: return "再生";
+                case HeroPassive.ThornArmor: return "荆棘护甲";
+                case HeroPassive.Bodyguard: return "保镖";
+                case HeroPassive.Fortress: return "堡垒";
+                case HeroPassive.Tactician: return "战术家";
+                case HeroPassive.Scavenger: return "回收者";
+                case HeroPassive.Vanguard: return "先锋";
+                case HeroPassive.Reaper: return "收割者";
+                case HeroPassive.Inspirer: return "鼓舞者";
+                default: return "无";
             }
         }
 

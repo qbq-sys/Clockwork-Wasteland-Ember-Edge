@@ -27,10 +27,10 @@ namespace ClockworkWasteland.Combat
 
             return new[]
             {
-                ConfigureCombatIdentity(CreateHero("hero_01", "\u82f1\u96c4\u4e00", 38, 4, "Assets/Art/hero_01_idle.png", strike, burn), CombatArchetype.Bulwark, CombatRowPreference.Front),
-                ConfigureCombatIdentity(CreateHero("hero_02", "\u82f1\u96c4\u4e8c", 28, 6, "Assets/Art/hero_02_idle.png", strike, heal), CombatArchetype.Physician, CombatRowPreference.Back),
-                ConfigureCombatIdentity(CreateHero("hero_03", "\u82f1\u96c4\u4e09", 30, 8, "Assets/Art/hero_03_idle.png", strike, volley), CombatArchetype.Artificer, CombatRowPreference.Back),
-                ConfigureCombatIdentity(CreateHero("hero_04", "\u82f1\u96c4\u56db", 34, 5, "Assets/Art/hero_04_idle.png", strike, guardBreak), CombatArchetype.Executioner, CombatRowPreference.Mid)
+                ConfigureCombatStyle(ConfigureCombatIdentity(CreateHero("hero_01", "\u82f1\u96c4\u4e00", 38, 4, "Assets/Art/hero_01_idle.png", strike, burn), CombatArchetype.Bulwark, CombatRowPreference.Front), HeroPassive.Vanguard),
+                ConfigureCombatStyle(ConfigureCombatIdentity(CreateHero("hero_02", "\u82f1\u96c4\u4e8c", 28, 6, "Assets/Art/hero_02_idle.png", strike, heal), CombatArchetype.Physician, CombatRowPreference.Back), HeroPassive.Inspirer),
+                ConfigureCombatStyle(ConfigureCombatIdentity(CreateHero("hero_03", "\u82f1\u96c4\u4e09", 30, 8, "Assets/Art/hero_03_idle.png", strike, volley), CombatArchetype.Artificer, CombatRowPreference.Back), HeroPassive.ChainReaction),
+                ConfigureCombatStyle(ConfigureCombatIdentity(CreateHero("hero_04", "\u82f1\u96c4\u56db", 34, 5, "Assets/Art/hero_04_idle.png", strike, guardBreak), CombatArchetype.Executioner, CombatRowPreference.Mid), HeroPassive.Executioner)
             };
         }
 
@@ -47,14 +47,14 @@ namespace ClockworkWasteland.Combat
 
             return new[]
             {
-                ConfigureRecruitment(ConfigureCombatIdentity(CreateHero("hero_01", "\u82f1\u96c4\u4e00", 38, 4, "Assets/Art/hero_01_idle.png", strike, burn), CombatArchetype.Bulwark, CombatRowPreference.Front), true, 0, 8, 2),
-                ConfigureRecruitment(ConfigureCombatIdentity(CreateHero("hero_02", "\u82f1\u96c4\u4e8c", 28, 6, "Assets/Art/hero_02_idle.png", strike, heal), CombatArchetype.Physician, CombatRowPreference.Back), true, 0, 8, 2),
-                ConfigureRecruitment(ConfigureCombatIdentity(CreateHero("hero_03", "\u82f1\u96c4\u4e09", 30, 8, "Assets/Art/hero_03_idle.png", strike, volley), CombatArchetype.Artificer, CombatRowPreference.Back), true, 0, 8, 2),
-                ConfigureRecruitment(ConfigureCombatIdentity(CreateHero("hero_04", "\u82f1\u96c4\u56db", 34, 5, "Assets/Art/hero_04_idle.png", strike, guardBreak), CombatArchetype.Executioner, CombatRowPreference.Mid), true, 0, 9, 3),
-                ConfigureRecruitment(ConfigureCombatIdentity(CreateHero("hero_05", "\u94f6\u9f7f\u6e38\u4fa0", 26, 9, "Assets/Art/hero_05_idle.png", backstab, strike), CombatArchetype.Executioner, CombatRowPreference.Mid), false, 500, 11, 2),
-                ConfigureRecruitment(ConfigureCombatIdentity(CreateHero("hero_06", "\u949f\u8868\u533b\u5e08", 30, 7, "Assets/Art/hero_02_idle.png", heal, purge, stun), CombatArchetype.Physician, CombatRowPreference.Back), false, 550, 7, 3),
-                ConfigureRecruitment(ConfigureCombatIdentity(CreateHero("hero_07", "\u94c1\u80ba\u76fe\u536b", 48, 3, "Assets/Art/hero_03_idle.png", strike, guardBreak), CombatArchetype.Bulwark, CombatRowPreference.Front), false, 650, 8, 6),
-                ConfigureRecruitment(ConfigureCombatIdentity(CreateHero("hero_08", "\u7834\u7247\u5de5\u7a0b\u5e08", 32, 6, "Assets/Art/hero_04_idle.png", volley, burn), CombatArchetype.Artificer, CombatRowPreference.Back), false, 700, 10, 3)
+                ConfigureRecruitment(ConfigureCombatStyle(ConfigureCombatIdentity(CreateHero("hero_01", "\u82f1\u96c4\u4e00", 38, 4, "Assets/Art/hero_01_idle.png", strike, burn), CombatArchetype.Bulwark, CombatRowPreference.Front), HeroPassive.Vanguard), true, 0, 8, 2),
+                ConfigureRecruitment(ConfigureCombatStyle(ConfigureCombatIdentity(CreateHero("hero_02", "\u82f1\u96c4\u4e8c", 28, 6, "Assets/Art/hero_02_idle.png", strike, heal), CombatArchetype.Physician, CombatRowPreference.Back), HeroPassive.Inspirer), true, 0, 8, 2),
+                ConfigureRecruitment(ConfigureCombatStyle(ConfigureCombatIdentity(CreateHero("hero_03", "\u82f1\u96c4\u4e09", 30, 8, "Assets/Art/hero_03_idle.png", strike, volley), CombatArchetype.Artificer, CombatRowPreference.Back), HeroPassive.ChainReaction), true, 0, 8, 2),
+                ConfigureRecruitment(ConfigureCombatStyle(ConfigureCombatIdentity(CreateHero("hero_04", "\u82f1\u96c4\u56db", 34, 5, "Assets/Art/hero_04_idle.png", strike, guardBreak), CombatArchetype.Executioner, CombatRowPreference.Mid), HeroPassive.Executioner), true, 0, 9, 3),
+                ConfigureRecruitment(ConfigureCombatStyle(ConfigureCombatIdentity(CreateHero("hero_05", "\u94f6\u9f7f\u6e38\u4fa0", 26, 9, "Assets/Art/hero_05_idle.png", backstab, strike), CombatArchetype.Executioner, CombatRowPreference.Mid), HeroPassive.Backstab), false, 500, 11, 2),
+                ConfigureRecruitment(ConfigureCombatStyle(ConfigureCombatIdentity(CreateHero("hero_06", "\u949f\u8868\u533b\u5e08", 30, 7, "Assets/Art/hero_02_idle.png", heal, purge, stun), CombatArchetype.Physician, CombatRowPreference.Back), HeroPassive.Tactician), false, 550, 7, 3),
+                ConfigureRecruitment(ConfigureCombatStyle(ConfigureCombatIdentity(CreateHero("hero_07", "\u94c1\u80ba\u76fe\u536b", 48, 3, "Assets/Art/hero_03_idle.png", strike, guardBreak), CombatArchetype.Bulwark, CombatRowPreference.Front), HeroPassive.Bodyguard), false, 650, 8, 6),
+                ConfigureRecruitment(ConfigureCombatStyle(ConfigureCombatIdentity(CreateHero("hero_08", "\u7834\u7247\u5de5\u7a0b\u5e08", 32, 6, "Assets/Art/hero_04_idle.png", volley, burn), CombatArchetype.Artificer, CombatRowPreference.Back), HeroPassive.GlassCannon), false, 700, 10, 3)
             };
         }
 
@@ -130,6 +130,12 @@ namespace ClockworkWasteland.Combat
         {
             combatant.archetype = archetype;
             combatant.preferredRow = preferredRow;
+            return combatant;
+        }
+
+        private static CombatantDefinition ConfigureCombatStyle(CombatantDefinition combatant, HeroPassive passive)
+        {
+            combatant.passive = passive;
             return combatant;
         }
 

@@ -27,12 +27,16 @@ namespace ClockworkWasteland.Combat
         private Sprite panelSprite;
         private Sprite buttonSprite;
         private Sprite descriptionSprite;
+        private UIManager runtimeUiManager;
+        private BattleHudUI battleHudUI;
+        private SkillDescriptionUI skillDescriptionUI;
 
         public void Build()
         {
             EnsureEventSystem();
             EnsureCanvas();
             EnsureSkinSprites();
+            EnsureRuntimePrefabUi();
 
             if (skillPanel == null || targetPanel == null || roundText == null || turnText == null || logText == null || infoText == null || logScrollRect == null || skillDescriptionPanel == null || skillDescriptionText == null)
             {
@@ -120,6 +124,43 @@ namespace ClockworkWasteland.Combat
             skillDescriptionText.rectTransform.offsetMax = new Vector2(-24f, -18f);
             skillDescriptionText.text = "\u6280\u80fd\u8bf4\u660e";
             SetTextStyle(skillDescriptionText, new Color(0.94f, 0.84f, 0.65f), false);
+            skillDescriptionPanel.gameObject.SetActive(false);
+        }
+
+        private void EnsureRuntimePrefabUi()
+        {
+            var root = transform as RectTransform;
+            if (root == null)
+            {
+                return;
+            }
+
+            runtimeUiManager = UIManager.Ensure(root);
+            battleHudUI = runtimeUiManager.GetBattleHud();
+            skillDescriptionUI = runtimeUiManager.GetSkillDescription();
+
+            if (battleHudUI != null)
+            {
+                battleHudUI.gameObject.SetActive(true);
+                battleHudUI.transform.SetAsLastSibling();
+                battleHudUI.Build(panelSprite);
+                skillPanel = battleHudUI.SkillPanel;
+                targetPanel = battleHudUI.TargetPanel;
+                roundText = battleHudUI.RoundText;
+                turnText = battleHudUI.TurnText;
+                logText = battleHudUI.LogText;
+                infoText = battleHudUI.InfoText;
+                goldText = battleHudUI.GoldText;
+                logScrollRect = battleHudUI.LogScrollRect;
+            }
+
+            if (skillDescriptionUI != null)
+            {
+                skillDescriptionUI.transform.SetAsLastSibling();
+                skillDescriptionUI.Build(descriptionSprite);
+                skillDescriptionText = skillDescriptionUI.SkillDescriptionText;
+                skillDescriptionPanel = skillDescriptionUI.skillDescriptionBg != null ? skillDescriptionUI.skillDescriptionBg.rectTransform : null;
+            }
         }
 
         public void RenderPlayerTurn(BattleUnit actor, IReadOnlyList<SkillUseState> skillStates, Action<SkillData> onSkillSelected)
@@ -160,7 +201,7 @@ namespace ClockworkWasteland.Combat
             }
         }
 
-        private void ShowSkillDescription(SkillData skill)
+        private void ShowSkillDescription(SkillData skill, RectTransform source = null)
         {
             if (skillDescriptionText == null || skill == null)
             {
@@ -168,12 +209,38 @@ namespace ClockworkWasteland.Combat
             }
 
             var casterRequirement = FormatPositionRequirement(skill.casterAllowedPositions, "\u9700\u8981\u7ad9\u5728");
-            skillDescriptionText.text =
+            var description =
                 $"{skill.skillName}\n" +
                 $"{BuildEffectSummary(skill)}\n" +
                 $"\u65bd\u6cd5\u7ad9\u4f4d\uff1a{casterRequirement}\n" +
                 $"\u76ee\u6807\u7ad9\u4f4d\uff1a{BuildTargetRequirement(skill)}\n" +
                 $"{skill.description}";
+
+            if (skillDescriptionUI != null && source != null)
+            {
+                skillDescriptionUI.ShowNear(source, transform as RectTransform, description);
+                return;
+            }
+
+            skillDescriptionText.text = description;
+            if (skillDescriptionPanel != null)
+            {
+                skillDescriptionPanel.gameObject.SetActive(true);
+            }
+        }
+
+        private void HideSkillDescription()
+        {
+            if (skillDescriptionUI != null)
+            {
+                skillDescriptionUI.Hide();
+                return;
+            }
+
+            if (skillDescriptionPanel != null)
+            {
+                skillDescriptionPanel.gameObject.SetActive(false);
+            }
         }
 
         private void RenderInfo(BattleUnit selectedUnit, BattleUnit activeActor)
@@ -198,6 +265,8 @@ namespace ClockworkWasteland.Combat
             infoText.text =
                 $"{selectedUnit.DisplayName}\n" +
                 $"{side}{active}\n\n" +
+                $"\u804c\u80fd\uff1a{selectedUnit.Definition.ArchetypeDisplayName}\n" +
+                $"\u504f\u597d\u7ad9\u4f4d\uff1a{selectedUnit.Definition.PreferredRowDisplayName}\n" +
                 $"\u7b49\u7ea7\uff1a{selectedUnit.Level}\n" +
                 $"\u751f\u547d\uff1a{selectedUnit.Health}/{selectedUnit.MaxHealth}\n" +
                 $"\u653b\u51fb\uff1a{selectedUnit.Attack}\n" +
@@ -309,6 +378,12 @@ namespace ClockworkWasteland.Combat
 
         public void ShowSettingsScreen(Action onBack)
         {
+            if (runtimeUiManager != null)
+            {
+                runtimeUiManager.ShowSettings(onBack);
+                return;
+            }
+
             EnsureOverlay();
             overlayPanel.gameObject.SetActive(true);
             ClearChildren(overlayPanel);
@@ -428,7 +503,7 @@ namespace ClockworkWasteland.Combat
                 var stats = CreateText("Stats", card, new Vector2(0f, 0f), new Vector2(1f, 1f), Vector2.zero, Vector2.zero, 15, TextAnchor.UpperLeft);
                 stats.rectTransform.offsetMin = new Vector2(92f, 36f);
                 stats.rectTransform.offsetMax = new Vector2(-20f, -48f);
-                stats.text = $"\u7b49\u7ea7 {hero.Level}  EXP {hero.Experience}/{hero.ExperienceToNextLevel}\n\u751f\u547d {hero.CurrentHealth}/{hero.MaxHealthWithGrowth}\n\u653b\u51fb {hero.AttackWithGrowth}\n\u9632\u5fa1 {hero.DefenseWithGrowth}\n\u901f\u5ea6 {hero.speed}";
+                stats.text = $"\u804c\u80fd {hero.ArchetypeDisplayName}  \u504f\u597d {hero.PreferredRowDisplayName}\n\u7b49\u7ea7 {hero.Level}  EXP {hero.Experience}/{hero.ExperienceToNextLevel}\n\u751f\u547d {hero.CurrentHealth}/{hero.MaxHealthWithGrowth}\n\u653b\u51fb {hero.AttackWithGrowth}\n\u9632\u5fa1 {hero.DefenseWithGrowth}\n\u901f\u5ea6 {hero.speed}";
                 SetTextStyle(stats, new Color(0.84f, 0.78f, 0.66f), false);
 
                 CreateButton(card, selected ? "\u53d6\u6d88" : "\u9009\u62e9", new Vector2(125f, -148f), () => onToggleHero?.Invoke(hero), true, null);
@@ -442,6 +517,36 @@ namespace ClockworkWasteland.Combat
             SetTextStyle(lineupText, new Color(0.9f, 0.78f, 0.58f), false);
 
             CreateButton(rootPanel, "\u5f00\u59cb\u6218\u6597", new Vector2(590f, -708f), onStartBattle.Invoke, selectedHeroes.Count > 0, null);
+        }
+
+        public void ShowLobby(int currentGold, Action onOpenTavern, Action onOpenAdventure, Action onOpenHeroCodex, Action onOpenSettings, Action onQuit)
+        {
+            EnsureRuntimePrefabUi();
+            runtimeUiManager?.ShowLobby(currentGold, onOpenTavern, onOpenAdventure, onOpenHeroCodex, onOpenSettings, onQuit);
+        }
+
+        public void ShowAdventureMap(IReadOnlyList<AdventureMapOption> maps, Action<AdventureMapOption> onSelect, Action onBack)
+        {
+            EnsureRuntimePrefabUi();
+            runtimeUiManager?.ShowAdventureMap(maps, onSelect, onBack);
+        }
+
+        public void ShowHeroCodex(IReadOnlyList<CombatantDefinition> heroPool, Action onBack)
+        {
+            EnsureRuntimePrefabUi();
+            runtimeUiManager?.ShowHeroCodex(heroPool, onBack);
+        }
+
+        public void ShowTeamSelection(IReadOnlyList<CombatantDefinition> heroPool, IReadOnlyList<CombatantDefinition> selectedHeroes, Action<CombatantDefinition> onToggleHero, Action onStartBattle, Action onBack)
+        {
+            EnsureRuntimePrefabUi();
+            if (runtimeUiManager != null)
+            {
+                runtimeUiManager.ShowTeamSelection(heroPool, selectedHeroes, onToggleHero, onStartBattle, onBack);
+                return;
+            }
+
+            ShowTeamSelection(heroPool, selectedHeroes, onToggleHero, onStartBattle, onBack, null, null);
         }
 
         public void ShowShop(
@@ -497,6 +602,13 @@ namespace ClockworkWasteland.Combat
             Action<CombatantDefinition> onRecruit,
             Action onBack)
         {
+            EnsureRuntimePrefabUi();
+            if (runtimeUiManager != null)
+            {
+                runtimeUiManager.ShowTavern(recruitableHeroes, currentGold, onRecruit, onBack);
+                return;
+            }
+
             EnsureOverlay();
             overlayPanel.gameObject.SetActive(true);
             ClearChildren(overlayPanel);
@@ -549,7 +661,7 @@ namespace ClockworkWasteland.Combat
                     var stats = CreateText("Stats", card, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero, 15, TextAnchor.UpperLeft);
                     stats.rectTransform.offsetMin = new Vector2(24f, 74f);
                     stats.rectTransform.offsetMax = new Vector2(-24f, -196f);
-                    stats.text = $"\u751f\u547d {hero.MaxHealthWithGrowth}\n\u653b\u51fb {hero.AttackWithGrowth}\n\u9632\u5fa1 {hero.DefenseWithGrowth}\n\u901f\u5ea6 {hero.speed}\n\u4ef7\u683c {hero.recruitPrice}\u91d1\u5e01";
+                    stats.text = $"\u804c\u80fd {hero.ArchetypeDisplayName}\n\u504f\u597d {hero.PreferredRowDisplayName}\n\u751f\u547d {hero.MaxHealthWithGrowth}\n\u653b\u51fb {hero.AttackWithGrowth}\n\u9632\u5fa1 {hero.DefenseWithGrowth}\n\u901f\u5ea6 {hero.speed}\n\u4ef7\u683c {hero.recruitPrice}\u91d1\u5e01";
                     SetTextStyle(stats, new Color(0.88f, 0.8f, 0.66f), false);
 
                     CreateButton(card, "\u62db\u52df", new Vector2(130f, -306f), () => onRecruit?.Invoke(hero), currentGold >= hero.recruitPrice, null);
@@ -708,6 +820,8 @@ namespace ClockworkWasteland.Combat
 
         public void HideOverlay()
         {
+            runtimeUiManager?.HideAll();
+
             if (overlayPanel != null)
             {
                 overlayPanel.gameObject.SetActive(false);
@@ -957,10 +1071,10 @@ namespace ClockworkWasteland.Combat
 
                 if (skill != null)
                 {
-                    ShowSkillDescription(skill);
+                    HideSkillDescription();
                 }
 
-                action();
+                action?.Invoke();
             });
             button.interactable = interactable;
 
@@ -982,17 +1096,27 @@ namespace ClockworkWasteland.Combat
             {
                 if (skill != null)
                 {
-                    ShowSkillDescription(skill);
+                    ShowSkillDescription(skill, rect);
                 }
             });
             trigger.triggers.Add(enter);
+
+            var exit = new EventTrigger.Entry { eventID = EventTriggerType.PointerExit };
+            exit.callback.AddListener(_ =>
+            {
+                if (skill != null)
+                {
+                    HideSkillDescription();
+                }
+            });
+            trigger.triggers.Add(exit);
 
             var down = new EventTrigger.Entry { eventID = EventTriggerType.PointerDown };
             down.callback.AddListener(_ =>
             {
                 if (skill != null)
                 {
-                    ShowSkillDescription(skill);
+                    ShowSkillDescription(skill, rect);
                 }
             });
             trigger.triggers.Add(down);

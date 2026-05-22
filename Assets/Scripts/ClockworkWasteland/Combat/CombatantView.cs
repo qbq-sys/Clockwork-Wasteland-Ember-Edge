@@ -8,6 +8,7 @@ namespace ClockworkWasteland.Combat
     public sealed class CombatantView : MonoBehaviour
     {
         [Header("Prefab Hooks")]
+        [SerializeField] private Transform visualRoot;
         [SerializeField] private SpriteRenderer spriteRenderer;
         [SerializeField] private SpriteRenderer overlayRenderer;
         [SerializeField] private SpriteRenderer hitOverlayRenderer;
@@ -21,14 +22,18 @@ namespace ClockworkWasteland.Combat
         private Action<BattleUnit> clicked;
         private Vector3 baseLocalScale;
         private int baseSortingOrder;
+        private int overlayBaseSortingOrder;
+        private int hitOverlayBaseSortingOrder;
 
         public BattleUnit Unit => unit;
+        public float FormationSpacingScale => Mathf.Max(0.8f, GetVisualScale().x / 0.8f);
 
         public void Initialize(BattleUnit battleUnit, Sprite fallbackSprite, float scaleMultiplier, Action<BattleUnit> onClicked, CombatNameplate nameplatePrefab)
         {
             unit = battleUnit;
             clicked = onClicked;
 
+            EnsureVisualHierarchy();
             spriteRenderer = spriteRenderer != null ? spriteRenderer : GetComponent<SpriteRenderer>();
             if (spriteRenderer == null)
             {
@@ -50,8 +55,8 @@ namespace ClockworkWasteland.Combat
             EnsureNameplatePosition();
 
             var scale = Mathf.Max(0.1f, battleUnit.Definition.visualScale * scaleMultiplier);
-            transform.localScale = new Vector3(scale, scale, 1f);
-            baseLocalScale = transform.localScale;
+            SetVisualScale(new Vector3(scale, scale, 1f));
+            baseLocalScale = GetVisualScale();
             spriteRenderer.flipX = battleUnit.IsHero;
 
             AttachNameplate(nameplatePrefab);
@@ -107,7 +112,32 @@ namespace ClockworkWasteland.Combat
             }
 
             spriteRenderer.sortingOrder = emphasized ? sortingOrder : baseSortingOrder;
-            transform.localScale = emphasized ? baseLocalScale * 1.06f : baseLocalScale;
+            SetVisualScale(emphasized ? baseLocalScale * 1.06f : baseLocalScale);
+        }
+
+        public void SetFocusLayer(bool focused, int sortingOrder)
+        {
+            if (spriteRenderer == null)
+            {
+                return;
+            }
+
+            spriteRenderer.sortingOrder = focused ? sortingOrder : baseSortingOrder;
+            if (overlayRenderer != null)
+            {
+                overlayRenderer.sortingOrder = focused ? sortingOrder + 1 : overlayBaseSortingOrder;
+            }
+
+            if (hitOverlayRenderer != null)
+            {
+                hitOverlayRenderer.sortingOrder = focused ? sortingOrder + 2 : hitOverlayBaseSortingOrder;
+            }
+        }
+
+        public void SetFocusScale(float scale)
+        {
+            var clampedScale = Mathf.Max(0.1f, scale);
+            SetVisualScale(new Vector3(baseLocalScale.x * clampedScale, baseLocalScale.y * clampedScale, baseLocalScale.z));
         }
 
         public void AlignFeetTo(float worldY)
@@ -231,30 +261,51 @@ namespace ClockworkWasteland.Combat
             transform.localPosition = start;
         }
 
+        private void EnsureVisualHierarchy()
+        {
+            if (visualRoot == null)
+            {
+                visualRoot = transform.Find("VisualRoot");
+            }
+
+            if (visualRoot == null)
+            {
+                visualRoot = transform;
+            }
+
+            if (spriteRenderer == null)
+            {
+                var body = visualRoot.Find("BodySprite");
+                spriteRenderer = body != null ? body.GetComponent<SpriteRenderer>() : visualRoot.GetComponent<SpriteRenderer>();
+            }
+        }
+
         private void EnsureOverlayRenderer()
         {
             overlayRenderer = EnsureOverlayRenderer(overlayRenderer, "ActionOverlay", 80);
             overlayRenderer.enabled = false;
+            overlayBaseSortingOrder = overlayRenderer.sortingOrder;
         }
 
         private void EnsureHitOverlayRenderer()
         {
             hitOverlayRenderer = EnsureOverlayRenderer(hitOverlayRenderer, "HitOverlay", 81);
             hitOverlayRenderer.enabled = false;
+            hitOverlayBaseSortingOrder = hitOverlayRenderer.sortingOrder;
         }
 
         private SpriteRenderer EnsureOverlayRenderer(SpriteRenderer renderer, string childName, int sortingOrder)
         {
             if (renderer == null)
             {
-                var overlayTransform = transform.Find(childName);
+                var overlayTransform = visualRoot != null ? visualRoot.Find(childName) : transform.Find(childName);
                 renderer = overlayTransform != null ? overlayTransform.GetComponent<SpriteRenderer>() : null;
             }
 
             if (renderer == null)
             {
                 var overlayObject = new GameObject(childName);
-                overlayObject.transform.SetParent(transform, false);
+                overlayObject.transform.SetParent(visualRoot != null ? visualRoot : transform, false);
                 renderer = overlayObject.AddComponent<SpriteRenderer>();
                 renderer.sortingOrder = sortingOrder;
             }
@@ -395,10 +446,13 @@ namespace ClockworkWasteland.Combat
 
         private void CreateClickCollider()
         {
-            var collider = GetComponent<BoxCollider2D>() ?? gameObject.AddComponent<BoxCollider2D>();
+            var colliderTransform = transform.Find("Collider") ?? transform;
+            var collider = colliderTransform.GetComponent<BoxCollider2D>() ?? colliderTransform.gameObject.AddComponent<BoxCollider2D>();
             var bounds = spriteRenderer.sprite != null ? spriteRenderer.sprite.bounds : new Bounds(Vector3.zero, Vector3.one);
             collider.offset = bounds.center;
             collider.size = bounds.size;
+            var proxy = colliderTransform.GetComponent<CombatantClickProxy>() ?? colliderTransform.gameObject.AddComponent<CombatantClickProxy>();
+            proxy.Bind(this);
         }
 
         private void OnMouseDown()
@@ -417,6 +471,39 @@ namespace ClockworkWasteland.Combat
             }
 
             return battleUnit.Definition.battleSprite != null ? battleUnit.Definition.battleSprite : fallbackSprite;
+        }
+
+        private Vector3 GetVisualScale()
+        {
+            return (visualRoot != null ? visualRoot : transform).localScale;
+        }
+
+        private void SetVisualScale(Vector3 scale)
+        {
+            (visualRoot != null ? visualRoot : transform).localScale = scale;
+        }
+
+        internal void NotifyClicked()
+        {
+            if (unit != null && unit.IsAlive)
+            {
+                clicked?.Invoke(unit);
+            }
+        }
+    }
+
+    public sealed class CombatantClickProxy : MonoBehaviour
+    {
+        private CombatantView owner;
+
+        public void Bind(CombatantView view)
+        {
+            owner = view;
+        }
+
+        private void OnMouseDown()
+        {
+            owner?.NotifyClicked();
         }
     }
 }

@@ -35,6 +35,39 @@ namespace ClockworkWasteland.Combat
         public int Count { get; }
     }
 
+    public readonly struct BlurredRendererState
+    {
+        public BlurredRendererState(SpriteRenderer renderer, Material material)
+        {
+            Renderer = renderer;
+            Material = material;
+        }
+
+        public SpriteRenderer Renderer { get; }
+        public Material Material { get; }
+    }
+
+    public readonly struct AttackLungeState
+    {
+        public AttackLungeState(CombatantView actorView, Vector3 actorStart, Vector3 actorEnd, CombatantView[] targetViews, Vector3[] targetStarts, Vector3[] targetEnds)
+        {
+            ActorView = actorView;
+            ActorStart = actorStart;
+            ActorEnd = actorEnd;
+            TargetViews = targetViews;
+            TargetStarts = targetStarts;
+            TargetEnds = targetEnds;
+        }
+
+        public CombatantView ActorView { get; }
+        public Vector3 ActorStart { get; }
+        public Vector3 ActorEnd { get; }
+        public CombatantView[] TargetViews { get; }
+        public Vector3[] TargetStarts { get; }
+        public Vector3[] TargetEnds { get; }
+        public bool IsValid => ActorView != null && TargetViews != null && TargetViews.Length > 0;
+    }
+
     public enum MapNodeType
     {
         Battle,
@@ -56,11 +89,52 @@ namespace ClockworkWasteland.Combat
         public string Description { get; }
     }
 
+    public readonly struct AdventureMapOption
+    {
+        public AdventureMapOption(string mapId, string displayName, string description, int difficulty)
+        {
+            MapId = mapId;
+            DisplayName = displayName;
+            Description = description;
+            Difficulty = difficulty;
+        }
+
+        public string MapId { get; }
+        public string DisplayName { get; }
+        public string Description { get; }
+        public int Difficulty { get; }
+    }
+
+    [System.Serializable]
+    public sealed class GameSaveData
+    {
+        public int gold;
+        public List<HeroSaveData> heroes = new List<HeroSaveData>();
+    }
+
+    [System.Serializable]
+    public sealed class HeroSaveData
+    {
+        public string characterId;
+        public bool unlocked;
+        public int level;
+        public int experience;
+        public int health;
+    }
+
     public sealed class BattleController : MonoBehaviour
     {
         private const int MaxFormationSlots = 4;
         private const int MapNodeCount = 3;
+        private const int InitialGold = 1200;
         private const float FormationFeetY = -1.8f;
+        private const float HeroFrontSlotX = -0.8f;
+        private const float EnemyFrontSlotX = 1.3f;
+        private const float BaseFormationSlotSpacing = 1.1f;
+        private const float ReferenceFormationVisualScale = 0.8f;
+        private const int AttackFocusActorSortingOrder = 120;
+        private const int AttackFocusTargetSortingOrder = 121;
+        private const string SaveKey = "ClockworkWasteland.Save.v1";
         private const float MinCombatOverlayDuration = 0.56f;
         private const float BulletTimeDuration = 0.62f;
         private const float BulletTimeMinScale = 0.08f;
@@ -68,6 +142,7 @@ namespace ClockworkWasteland.Combat
 
         [SerializeField] private CombatantDefinition[] heroParty;
         [SerializeField] private CombatantDefinition[] enemyParty;
+        [SerializeField] private CombatantDefinition[] heroPoolConfig;
 
         [Header("Presentation")]
         [SerializeField] private BattleUI battleUIPrefab;
@@ -76,6 +151,20 @@ namespace ClockworkWasteland.Combat
         [SerializeField] private float heroVisualScale = 0.8f;
         [SerializeField] private Sprite[] battleBackgrounds;
         [SerializeField] private int battleBackgroundIndex = 0;
+
+        [Header("Attack Focus")]
+        [SerializeField] private Material attackFocusBlurMaterial;
+        [SerializeField] private float attackFocusZoomRatio = 0.62f;
+        [SerializeField] private float attackFocusScale = 1.2f;
+        [SerializeField] private float attackFocusBlurStrength = 0.45f;
+        [SerializeField] private Color attackFocusBlurTint = new Color(0.68f, 0.68f, 0.72f, 1f);
+        [SerializeField] private float attackFocusLungeDuration = 0.09f;
+        [SerializeField] private float attackFocusHitPause = 0.05f;
+        [SerializeField, Range(0f, 0.9f)] private float attackFocusSingleLungeRatio = 0.4f;
+        [SerializeField] private float attackFocusSingleMinDistance = 0.8f;
+        [SerializeField] private float attackFocusAoeActorOffset = 1.15f;
+        [SerializeField] private float attackFocusAoeTargetOffset = 1.35f;
+        [SerializeField] private float attackFocusAoeTargetSpacing = 1.35f;
 
         private readonly List<BattleUnit> heroes = new List<BattleUnit>();
         private readonly List<BattleUnit> enemies = new List<BattleUnit>();
@@ -103,6 +192,11 @@ namespace ClockworkWasteland.Combat
         private CombatantDefinition[] totalHeroPool = new CombatantDefinition[0];
         private CombatantDefinition[] availableHeroPool = new CombatantDefinition[0];
         private readonly List<CombatantDefinition> selectedHeroDefinitions = new List<CombatantDefinition>();
+        private readonly List<CombatantDefinition> tavernOffers = new List<CombatantDefinition>();
+        private readonly List<BlurredRendererState> blurredRendererStates = new List<BlurredRendererState>();
+        private readonly HashSet<BattleUnit> ironWillUsedThisBattle = new HashSet<BattleUnit>();
+        private AdventureMapOption selectedAdventureMap;
+        private Material runtimeFocusBlurMaterial;
 
         public void Configure(CombatantDefinition[] heroesToUse, CombatantDefinition[] enemiesToUse, BattleUI uiPrefabToUse = null, CombatantView unitPrefabToUse = null, CombatNameplate nameplatePrefabToUse = null)
         {
@@ -117,12 +211,13 @@ namespace ClockworkWasteland.Combat
         {
             fallbackSprite = CreateFallbackSprite();
             swapSkill = CreateSwapSkill();
-            CombatAudio.Ensure();
             SetupScene();
+            CombatAudio.Ensure();
             CacheDefaultCamera();
             LoadDefaultPresentationPrefabs();
             shopItems = LoadShopItems();
-            ShowTitleScreen();
+            LoadOrCreateGameState();
+            ShowLobby();
         }
 
         public void RunAttackFlowByIndices(int attackerIndex, int skillIndex, int targetIndex)
@@ -155,39 +250,86 @@ namespace ClockworkWasteland.Combat
 
         private void ShowTitleScreen()
         {
-            CombatAudio.Instance.StopMusic();
+            ShowLobby();
+        }
+
+        private void PrepareNonCombatScreen(string turnLabel, bool stopMusic = true)
+        {
+            if (stopMusic)
+            {
+                CombatAudio.Instance.StopMusic();
+            }
+
             ClearAllUnits();
+            ui.HideOverlay();
             ui.ClearActionPanels();
             ui.SetRound(0);
-            ui.SetTurn("\u6807\u9898\u754c\u9762");
-            ui.SetGold(0);
-            ui.ShowTitleScreen(StartNewGame, ShowSettings, QuitGame);
+            ui.SetTurn(turnLabel);
+            ui.SetGold(gold);
+        }
+
+        private bool TryValidateSelectedHeroesForBattle()
+        {
+            if (selectedHeroDefinitions.Count == 0)
+            {
+                ui.AddLog("\u8bf7\u81f3\u5c11\u9009\u62e9 1 \u540d\u82f1\u96c4\u3002");
+                return false;
+            }
+
+            var deadHero = selectedHeroDefinitions.FirstOrDefault(hero => hero != null && hero.IsDead);
+            if (deadHero != null)
+            {
+                ui.AddLog($"{deadHero.displayName} \u5df2\u6b7b\u4ea1\uff0c\u9700\u8981\u5148\u590d\u6d3b\u624d\u80fd\u51fa\u6218\u3002");
+                return false;
+            }
+
+            return true;
+        }
+
+        private void BeginSelectedAdventure()
+        {
+            ClearAllUnits();
+            ui.HideOverlay();
+            ui.ClearActionPanels();
+            CombatAudio.Instance.PlayStartExpedition();
+            CommitSelectedPartyToHeroParty();
+            SetupHeroUnits();
+            StartCoroutine(SelectedAdventureLoop());
+        }
+
+        private void ShowLobby()
+        {
+            PrepareNonCombatScreen("\u5927\u5385");
+            ui.ShowLobby(gold, ShowTavern, ShowAdventureMap, ShowHeroCodex, ShowSettings, QuitGame);
         }
 
         private void StartNewGame()
         {
             ResetGameState();
-            ShowTeamSelection();
+            SaveGameState();
+            ShowLobby();
         }
 
         private void ResetGameState()
         {
             StopAllCoroutines();
             ClearAllUnits();
-            gold = 0;
+            gold = InitialGold;
             inventory.Clear();
-            totalHeroPool = DemoBattleBootstrap.CreateHeroPool();
+            totalHeroPool = BuildHeroPool();
+            NormalizeHeroPool(totalHeroPool);
             availableHeroPool = GetUnlockedHeroPool();
-            selectedHeroDefinitions.Clear();
-            selectedHeroDefinitions.AddRange(availableHeroPool.Take(MaxFormationSlots));
+            SyncSelectedHeroDefinitions(fillToMax: true);
             currentBattleNumber = 0;
-            heroParty = selectedHeroDefinitions.ToArray();
+            CommitSelectedPartyToHeroParty();
             ui.SetGold(gold);
+            RefreshTavernOffers();
         }
 
         private void ShowSettings()
         {
-            ui.ShowSettingsScreen(ShowTitleScreen);
+            PrepareNonCombatScreen("\u8bbe\u7f6e", false);
+            ui.ShowSettingsScreen(ShowLobby);
         }
 
         private void QuitGame()
@@ -196,15 +338,30 @@ namespace ClockworkWasteland.Combat
             Application.Quit();
         }
 
+        private void ShowHeroCodex()
+        {
+            PrepareNonCombatScreen("\u82f1\u96c4\u56fe\u9274");
+            ui.ShowHeroCodex(totalHeroPool, ShowLobby);
+        }
+
+        private void ShowAdventureMap()
+        {
+            PrepareNonCombatScreen("\u5192\u9669");
+            ui.ShowAdventureMap(GetAdventureMaps(), SelectAdventureMap, ShowLobby);
+        }
+
+        private void SelectAdventureMap(AdventureMapOption map)
+        {
+            selectedAdventureMap = map;
+            ui.AddLog($"\u9009\u62e9\u5730\u56fe\uff1a{map.DisplayName}\u3002");
+            ShowTeamSelection();
+        }
+
         private void ShowTeamSelection()
         {
-            CombatAudio.Instance.StopMusic();
-            ClearAllUnits();
-            ui.ClearActionPanels();
-            ui.SetRound(0);
-            ui.SetTurn("\u961f\u4f0d\u914d\u7f6e");
-            ui.SetGold(gold);
-            ui.ShowTeamSelection(availableHeroPool, selectedHeroDefinitions, ToggleHeroSelection, StartSelectedBattleSequence, ShowShop, ShowInventory, ShowTavern);
+            PrepareNonCombatScreen("\u961f\u4f0d\u914d\u7f6e");
+            SyncSelectedHeroDefinitions(fillToMax: false);
+            ui.ShowTeamSelection(GetDeployableHeroPool(), selectedHeroDefinitions, ToggleHeroSelection, StartSelectedBattleSequence, ShowAdventureMap);
         }
 
         private void ToggleHeroSelection(CombatantDefinition hero)
@@ -227,30 +384,18 @@ namespace ClockworkWasteland.Combat
                 ui.AddLog("\u6700\u591a\u53ea\u80fd\u9009\u62e9 4 \u540d\u82f1\u96c4\u3002");
             }
 
-            ui.ShowTeamSelection(availableHeroPool, selectedHeroDefinitions, ToggleHeroSelection, StartSelectedBattleSequence, ShowShop, ShowInventory, ShowTavern);
+            SortSelectedHeroesInPlace();
+            ui.ShowTeamSelection(GetDeployableHeroPool(), selectedHeroDefinitions, ToggleHeroSelection, StartSelectedBattleSequence, ShowAdventureMap);
         }
 
         private void StartSelectedBattleSequence()
         {
-            if (selectedHeroDefinitions.Count == 0)
+            if (!TryValidateSelectedHeroesForBattle())
             {
-                ui.AddLog("\u8bf7\u81f3\u5c11\u9009\u62e9 1 \u540d\u82f1\u96c4\u3002");
                 return;
             }
 
-            var deadHero = selectedHeroDefinitions.FirstOrDefault(hero => hero != null && hero.IsDead);
-            if (deadHero != null)
-            {
-                ui.AddLog($"{deadHero.displayName} \u5df2\u6b7b\u4ea1\uff0c\u9700\u8981\u5148\u590d\u6d3b\u624d\u80fd\u51fa\u6218\u3002");
-                return;
-            }
-
-            ClearAllUnits();
-            ui.HideOverlay();
-            CombatAudio.Instance.PlayStartExpedition();
-            heroParty = selectedHeroDefinitions.Take(MaxFormationSlots).ToArray();
-            SetupHeroUnits();
-            StartCoroutine(MapExpeditionLoop());
+            BeginSelectedAdventure();
         }
 
         private void ShowShop()
@@ -265,7 +410,12 @@ namespace ClockworkWasteland.Combat
 
         private void ShowTavern()
         {
-            ui.ShowTavern(GetTavernOffers(), gold, RecruitHero, ShowTeamSelection);
+            if (tavernOffers.Count == 0)
+            {
+                RefreshTavernOffers();
+            }
+
+            ui.ShowTavern(tavernOffers, gold, RecruitHero, ShowLobby);
         }
 
         private void RecruitHero(CombatantDefinition hero)
@@ -295,8 +445,10 @@ namespace ClockworkWasteland.Combat
             availableHeroPool = GetUnlockedHeroPool();
             selectedHeroDefinitions.RemoveAll(selected => selected == null || !selected.isUnlocked);
             ui.SetGold(gold);
+            SaveGameState();
+            RefreshTavernOffers();
             ui.AddLog($"\u62db\u52df\u4e86 {hero.displayName}\uff0c\u4ed6\u5df2\u52a0\u5165\u82f1\u96c4\u6c60\u3002");
-            ShowTavern();
+            ui.ShowContinuePrompt($"\u62db\u52df\u6210\u529f\uff1a{hero.displayName}", "\u7ee7\u7eed", ShowTavern);
         }
 
         private void BuyItem(InventoryItemData item)
@@ -316,6 +468,7 @@ namespace ClockworkWasteland.Combat
             gold -= item.price;
             inventory[item] = inventory.TryGetValue(item, out var count) ? count + 1 : 1;
             ui.SetGold(gold);
+            SaveGameState();
             ui.AddLog($"\u8d2d\u4e70\u4e86 {item.itemName}\u3002");
             ShowShop();
         }
@@ -358,6 +511,8 @@ namespace ClockworkWasteland.Combat
                 {
                     inventory[item] = count;
                 }
+
+                SaveGameState();
             }
 
             ShowInventory();
@@ -376,6 +531,19 @@ namespace ClockworkWasteland.Combat
         {
             return totalHeroPool
                 .Where(hero => hero != null && hero.isHero && hero.isUnlocked)
+                .OrderBy(GetPreferredRowSortOrder)
+                .ThenBy(GetArchetypeSortOrder)
+                .ThenBy(hero => hero.displayName)
+                .ToArray();
+        }
+
+        private CombatantDefinition[] GetDeployableHeroPool()
+        {
+            return availableHeroPool
+                .Where(hero => hero != null && hero.isHero && hero.isUnlocked && !hero.IsDead)
+                .OrderBy(GetPreferredRowSortOrder)
+                .ThenBy(GetArchetypeSortOrder)
+                .ThenBy(hero => hero.displayName)
                 .ToArray();
         }
 
@@ -386,6 +554,245 @@ namespace ClockworkWasteland.Combat
                 .OrderBy(_ => Random.value)
                 .Take(3)
                 .ToArray();
+        }
+
+        private void RefreshTavernOffers()
+        {
+            tavernOffers.Clear();
+            tavernOffers.AddRange(GetTavernOffers());
+        }
+
+        private static IReadOnlyList<AdventureMapOption> GetAdventureMaps()
+        {
+            return new[]
+            {
+                new AdventureMapOption("rust_wastes", "\u9508\u94c1\u8352\u539f", "\u6807\u51c6\u5192\u9669\u8def\u7ebf\uff0c\u9002\u5408\u6d4b\u8bd5\u961f\u4f0d\u3002", 1),
+                new AdventureMapOption("ember_foundry", "\u4f59\u70ec\u94f8\u5382", "\u66f4\u591a\u6218\u6597\u8282\u70b9\uff0c\u5956\u52b1\u66f4\u9ad8\u3002", 2),
+                new AdventureMapOption("clockwork_depths", "\u53d1\u6761\u6df1\u5904", "\u9ad8\u5371\u9669\u8def\u7ebf\uff0c\u540e\u7eed\u53ef\u63a5 Boss \u548c\u7279\u6b8a\u4e8b\u4ef6\u3002", 3)
+            };
+        }
+
+        private void LoadOrCreateGameState()
+        {
+            totalHeroPool = BuildHeroPool();
+            NormalizeHeroPool(totalHeroPool);
+
+            if (PlayerPrefs.HasKey(SaveKey))
+            {
+                try
+                {
+                    var save = JsonUtility.FromJson<GameSaveData>(PlayerPrefs.GetString(SaveKey));
+                    ApplySaveData(save);
+                }
+                catch (System.Exception exception)
+                {
+                    Debug.LogWarning($"Failed to load combat save data. Starting a new state. {exception.Message}");
+                    gold = InitialGold;
+                }
+            }
+            else
+            {
+                gold = InitialGold;
+            }
+
+            availableHeroPool = GetUnlockedHeroPool();
+            SyncSelectedHeroDefinitions(fillToMax: true);
+            CommitSelectedPartyToHeroParty();
+            RefreshTavernOffers();
+            ui.SetGold(gold);
+        }
+
+        private void ApplySaveData(GameSaveData save)
+        {
+            if (save == null)
+            {
+                gold = InitialGold;
+                return;
+            }
+
+            gold = Mathf.Max(0, save.gold);
+            var heroStates = save.heroes != null
+                ? save.heroes.Where(hero => !string.IsNullOrWhiteSpace(hero.characterId)).ToDictionary(hero => hero.characterId, hero => hero)
+                : new Dictionary<string, HeroSaveData>();
+
+            foreach (var hero in totalHeroPool.Where(hero => hero != null && hero.isHero))
+            {
+                if (!heroStates.TryGetValue(hero.characterId, out var state))
+                {
+                    hero.EnsureRuntimeHealth();
+                    continue;
+                }
+
+                hero.isUnlocked = state.unlocked;
+                hero.currentLevel = Mathf.Max(1, state.level);
+                hero.currentExperience = Mathf.Max(0, state.experience);
+                hero.currentHealth = Mathf.Clamp(state.health, 0, hero.MaxHealthWithGrowth);
+            }
+        }
+
+        private CombatantDefinition[] BuildHeroPool()
+        {
+            var configuredPool = heroPoolConfig != null
+                ? heroPoolConfig.Where(hero => hero != null).Select(Instantiate).ToArray()
+                : System.Array.Empty<CombatantDefinition>();
+
+            return configuredPool.Length > 0
+                ? configuredPool
+                : DemoBattleBootstrap.CreateHeroPool();
+        }
+
+        private void NormalizeHeroPool(IEnumerable<CombatantDefinition> heroesToNormalize)
+        {
+            if (heroesToNormalize == null)
+            {
+                return;
+            }
+
+            foreach (var hero in heroesToNormalize.Where(hero => hero != null && hero.isHero))
+            {
+                hero.EnsureRuntimeHealth();
+                if (hero.archetype != CombatArchetype.Undefined && hero.preferredRow == CombatRowPreference.Flexible)
+                {
+                    hero.preferredRow = GetDefaultRowForArchetype(hero.archetype);
+                }
+            }
+        }
+
+        private void SyncSelectedHeroDefinitions(bool fillToMax)
+        {
+            var deployable = GetDeployableHeroPool();
+            selectedHeroDefinitions.RemoveAll(hero => hero == null || !deployable.Contains(hero));
+
+            SortSelectedHeroesInPlace();
+
+            if (!fillToMax || selectedHeroDefinitions.Count >= MaxFormationSlots)
+            {
+                return;
+            }
+
+            foreach (var hero in deployable)
+            {
+                if (selectedHeroDefinitions.Contains(hero))
+                {
+                    continue;
+                }
+
+                selectedHeroDefinitions.Add(hero);
+                if (selectedHeroDefinitions.Count >= MaxFormationSlots)
+                {
+                    break;
+                }
+            }
+
+            SortSelectedHeroesInPlace();
+        }
+
+        private void SortSelectedHeroesInPlace()
+        {
+            var ordered = selectedHeroDefinitions
+                .Where(hero => hero != null)
+                .Distinct()
+                .OrderBy(GetPreferredRowSortOrder)
+                .ThenBy(GetArchetypeSortOrder)
+                .ThenBy(hero => hero.displayName)
+                .Take(MaxFormationSlots)
+                .ToArray();
+
+            selectedHeroDefinitions.Clear();
+            selectedHeroDefinitions.AddRange(ordered);
+        }
+
+        private void CommitSelectedPartyToHeroParty()
+        {
+            SortSelectedHeroesInPlace();
+            heroParty = selectedHeroDefinitions.Take(MaxFormationSlots).ToArray();
+        }
+
+        private static int GetPreferredRowSortOrder(CombatantDefinition hero)
+        {
+            if (hero == null)
+            {
+                return int.MaxValue;
+            }
+
+            switch (hero.preferredRow)
+            {
+                case CombatRowPreference.Front:
+                    return 0;
+                case CombatRowPreference.Mid:
+                    return 1;
+                case CombatRowPreference.Flexible:
+                    return 2;
+                case CombatRowPreference.Back:
+                    return 3;
+                default:
+                    return 4;
+            }
+        }
+
+        private static int GetArchetypeSortOrder(CombatantDefinition hero)
+        {
+            if (hero == null)
+            {
+                return int.MaxValue;
+            }
+
+            switch (hero.archetype)
+            {
+                case CombatArchetype.Bulwark:
+                    return 0;
+                case CombatArchetype.Executioner:
+                    return 1;
+                case CombatArchetype.Artificer:
+                    return 2;
+                case CombatArchetype.Physician:
+                    return 3;
+                default:
+                    return 4;
+            }
+        }
+
+        private static CombatRowPreference GetDefaultRowForArchetype(CombatArchetype archetype)
+        {
+            switch (archetype)
+            {
+                case CombatArchetype.Bulwark:
+                    return CombatRowPreference.Front;
+                case CombatArchetype.Executioner:
+                    return CombatRowPreference.Mid;
+                case CombatArchetype.Artificer:
+                case CombatArchetype.Physician:
+                    return CombatRowPreference.Back;
+                default:
+                    return CombatRowPreference.Flexible;
+            }
+        }
+
+        private void SaveGameState()
+        {
+            if (totalHeroPool == null || totalHeroPool.Length == 0)
+            {
+                return;
+            }
+
+            var save = new GameSaveData
+            {
+                gold = Mathf.Max(0, gold),
+                heroes = totalHeroPool
+                    .Where(hero => hero != null && hero.isHero)
+                    .Select(hero => new HeroSaveData
+                    {
+                        characterId = hero.characterId,
+                        unlocked = hero.isUnlocked,
+                        level = hero.Level,
+                        experience = hero.Experience,
+                        health = hero.CurrentHealth
+                    })
+                    .ToList()
+            };
+
+            PlayerPrefs.SetString(SaveKey, JsonUtility.ToJson(save));
+            PlayerPrefs.Save();
         }
 
         private static InventoryItemData[] LoadShopItems()
@@ -421,6 +828,22 @@ namespace ClockworkWasteland.Combat
             item.healAmount = healAmount;
             item.reviveHealthPercent = reviveHealthPercent;
             return item;
+        }
+
+        private IEnumerator SelectedAdventureLoop()
+        {
+            currentBattleNumber = Mathf.Max(1, selectedAdventureMap.Difficulty);
+            ui.AddLog($"\u5192\u9669\u5f00\u59cb\uff1a{selectedAdventureMap.DisplayName}\u3002");
+            yield return StartCoroutine(RunCombatEncounter(selectedAdventureMap.Difficulty >= 3));
+
+            if (!heroes.Any(hero => hero.CanAct))
+            {
+                yield return StartCoroutine(ShowDefeatAndReturn());
+                yield break;
+            }
+
+            SaveGameState();
+            ShowLobby();
         }
 
         private IEnumerator MapExpeditionLoop()
@@ -483,29 +906,23 @@ namespace ClockworkWasteland.Combat
             ui.SetTurn("\u606d\u559c\u901a\u5173");
             ui.AddLog("Boss \u5df2\u88ab\u51fb\u8d25\uff0c\u8fdc\u5f81\u901a\u5173\u3002");
             var requestedReturn = false;
-            ui.ShowContinuePrompt("\u606d\u559c\u901a\u5173", "\u8fd4\u56de\u6807\u9898", () => requestedReturn = true);
+            ui.ShowContinuePrompt("\u606d\u559c\u901a\u5173", "\u8fd4\u56de\u5927\u5385", () => requestedReturn = true);
             while (!requestedReturn)
             {
                 yield return null;
             }
 
-            ShowTitleScreen();
+            SaveGameState();
+            ShowLobby();
         }
 
         private IEnumerator RunCombatEncounter(bool bossBattle)
         {
-            if (bossBattle)
-            {
-                CombatAudio.Instance.PlayBossMusic();
-            }
-
+            ironWillUsedThisBattle.Clear();
+            CombatAudio.Instance.PlayBossMusic();
             PrepareBattle(currentBattleNumber, bossBattle);
             yield return StartCoroutine(BattleLoop());
-
-            if (bossBattle)
-            {
-                CombatAudio.Instance.StopMusic();
-            }
+            CombatAudio.Instance.StopMusic();
 
             if (!heroes.Any(hero => hero.CanAct))
             {
@@ -541,6 +958,7 @@ namespace ClockworkWasteland.Combat
                     ui.AddLog(healed > 0
                         ? $"{hero.displayName} \u5728\u4f11\u606f\u4e2d\u6062\u590d\u4e86 {healed} \u70b9\u751f\u547d\u3002"
                         : $"{hero.displayName} \u73b0\u5728\u65e0\u9700\u4f11\u606f\u3002");
+                    SaveGameState();
                 }
 
                 selected = true;
@@ -584,6 +1002,7 @@ namespace ClockworkWasteland.Combat
             gold += gained;
             ui.SetGold(gold);
             ui.AddLog($"\u6253\u5f00\u5b9d\u7bb1\uff0c\u83b7\u5f97\u91d1\u5e01 {gained}\u3002");
+            SaveGameState();
 
             var continueRequested = false;
             ui.ShowContinuePrompt($"\u5b9d\u7bb1\uff1a\u83b7\u5f97 {gained} \u91d1\u5e01", "\u7ee7\u7eed", () => continueRequested = true);
@@ -599,13 +1018,14 @@ namespace ClockworkWasteland.Combat
             ui.SetTurn("\u6218\u8d25");
             ui.AddLog("\u8fdc\u5f81\u961f\u5012\u4e0b\u4e86\uff0c\u8fdc\u5f81\u7ec8\u6b62\u3002");
             var returnRequested = false;
-            ui.ShowContinuePrompt("\u6218\u8d25", "\u8fd4\u56de\u6807\u9898", () => returnRequested = true);
+            ui.ShowContinuePrompt("\u6218\u8d25", "\u8fd4\u56de\u5927\u5385", () => returnRequested = true);
             while (!returnRequested)
             {
                 yield return null;
             }
 
-            ShowTitleScreen();
+            SaveGameState();
+            ShowLobby();
         }
 
         private IReadOnlyList<BattleRewardResult> GrantVictoryRewards(out int goldGained)
@@ -638,6 +1058,7 @@ namespace ClockworkWasteland.Combat
             }
 
             RefreshViews();
+            SaveGameState();
             return results;
         }
 
@@ -844,9 +1265,16 @@ namespace ClockworkWasteland.Combat
 
             var mainTarget = targets[0];
             views.TryGetValue(mainTarget, out var mainTargetView);
+            var targetViews = targets
+                .Select(target => views.TryGetValue(target, out var view) ? view : null)
+                .Where(view => view != null)
+                .ToArray();
             SetTargetHighlights(new[] { mainTarget });
 
-            yield return StartCoroutine(FocusCamera(actorView.transform.position));
+            yield return StartCoroutine(BeginAttackFocus(actorView, mainTargetView, targetViews));
+            var lungeState = CreateAttackLungeState(actorView, targetViews);
+            yield return StartCoroutine(MoveAttackFocusLunge(lungeState, true));
+            yield return new WaitForSecondsRealtime(attackFocusHitPause);
 
             var overlayDuration = Mathf.Max(MinCombatOverlayDuration, skill.overlayDuration);
             if (useImpactPresentation && mainTargetView != null)
@@ -906,10 +1334,11 @@ namespace ClockworkWasteland.Combat
                 }
             }
 
+            yield return StartCoroutine(MoveAttackFocusLunge(lungeState, false));
             RefreshViews();
             LayoutFormation(true);
             LayoutFormation(false);
-            yield return StartCoroutine(RestoreCamera());
+            yield return StartCoroutine(EndAttackFocus(actorView, mainTargetView));
             SetTargetHighlights(new BattleUnit[0]);
             yield return new WaitForSeconds(0.25f);
         }
@@ -933,25 +1362,35 @@ namespace ClockworkWasteland.Combat
 
             actor.CurrentPosition = actorTargetPosition;
             target.CurrentPosition = targetTargetPosition;
-            yield return StartCoroutine(AnimateSwap(actor, target));
+            yield return StartCoroutine(AnimateFormation(actor.IsHero));
 
             RefreshViews();
             ui.AddLog($"{actor.DisplayName} \u548c {target.DisplayName} \u4ea4\u6362\u4e86\u7ad9\u4f4d\u3002");
         }
 
-        private IEnumerator AnimateSwap(BattleUnit actor, BattleUnit target)
+        private IEnumerator AnimateFormation(bool isHero)
         {
-            if (!views.TryGetValue(actor, out var actorView) || !views.TryGetValue(target, out var targetView))
+            const float duration = 0.28f;
+            var slots = isHero ? heroSlots : enemySlots;
+            var moves = new List<Coroutine>();
+
+            for (var i = 0; i < slots.Length; i++)
             {
-                LayoutFormation(actor.IsHero);
-                yield break;
+                var unit = slots[i];
+                if (unit == null || !views.TryGetValue(unit, out var view) || !view.gameObject.activeSelf)
+                {
+                    continue;
+                }
+
+                unit.CurrentPosition = i + 1;
+                var targetX = GetFormationSlotX(isHero, slots, unit.CurrentPosition);
+                moves.Add(view.StartCoroutine(view.MoveToFormation(targetX, FormationFeetY, duration)));
             }
 
-            const float duration = 0.28f;
-            var actorMove = actorView.StartCoroutine(actorView.MoveToFormation(GetSlotX(actor.IsHero, actor.CurrentPosition), FormationFeetY, duration));
-            var targetMove = targetView.StartCoroutine(targetView.MoveToFormation(GetSlotX(target.IsHero, target.CurrentPosition), FormationFeetY, duration));
-            yield return actorMove;
-            yield return targetMove;
+            foreach (var move in moves)
+            {
+                yield return move;
+            }
         }
 
         private SkillUseState GetSkillUseState(BattleUnit actor, SkillData skill)
@@ -1194,6 +1633,19 @@ namespace ClockworkWasteland.Combat
             return value * value * (3f - 2f * value);
         }
 
+        private static float EaseOutCubic(float value)
+        {
+            value = Mathf.Clamp01(value);
+            var inverse = 1f - value;
+            return 1f - inverse * inverse * inverse;
+        }
+
+        private static float EaseInCubic(float value)
+        {
+            value = Mathf.Clamp01(value);
+            return value * value * value;
+        }
+
         private static bool IsImpactPresentationSkill(SkillData skill)
         {
             return skill != null && (skill.skillType == SkillDataType.伤害 || skill.skillType == SkillDataType.控制);
@@ -1278,8 +1730,13 @@ namespace ClockworkWasteland.Combat
         private DamageResult CalculateDamage(BattleUnit actor, SkillData skill, BattleUnit target)
         {
             var randomOffset = Random.Range(-2, 3);
-            var baseDamage = Mathf.Max(1, skill.baseValue + actor.Attack - target.Defense + randomOffset);
+            var attack = GetEffectiveAttack(actor, target);
+            var defense = GetEffectiveDefense(target);
+            var baseDamage = Mathf.Max(1, skill.baseValue + attack - defense + randomOffset);
             var amount = Mathf.Max(1, Mathf.RoundToInt(baseDamage * skill.powerMultiplier));
+
+            amount = ApplyPassiveToDamage(actor, target, amount);
+
             var critical = Random.value < 0.1f;
             if (critical)
             {
@@ -1287,6 +1744,177 @@ namespace ClockworkWasteland.Combat
             }
 
             return new DamageResult(amount, critical);
+        }
+
+        private int GetEffectiveAttack(BattleUnit unit, BattleUnit target)
+        {
+            var attack = unit.Attack;
+            if (unit.IsHero && unit.Definition.passive == HeroPassive.Berserker)
+            {
+                var hpPercent = (float)unit.Health / unit.MaxHealth;
+                if (hpPercent < 0.5f)
+                {
+                    attack = Mathf.RoundToInt(attack * 1.3f);
+                }
+            }
+
+            if (unit.IsHero && unit.Definition.passive == HeroPassive.GlassCannon)
+            {
+                attack = Mathf.RoundToInt(attack * 1.25f);
+            }
+
+            return attack;
+        }
+
+        private int GetEffectiveDefense(BattleUnit unit)
+        {
+            var defense = unit.Defense;
+            if (unit.IsHero && unit.Definition.passive == HeroPassive.GlassCannon)
+            {
+                defense = Mathf.RoundToInt(defense * 0.5f);
+            }
+
+            if (unit.IsHero && unit.Definition.passive == HeroPassive.Fortress && unit.CurrentPosition >= 1 && unit.CurrentPosition <= 2)
+            {
+                defense += 4;
+            }
+
+            return defense;
+        }
+
+        private int ApplyPassiveToDamage(BattleUnit actor, BattleUnit target, int amount)
+        {
+            if (!actor.IsHero && !target.IsHero || amount <= 0)
+            {
+                return amount;
+            }
+
+            // Executioner: 攻击血量低于30%的敌人时，伤害+50%
+            if (actor.IsHero && actor.Definition.passive == HeroPassive.Executioner)
+            {
+                if ((float)target.Health / target.MaxHealth < 0.3f)
+                {
+                    amount = Mathf.RoundToInt(amount * 1.5f);
+                }
+            }
+
+            // Backstab: 从后排(3,4)攻击前排(1,2)敌人时，伤害+25%
+            if (actor.IsHero && actor.Definition.passive == HeroPassive.Backstab)
+            {
+                if (actor.CurrentPosition >= 3 && target.CurrentPosition <= 2)
+                {
+                    amount = Mathf.RoundToInt(amount * 1.25f);
+                }
+            }
+
+            // Reaper: 每有一个敌人死亡，攻击力+10%
+            if (actor.IsHero && actor.Definition.passive == HeroPassive.Reaper)
+            {
+                var deadCount = enemies.Count(e => !e.IsAlive);
+                if (deadCount > 0)
+                {
+                    amount = Mathf.RoundToInt(amount * (1f + deadCount * 0.1f));
+                }
+            }
+
+            return amount;
+        }
+
+        private void ApplyPassiveOnTurnStart(BattleUnit unit)
+        {
+            if (!unit.IsHero || unit.Definition.passive == HeroPassive.None)
+            {
+                return;
+            }
+
+            switch (unit.Definition.passive)
+            {
+                case HeroPassive.Regenerator:
+                    var regenAmount = Mathf.Max(1, Mathf.RoundToInt(unit.MaxHealth * 0.05f));
+                    unit.Heal(regenAmount);
+                    ui.AddLog($"{unit.DisplayName} 的再生恢复了 {regenAmount} 点生命。");
+                    break;
+
+                case HeroPassive.Tactician:
+                    var allies = heroes.Where(h => h != unit && h.IsAlive && !h.IsCorpse).ToArray();
+                    if (allies.Length > 0)
+                    {
+                        var ally = allies[Random.Range(0, allies.Length)];
+                        ally.TickSkillCooldowns();
+                        ally.TickSkillCooldowns();
+                        ui.AddLog($"{unit.DisplayName} 的战术指挥加快了 {ally.DisplayName} 的技能冷却。");
+                    }
+                    break;
+
+                case HeroPassive.Vanguard:
+                    if (unit.CurrentPosition >= 1 && unit.CurrentPosition <= 2)
+                    {
+                        ui.AddLog($"{unit.DisplayName} 的先锋光环为全队提供了攻击加成。");
+                    }
+                    break;
+
+                case HeroPassive.Inspirer:
+                    foreach (var ally in heroes.Where(h => h.IsAlive && !h.IsCorpse))
+                    {
+                        var healAmount = Mathf.Max(1, Mathf.RoundToInt(ally.MaxHealth * 0.1f));
+                        ally.Heal(healAmount);
+                    }
+                    ui.AddLog($"{unit.DisplayName} 的鼓舞恢复了全队生命。");
+                    break;
+            }
+        }
+
+        private void ApplyPassiveOnKill(BattleUnit killer, BattleUnit victim)
+        {
+            if (!killer.IsHero || killer.Definition.passive == HeroPassive.None)
+            {
+                return;
+            }
+
+            switch (killer.Definition.passive)
+            {
+                case HeroPassive.Scavenger:
+                    var healAmount = Mathf.Max(1, Mathf.RoundToInt(killer.MaxHealth * 0.2f));
+                    killer.Heal(healAmount);
+                    ui.AddLog($"{killer.DisplayName} 的回收者被动恢复了 {healAmount} 点生命。");
+                    break;
+
+                case HeroPassive.ChainReaction:
+                    var aliveEnemies = enemies.Where(e => e.IsAlive && !e.IsCorpse && e != victim).ToArray();
+                    if (aliveEnemies.Length > 0)
+                    {
+                        var target = aliveEnemies[Random.Range(0, aliveEnemies.Length)];
+                        var splashDamage = Mathf.Max(1, Mathf.RoundToInt(victim.MaxHealth * 0.25f));
+                        target.TakeDamage(splashDamage);
+                        ui.AddLog($"{killer.DisplayName} 的连锁反应对 {target.DisplayName} 造成 {splashDamage} 点溅射伤害。");
+                        if (!target.IsAlive && views.TryGetValue(target, out var targetView))
+                        {
+                            HandleDefeatedUnit(target, null);
+                        }
+                    }
+                    break;
+            }
+        }
+
+        private bool ApplyPassiveBeforeDeath(BattleUnit unit, int incomingDamage)
+        {
+            if (!unit.IsHero || unit.Definition.passive != HeroPassive.IronWill)
+            {
+                return false;
+            }
+
+            if (unit.Health - incomingDamage <= 0)
+            {
+                if (!ironWillUsedThisBattle.Contains(unit))
+                {
+                    ironWillUsedThisBattle.Add(unit);
+                    unit.TakeDamage(Mathf.Max(0, unit.Health - 1));
+                    ui.AddLog($"{unit.DisplayName} 的铁意志触发了！保留 1 点生命。");
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         private int CalculateHealingAmount(BattleUnit actor, SkillData skill)
@@ -1353,6 +1981,176 @@ namespace ClockworkWasteland.Combat
             }
         }
 
+        private IEnumerator BeginAttackFocus(CombatantView actorView, CombatantView targetView, IReadOnlyCollection<CombatantView> focusTargetViews)
+        {
+            actorView?.SetFocusLayer(true, AttackFocusActorSortingOrder);
+            actorView?.SetFocusScale(attackFocusScale);
+            foreach (var focusTargetView in focusTargetViews ?? new CombatantView[0])
+            {
+                focusTargetView?.SetFocusLayer(true, AttackFocusTargetSortingOrder);
+                focusTargetView?.SetFocusScale(attackFocusScale);
+            }
+
+            ApplyFocusBlur(actorView, focusTargetViews);
+
+            if (targetView == null)
+            {
+                yield return StartCoroutine(FocusCamera(actorView.transform.position));
+                yield break;
+            }
+
+            yield return StartCoroutine(FocusCameraBetween(actorView.transform.position, targetView.transform.position));
+        }
+
+        private IEnumerator EndAttackFocus(CombatantView actorView, CombatantView targetView)
+        {
+            foreach (var view in views.Values)
+            {
+                view?.SetFocusScale(1f);
+                view?.SetFocusLayer(false, 0);
+            }
+
+            ClearFocusBlur();
+            yield return StartCoroutine(RestoreCamera());
+        }
+
+        private AttackLungeState CreateAttackLungeState(CombatantView actorView, IReadOnlyList<CombatantView> targetViews)
+        {
+            if (actorView == null || targetViews == null || targetViews.Count == 0)
+            {
+                return default;
+            }
+
+            var actorStart = actorView.transform.position;
+            var orderedTargets = targetViews
+                .Where(view => view != null)
+                .OrderBy(view => view.transform.position.x)
+                .ToArray();
+            if (orderedTargets.Length == 0)
+            {
+                return default;
+            }
+
+            var targetStarts = orderedTargets.Select(view => view.transform.position).ToArray();
+            var actorEnd = actorStart;
+            var targetEnds = new Vector3[targetStarts.Length];
+
+            if (orderedTargets.Length == 1)
+            {
+                var targetStart = targetStarts[0];
+                var delta = targetStart - actorStart;
+                var startDistance = delta.magnitude;
+                if (startDistance > 0.001f)
+                {
+                    var desiredDistance = Mathf.Max(attackFocusSingleMinDistance, startDistance * (1f - Mathf.Clamp01(attackFocusSingleLungeRatio)));
+                    var moveDistancePerSide = Mathf.Max(0f, (startDistance - desiredDistance) * 0.5f);
+                    var direction = delta / startDistance;
+                    actorEnd = actorStart + direction * moveDistancePerSide;
+                    targetEnds[0] = targetStart - direction * moveDistancePerSide;
+                }
+                else
+                {
+                    targetEnds[0] = targetStart;
+                }
+            }
+            else
+            {
+                var targetCenter = targetStarts.Aggregate(Vector3.zero, (sum, position) => sum + position) / targetStarts.Length;
+                var focusCenter = (actorStart + targetCenter) * 0.5f;
+                var direction = actorStart.x <= targetCenter.x ? 1f : -1f;
+                actorEnd = new Vector3(focusCenter.x - direction * attackFocusAoeActorOffset, actorStart.y, actorStart.z);
+                var targetLineCenter = new Vector3(focusCenter.x + direction * attackFocusAoeTargetOffset, targetCenter.y, targetCenter.z);
+                var startOffset = -(orderedTargets.Length - 1) * attackFocusAoeTargetSpacing * 0.5f;
+
+                for (var i = 0; i < targetEnds.Length; i++)
+                {
+                    targetEnds[i] = targetLineCenter + new Vector3(startOffset + i * attackFocusAoeTargetSpacing, 0f, 0f);
+                }
+            }
+
+            return new AttackLungeState(actorView, actorStart, actorEnd, orderedTargets, targetStarts, targetEnds);
+        }
+
+        private IEnumerator MoveAttackFocusLunge(AttackLungeState state, bool moveIn)
+        {
+            if (!state.IsValid)
+            {
+                yield break;
+            }
+
+            var actorStart = moveIn ? state.ActorStart : state.ActorEnd;
+            var actorEnd = moveIn ? state.ActorEnd : state.ActorStart;
+            var elapsed = 0f;
+
+            while (elapsed < attackFocusLungeDuration)
+            {
+                elapsed += Time.unscaledDeltaTime;
+                var t = Mathf.Clamp01(elapsed / attackFocusLungeDuration);
+                var eased = moveIn ? EaseOutCubic(t) : EaseInCubic(t);
+                if (state.ActorView != null)
+                {
+                    state.ActorView.transform.position = Vector3.LerpUnclamped(actorStart, actorEnd, eased);
+                }
+
+                for (var i = 0; i < state.TargetViews.Length; i++)
+                {
+                    var targetView = state.TargetViews[i];
+                    if (targetView == null)
+                    {
+                        continue;
+                    }
+
+                    var targetStart = moveIn ? state.TargetStarts[i] : state.TargetEnds[i];
+                    var targetEnd = moveIn ? state.TargetEnds[i] : state.TargetStarts[i];
+                    targetView.transform.position = Vector3.LerpUnclamped(targetStart, targetEnd, eased);
+                }
+
+                yield return null;
+            }
+
+            if (state.ActorView != null)
+            {
+                state.ActorView.transform.position = actorEnd;
+            }
+
+            for (var i = 0; i < state.TargetViews.Length; i++)
+            {
+                if (state.TargetViews[i] != null)
+                {
+                    state.TargetViews[i].transform.position = moveIn ? state.TargetEnds[i] : state.TargetStarts[i];
+                }
+            }
+        }
+
+        private IEnumerator FocusCameraBetween(Vector3 actorPosition, Vector3 targetPosition)
+        {
+            var camera = Camera.main;
+            if (camera == null)
+            {
+                yield break;
+            }
+
+            var startPosition = camera.transform.position;
+            var startSize = camera.orthographicSize;
+            var center = (actorPosition + targetPosition) * 0.5f;
+            var cameraTargetPosition = new Vector3(center.x, Mathf.Clamp(center.y + 0.35f, -0.55f, 1.25f), startPosition.z);
+            var targetSize = Mathf.Max(2.35f, defaultCameraSize * attackFocusZoomRatio);
+            const float duration = 0.24f;
+            var elapsed = 0f;
+
+            while (elapsed < duration)
+            {
+                elapsed += Time.unscaledDeltaTime;
+                var t = Smooth01(elapsed / duration);
+                camera.transform.position = Vector3.Lerp(startPosition, cameraTargetPosition, t);
+                camera.orthographicSize = Mathf.Lerp(startSize, targetSize, t);
+                yield return null;
+            }
+
+            camera.transform.position = cameraTargetPosition;
+            camera.orthographicSize = targetSize;
+        }
+
         private IEnumerator RestoreCamera()
         {
             var camera = Camera.main;
@@ -1377,6 +2175,84 @@ namespace ClockworkWasteland.Combat
 
             camera.transform.position = defaultCameraPosition;
             camera.orthographicSize = defaultCameraSize;
+        }
+
+        private void ApplyFocusBlur(CombatantView actorView, IReadOnlyCollection<CombatantView> targetViews)
+        {
+            ClearFocusBlur();
+            var material = GetFocusBlurMaterial();
+            if (material == null)
+            {
+                return;
+            }
+
+            var actorTransform = actorView != null ? actorView.transform : null;
+            var targetTransforms = (targetViews ?? new CombatantView[0])
+                .Where(view => view != null)
+                .Select(view => view.transform)
+                .ToArray();
+            foreach (var renderer in FindObjectsOfType<SpriteRenderer>())
+            {
+                if (renderer == null || !renderer.enabled)
+                {
+                    continue;
+                }
+
+                var rendererTransform = renderer.transform;
+                if (actorTransform != null && rendererTransform.IsChildOf(actorTransform) ||
+                    targetTransforms.Any(targetTransform => rendererTransform.IsChildOf(targetTransform)))
+                {
+                    continue;
+                }
+
+                blurredRendererStates.Add(new BlurredRendererState(renderer, renderer.sharedMaterial));
+                renderer.material = material;
+            }
+
+            Debug.Log($"Attack focus blur applied to {blurredRendererStates.Count} SpriteRenderer(s).", this);
+        }
+
+        private void ClearFocusBlur()
+        {
+            foreach (var state in blurredRendererStates)
+            {
+                if (state.Renderer != null)
+                {
+                    state.Renderer.sharedMaterial = state.Material;
+                }
+            }
+
+            blurredRendererStates.Clear();
+        }
+
+        private Material GetFocusBlurMaterial()
+        {
+            if (attackFocusBlurMaterial != null)
+            {
+                attackFocusBlurMaterial.SetFloat("_BlurStrength", attackFocusBlurStrength);
+                attackFocusBlurMaterial.SetColor("_Color", attackFocusBlurTint);
+                return attackFocusBlurMaterial;
+            }
+
+            if (runtimeFocusBlurMaterial != null)
+            {
+                return runtimeFocusBlurMaterial;
+            }
+
+            var shader = Shader.Find("Clockwork Wasteland/Sprite Focus Blur");
+            if (shader == null)
+            {
+                Debug.LogWarning("Focus blur shader was not found. Attack focus will continue without background blur.", this);
+                return null;
+            }
+
+            runtimeFocusBlurMaterial = new Material(shader)
+            {
+                name = "Runtime Focus Blur"
+            };
+            runtimeFocusBlurMaterial.SetFloat("_BlurStrength", attackFocusBlurStrength);
+            runtimeFocusBlurMaterial.SetColor("_Color", attackFocusBlurTint);
+            return runtimeFocusBlurMaterial;
         }
 
         private IEnumerator ScreenShake(float strength, float duration)
@@ -1564,7 +2440,7 @@ namespace ClockworkWasteland.Combat
                 slots[i] = unit;
 
                 var view = CreateCombatantView(unit);
-                view.transform.position = new Vector3(GetSlotX(isHero, unit.CurrentPosition), -0.35f, 0f);
+                view.transform.position = new Vector3(GetBaseSlotX(isHero, unit.CurrentPosition), -0.35f, 0f);
                 view.Initialize(unit, fallbackSprite, heroVisualScale, HandleUnitClicked, nameplatePrefab);
                 view.AlignFeetTo(FormationFeetY);
                 views[unit] = view;
@@ -1614,16 +2490,45 @@ namespace ClockworkWasteland.Combat
                 }
 
                 unit.CurrentPosition = i + 1;
-                view.transform.position = new Vector3(GetSlotX(isHero, unit.CurrentPosition), -0.35f, 0f);
+                view.transform.position = new Vector3(GetFormationSlotX(isHero, slots, unit.CurrentPosition), -0.35f, 0f);
                 view.AlignFeetTo(FormationFeetY);
             }
         }
 
-        private static float GetSlotX(bool isHero, int position)
+        private static float GetBaseSlotX(bool isHero, int position)
         {
             return isHero
-                ? -0.8f - (position - 1) * 1.1f
-                : 1.3f + (position - 1) * 1.1f;
+                ? HeroFrontSlotX - (position - 1) * BaseFormationSlotSpacing
+                : EnemyFrontSlotX + (position - 1) * BaseFormationSlotSpacing;
+        }
+
+        private float GetFormationSlotX(bool isHero, BattleUnit[] slots, int position)
+        {
+            var x = isHero ? HeroFrontSlotX : EnemyFrontSlotX;
+            var direction = isHero ? -1f : 1f;
+            var targetIndex = Mathf.Clamp(position - 1, 0, MaxFormationSlots - 1);
+
+            for (var i = 1; i <= targetIndex; i++)
+            {
+                x += direction * GetFormationSpacing(slots.ElementAtOrDefault(i - 1), slots.ElementAtOrDefault(i));
+            }
+
+            return x;
+        }
+
+        private float GetFormationSpacing(BattleUnit leftUnit, BattleUnit rightUnit)
+        {
+            var leftScale = GetFormationSpacingScale(leftUnit);
+            var rightScale = GetFormationSpacingScale(rightUnit);
+            var largestScale = Mathf.Max(ReferenceFormationVisualScale, leftScale, rightScale);
+            return BaseFormationSlotSpacing * largestScale / ReferenceFormationVisualScale;
+        }
+
+        private float GetFormationSpacingScale(BattleUnit unit)
+        {
+            return unit != null && views.TryGetValue(unit, out var view)
+                ? view.FormationSpacingScale
+                : ReferenceFormationVisualScale;
         }
 
         private void SetTargetHighlights(IReadOnlyCollection<BattleUnit> targets)

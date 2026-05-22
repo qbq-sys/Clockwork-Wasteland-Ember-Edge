@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 namespace ClockworkWasteland.Combat
 {
@@ -23,6 +23,8 @@ namespace ClockworkWasteland.Combat
         public float visualScale = 1f;
         public int occupiedSlotCount = 1;
         public int corpseHealth = 3;
+        public CombatArchetype archetype = CombatArchetype.Undefined;
+        public CombatRowPreference preferredRow = CombatRowPreference.Flexible;
 
         [Header("Recruitment")]
         public bool isUnlocked = true;
@@ -33,6 +35,9 @@ namespace ClockworkWasteland.Combat
         public int speed = 5;
         public int attack = 8;
         public int defense = 2;
+
+        [Header("Passive")]
+        public HeroPassive passive = HeroPassive.None;
 
         [Header("Growth")]
         public HeroGrowthData growthData;
@@ -54,6 +59,63 @@ namespace ClockworkWasteland.Combat
         public int DefenseWithGrowth => defense + (Level - 1) * GrowthDefensePerLevel;
         public int CurrentHealth => isHero ? Mathf.Clamp(currentHealth < 0 ? MaxHealthWithGrowth : currentHealth, 0, MaxHealthWithGrowth) : MaxHealthWithGrowth;
         public bool IsDead => isHero && CurrentHealth <= 0;
+        public string ArchetypeDisplayName => GetArchetypeDisplayName(archetype);
+        public string PreferredRowDisplayName => GetPreferredRowDisplayName(preferredRow);
+
+        public bool PrefersFrontRows => preferredRow == CombatRowPreference.Front;
+        public bool PrefersBackRows => preferredRow == CombatRowPreference.Back;
+
+        private void OnValidate()
+        {
+            characterId = string.IsNullOrWhiteSpace(characterId) ? "character" : characterId.Trim();
+            displayName = string.IsNullOrWhiteSpace(displayName) ? "Combatant" : displayName.Trim();
+            visualScale = Mathf.Max(0.1f, visualScale);
+            occupiedSlotCount = Mathf.Max(1, occupiedSlotCount);
+            corpseHealth = Mathf.Max(0, corpseHealth);
+            recruitPrice = Mathf.Max(0, recruitPrice);
+            maxHealth = Mathf.Max(1, maxHealth);
+            speed = Mathf.Max(0, speed);
+            attack = Mathf.Max(0, attack);
+            defense = Mathf.Max(0, defense);
+            currentLevel = Mathf.Max(1, currentLevel);
+            currentExperience = Mathf.Max(0, currentExperience);
+            if (!isHero)
+            {
+                currentHealth = -1;
+            }
+        }
+
+        private static string GetArchetypeDisplayName(CombatArchetype value)
+        {
+            switch (value)
+            {
+                case CombatArchetype.Bulwark:
+                    return "\u5b88\u536b\u8005";
+                case CombatArchetype.Executioner:
+                    return "\u5904\u5211\u8005";
+                case CombatArchetype.Artificer:
+                    return "\u6280\u5e08";
+                case CombatArchetype.Physician:
+                    return "\u533b\u7597\u5e08";
+                default:
+                    return "\u672a\u5b9a\u4e49";
+            }
+        }
+
+        private static string GetPreferredRowDisplayName(CombatRowPreference value)
+        {
+            switch (value)
+            {
+                case CombatRowPreference.Front:
+                    return "\u524d\u6392";
+                case CombatRowPreference.Mid:
+                    return "\u4e2d\u6392";
+                case CombatRowPreference.Back:
+                    return "\u540e\u6392";
+                default:
+                    return "\u7075\u6d3b";
+            }
+        }
 
         public void EnsureRuntimeHealth()
         {

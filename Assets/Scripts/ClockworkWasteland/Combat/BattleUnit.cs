@@ -28,6 +28,8 @@ namespace ClockworkWasteland.Combat
         public bool IsAlive => Health > 0;
         public bool CanAct => IsAlive && !IsCorpse && !IsStunned;
         public IReadOnlyList<StatusInstance> Statuses => statuses;
+        public CombatArchetype Archetype => Definition.archetype;
+        public CombatRowPreference PreferredRow => Definition.preferredRow;
 
         public string DisplayName => IsCorpse ? $"{Definition.displayName}\u7684\u5c38\u4f53" : Definition.displayName;
         public int Level => Definition.Level;
@@ -36,6 +38,7 @@ namespace ClockworkWasteland.Combat
         public int Attack => Definition.AttackWithGrowth;
         public int Defense => Definition.DefenseWithGrowth;
         public bool IsStunned => statuses.Any(status => status.Stun && status.TurnsRemaining > 0);
+        public float HealthRatio => MaxHealth > 0 ? (float)Health / MaxHealth : 0f;
 
         public void TakeDamage(int amount)
         {

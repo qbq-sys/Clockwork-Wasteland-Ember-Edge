@@ -1144,8 +1144,8 @@ namespace ClockworkWasteland.Combat
             else
             {
                 yield return new WaitForSeconds(0.45f);
-                var skill = GetSkillList(actor).FirstOrDefault(item => item != null && GetSkillUseState(actor, item).CanUse);
-                var target = skill != null ? GetValidTargets(actor, skill).OrderBy(unit => unit.Health).FirstOrDefault() : null;
+                var skill = SelectEnemySkill(actor);
+                var target = skill != null ? SelectEnemyTarget(actor, skill) : null;
                 if (skill != null && target != null)
                 {
                     yield return StartCoroutine(ExecuteSkill(actor, skill, target));
@@ -1476,6 +1476,143 @@ namespace ClockworkWasteland.Combat
                 : Enumerable.Empty<SkillData>();
 
             return unit != null && unit.IsHero ? definedSkills.Concat(new[] { swapSkill }) : definedSkills;
+        }
+
+        private SkillData SelectEnemySkill(BattleUnit actor)
+        {
+            var usableSkills = GetSkillList(actor)
+                .Where(skill => skill != null && GetSkillUseState(actor, skill).CanUse)
+                .ToArray();
+            if (usableSkills.Length == 0)
+            {
+                return null;
+            }
+
+            return usableSkills
+                .OrderByDescending(skill => ScoreEnemySkill(actor, skill))
+                .ThenBy(skill => skill.manaCost)
+                .ThenBy(skill => skill.skillName)
+                .FirstOrDefault();
+        }
+
+        private BattleUnit SelectEnemyTarget(BattleUnit actor, SkillData skill)
+        {
+            var validTargets = GetValidTargets(actor, skill).ToArray();
+            if (validTargets.Length == 0)
+            {
+                return null;
+            }
+
+            return validTargets
+                .OrderByDescending(target => ScoreEnemyTarget(actor, skill, target))
+                .ThenBy(target => target.CurrentPosition)
+                .FirstOrDefault();
+        }
+
+        private float ScoreEnemySkill(BattleUnit actor, SkillData skill)
+        {
+            var validTargets = GetValidTargets(actor, skill).ToArray();
+            if (validTargets.Length == 0)
+            {
+                return float.MinValue;
+            }
+
+            var score = 0f;
+            var allyTargets = validTargets.Where(unit => unit.IsHero == actor.IsHero).ToArray();
+            var enemyTargets = validTargets.Where(unit => unit.IsHero != actor.IsHero).ToArray();
+            var injuredAllies = allyTargets.Where(unit => unit.HealthRatio < 0.8f).ToArray();
+
+            if (skill.skillType == SkillDataType.治疗)
+            {
+                score += 80f;
+                score += injuredAllies.Sum(unit => (1f - unit.HealthRatio) * 40f);
+                if (skill.targetType == SkillDataTargetType.自己 && actor.HealthRatio < 0.6f)
+                {
+                    score += 12f;
+                }
+            }
+            else
+            {
+                score += skill.baseValue;
+                score += enemyTargets.Length * 4f;
+                if (skill.skillType == SkillDataType.控制)
+                {
+                    score += 10f;
+                }
+
+                if (skill.targetType == SkillDataTargetType.全体敌)
+                {
+                    score += enemyTargets.Length >= 2 ? 22f : 6f;
+                }
+                else if (skill.targetType == SkillDataTargetType.前排两敌)
+                {
+                    score += enemyTargets.Length >= 2 ? 16f : 4f;
+                }
+            }
+
+            switch (actor.Archetype)
+            {
+                case CombatArchetype.Physician:
+                    score += skill.skillType == SkillDataType.治疗 ? 40f : 0f;
+                    score += skill.targetType == SkillDataTargetType.单友 || skill.targetType == SkillDataTargetType.自己 ? 10f : 0f;
+                    break;
+                case CombatArchetype.Artificer:
+                    score += skill.targetType == SkillDataTargetType.全体敌 ? 24f : 0f;
+                    score += skill.targetType == SkillDataTargetType.前排两敌 ? 10f : 0f;
+                    score += skill.skillType == SkillDataType.控制 ? 14f : 0f;
+                    break;
+                case CombatArchetype.Bulwark:
+                    score += skill.targetType == SkillDataTargetType.自己 ? 12f : 0f;
+                    score += skill.targetType == SkillDataTargetType.单友 ? 8f : 0f;
+                    score += enemyTargets.Any(target => target.CurrentPosition <= 2) ? 8f : 0f;
+                    break;
+                case CombatArchetype.Executioner:
+                    score += skill.skillType == SkillDataType.伤害 ? 18f : 0f;
+                    score += enemyTargets.Any(target => target.HealthRatio <= 0.35f) ? 14f : 0f;
+                    break;
+            }
+
+            return score;
+        }
+
+        private float ScoreEnemyTarget(BattleUnit actor, SkillData skill, BattleUnit target)
+        {
+            var score = 0f;
+            var missingHealthRatio = 1f - target.HealthRatio;
+
+            if (target.IsHero == actor.IsHero)
+            {
+                score += skill.skillType == SkillDataType.治疗 ? missingHealthRatio * 100f : 10f;
+                score += target.CurrentPosition <= 2 ? 3f : 0f;
+                return score;
+            }
+
+            score += missingHealthRatio * 35f;
+            score += target.Speed * 0.35f;
+
+            switch (actor.Archetype)
+            {
+                case CombatArchetype.Bulwark:
+                    score += target.CurrentPosition <= 2 ? 20f : 2f;
+                    break;
+                case CombatArchetype.Executioner:
+                    score += missingHealthRatio * 55f;
+                    score += target.Health <= Mathf.Max(10, actor.Attack) ? 12f : 0f;
+                    break;
+                case CombatArchetype.Artificer:
+                    score += target.CurrentPosition >= 3 ? 18f : 4f;
+                    break;
+                case CombatArchetype.Physician:
+                    score += missingHealthRatio * 8f;
+                    break;
+            }
+
+            if (skill.skillType == SkillDataType.控制)
+            {
+                score += target.Speed * 0.8f;
+            }
+
+            return score;
         }
 
         private IEnumerable<BattleUnit> GetValidTargets(BattleUnit actor, SkillData skill)

@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
+using UnityEngine;
 
 namespace ClockworkWasteland.Combat
 {
@@ -30,6 +31,7 @@ namespace ClockworkWasteland.Combat
         public IReadOnlyList<StatusInstance> Statuses => statuses;
         public CombatArchetype Archetype => Definition.archetype;
         public CombatRowPreference PreferredRow => Definition.preferredRow;
+        public bool HasCooldowns => skillCooldowns.Count > 0;
 
         public string DisplayName => IsCorpse ? $"{Definition.displayName}\u7684\u5c38\u4f53" : Definition.displayName;
         public int Level => Definition.Level;
@@ -97,6 +99,24 @@ namespace ClockworkWasteland.Combat
                     skillCooldowns.Remove(skill);
                 }
             }
+        }
+
+        public SkillData ReduceRandomCooldown(int amount)
+        {
+            if (amount <= 0 || skillCooldowns.Count == 0)
+            {
+                return null;
+            }
+
+            var skillsOnCooldown = skillCooldowns.Keys.ToArray();
+            var selectedSkill = skillsOnCooldown[Random.Range(0, skillsOnCooldown.Length)];
+            skillCooldowns[selectedSkill] = System.Math.Max(0, skillCooldowns[selectedSkill] - amount);
+            if (skillCooldowns[selectedSkill] <= 0)
+            {
+                skillCooldowns.Remove(selectedSkill);
+            }
+
+            return selectedSkill;
         }
 
         private void StartCooldown(SkillData skill)

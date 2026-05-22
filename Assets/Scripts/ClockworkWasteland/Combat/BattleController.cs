@@ -1935,7 +1935,28 @@ namespace ClockworkWasteland.Combat
                 attack = Mathf.RoundToInt(attack * 1.25f);
             }
 
+            attack += GetTeamAttackAuraBonus(unit);
             return attack;
+        }
+
+        private int GetTeamAttackAuraBonus(BattleUnit unit)
+        {
+            if (unit == null || !unit.IsAlive)
+            {
+                return 0;
+            }
+
+            var allies = (unit.IsHero ? heroes : enemies)
+                .Where(candidate =>
+                    candidate != null &&
+                    candidate != unit &&
+                    candidate.IsAlive &&
+                    !candidate.IsCorpse &&
+                    candidate.Definition.passive == HeroPassive.Vanguard &&
+                    candidate.CurrentPosition >= 1 &&
+                    candidate.CurrentPosition <= 2);
+
+            return allies.Count() * 2;
         }
 
         private int GetEffectiveDefense(BattleUnit unit)
@@ -2008,13 +2029,15 @@ namespace ClockworkWasteland.Combat
                     break;
 
                 case HeroPassive.Tactician:
-                    var allies = heroes.Where(h => h != unit && h.IsAlive && !h.IsCorpse).ToArray();
+                    var allies = heroes.Where(h => h != unit && h.IsAlive && !h.IsCorpse && h.HasCooldowns).ToArray();
                     if (allies.Length > 0)
                     {
                         var ally = allies[Random.Range(0, allies.Length)];
-                        ally.TickSkillCooldowns();
-                        ally.TickSkillCooldowns();
-                        ui.AddLog($"{unit.DisplayName} 的战术指挥加快了 {ally.DisplayName} 的技能冷却。");
+                        var reducedSkill = ally.ReduceRandomCooldown(2);
+                        if (reducedSkill != null)
+                        {
+                            ui.AddLog($"{unit.DisplayName} 的战术指挥缩短了 {ally.DisplayName} 的 {reducedSkill.skillName} 冷却。");
+                        }
                     }
                     break;
 

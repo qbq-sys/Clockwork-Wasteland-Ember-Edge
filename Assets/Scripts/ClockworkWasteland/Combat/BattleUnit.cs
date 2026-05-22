@@ -32,6 +32,8 @@ namespace ClockworkWasteland.Combat
         public CombatArchetype Archetype => Definition.archetype;
         public CombatRowPreference PreferredRow => Definition.preferredRow;
         public bool HasCooldowns => skillCooldowns.Count > 0;
+        public bool IsFrontline => CurrentPosition >= 1 && CurrentPosition <= 2;
+        public bool IsBackline => CurrentPosition >= 3;
 
         public string DisplayName => IsCorpse ? $"{Definition.displayName}\u7684\u5c38\u4f53" : Definition.displayName;
         public int Level => Definition.Level;
@@ -117,6 +119,11 @@ namespace ClockworkWasteland.Combat
             }
 
             return selectedSkill;
+        }
+
+        public bool HasPassive(HeroPassive passive)
+        {
+            return IsHero && Definition.passive == passive;
         }
 
         private void StartCooldown(SkillData skill)

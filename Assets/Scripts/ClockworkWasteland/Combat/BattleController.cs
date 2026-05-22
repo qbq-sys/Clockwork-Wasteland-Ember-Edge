@@ -1753,6 +1753,22 @@ namespace ClockworkWasteland.Combat
             return allowedPositions == null || allowedPositions.Length == 0 || allowedPositions.Contains(position);
         }
 
+        private IEnumerable<BattleUnit> GetLivingAllies(BattleUnit unit, bool includeSelf = false)
+        {
+            if (unit == null)
+            {
+                return Enumerable.Empty<BattleUnit>();
+            }
+
+            return GetOccupiedSlots(unit.IsHero)
+                .Where(candidate => includeSelf || candidate != unit);
+        }
+
+        private IEnumerable<BattleUnit> GetLivingOpponents(BattleUnit unit)
+        {
+            return unit == null ? Enumerable.Empty<BattleUnit>() : GetOccupiedSlots(!unit.IsHero);
+        }
+
         private IEnumerable<BattleUnit> GetOccupiedSlots(bool isHero)
         {
             return (isHero ? heroSlots : enemySlots).Where(unit => unit != null && unit.IsAlive);
@@ -1945,15 +1961,8 @@ namespace ClockworkWasteland.Combat
                 return 0;
             }
 
-            var allies = (unit.IsHero ? heroes : enemies)
-                .Where(candidate =>
-                    candidate != null &&
-                    candidate != unit &&
-                    candidate.IsAlive &&
-                    !candidate.IsCorpse &&
-                    candidate.Definition.passive == HeroPassive.Vanguard &&
-                    candidate.CurrentPosition >= 1 &&
-                    candidate.CurrentPosition <= 2);
+            var allies = GetLivingAllies(unit)
+                .Where(candidate => candidate.HasPassive(HeroPassive.Vanguard) && candidate.IsFrontline);
 
             return allies.Count() * 2;
         }
@@ -1961,12 +1970,12 @@ namespace ClockworkWasteland.Combat
         private int GetEffectiveDefense(BattleUnit unit)
         {
             var defense = unit.Defense;
-            if (unit.IsHero && unit.Definition.passive == HeroPassive.GlassCannon)
+            if (unit.HasPassive(HeroPassive.GlassCannon))
             {
                 defense = Mathf.RoundToInt(defense * 0.5f);
             }
 
-            if (unit.IsHero && unit.Definition.passive == HeroPassive.Fortress && unit.CurrentPosition >= 1 && unit.CurrentPosition <= 2)
+            if (unit.HasPassive(HeroPassive.Fortress) && unit.IsFrontline)
             {
                 defense += 4;
             }
@@ -1976,33 +1985,31 @@ namespace ClockworkWasteland.Combat
 
         private int ApplyPassiveToDamage(BattleUnit actor, BattleUnit target, int amount)
         {
-            if (!actor.IsHero && !target.IsHero || amount <= 0)
+            if ((!actor.IsHero && !target.IsHero) || amount <= 0)
             {
                 return amount;
             }
 
-            // Executioner: 攻击血量低于30%的敌人时，伤害+50%
-            if (actor.IsHero && actor.Definition.passive == HeroPassive.Executioner)
+            if (actor.HasPassive(HeroPassive.Executioner))
             {
-                if ((float)target.Health / target.MaxHealth < 0.3f)
+                if (target.HealthRatio < 0.3f)
                 {
                     amount = Mathf.RoundToInt(amount * 1.5f);
                 }
             }
 
-            // Backstab: 从后排(3,4)攻击前排(1,2)敌人时，伤害+25%
-            if (actor.IsHero && actor.Definition.passive == HeroPassive.Backstab)
+            if (actor.HasPassive(HeroPassive.Backstab))
             {
-                if (actor.CurrentPosition >= 3 && target.CurrentPosition <= 2)
+                if (actor.IsBackline && target.IsFrontline)
                 {
                     amount = Mathf.RoundToInt(amount * 1.25f);
                 }
             }
 
-            // Reaper: 每有一个敌人死亡，攻击力+10%
-            if (actor.IsHero && actor.Definition.passive == HeroPassive.Reaper)
+            if (actor.HasPassive(HeroPassive.Reaper))
             {
-                var deadCount = enemies.Count(e => !e.IsAlive);
+                var opposingTeam = actor.IsHero ? enemies : heroes;
+                var deadCount = opposingTeam.Count(candidate => candidate != null && (!candidate.IsAlive || candidate.IsCorpse));
                 if (deadCount > 0)
                 {
                     amount = Mathf.RoundToInt(amount * (1f + deadCount * 0.1f));
@@ -2028,7 +2035,7 @@ namespace ClockworkWasteland.Combat
                     break;
 
                 case HeroPassive.Tactician:
-                    var allies = heroes.Where(h => h != unit && h.IsAlive && !h.IsCorpse && h.HasCooldowns).ToArray();
+                    var allies = GetLivingAllies(unit).Where(candidate => candidate.HasCooldowns).ToArray();
                     if (allies.Length > 0)
                     {
                         var ally = allies[Random.Range(0, allies.Length)];
@@ -2041,14 +2048,14 @@ namespace ClockworkWasteland.Combat
                     break;
 
                 case HeroPassive.Vanguard:
-                    if (unit.CurrentPosition >= 1 && unit.CurrentPosition <= 2)
+                    if (unit.IsFrontline)
                     {
                         ui.AddLog($"{unit.DisplayName} 的先锋光环为全队提供了攻击加成。");
                     }
                     break;
 
                 case HeroPassive.Inspirer:
-                    foreach (var ally in heroes.Where(h => h.IsAlive && !h.IsCorpse))
+                    foreach (var ally in GetLivingAllies(unit, includeSelf: true))
                     {
                         var healAmount = Mathf.Max(1, Mathf.RoundToInt(ally.MaxHealth * 0.1f));
                         ally.Heal(healAmount);
@@ -2074,7 +2081,7 @@ namespace ClockworkWasteland.Combat
                     break;
 
                 case HeroPassive.ChainReaction:
-                    var aliveEnemies = enemies.Where(e => e.IsAlive && !e.IsCorpse && e != victim).ToArray();
+                    var aliveEnemies = GetLivingOpponents(killer).Where(candidate => candidate != victim).ToArray();
                     if (aliveEnemies.Length > 0)
                     {
                         var target = aliveEnemies[Random.Range(0, aliveEnemies.Length)];
@@ -2125,12 +2132,9 @@ namespace ClockworkWasteland.Combat
                 return null;
             }
 
-            return heroes.FirstOrDefault(candidate =>
-                candidate != null &&
+            return GetLivingAllies(protectedUnit).FirstOrDefault(candidate =>
                 candidate != protectedUnit &&
-                candidate.IsAlive &&
-                !candidate.IsCorpse &&
-                candidate.Definition.passive == HeroPassive.Bodyguard &&
+                candidate.HasPassive(HeroPassive.Bodyguard) &&
                 Mathf.Abs(candidate.CurrentPosition - protectedUnit.CurrentPosition) == 1);
         }
 

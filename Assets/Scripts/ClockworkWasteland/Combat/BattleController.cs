@@ -1119,6 +1119,13 @@ namespace ClockworkWasteland.Combat
             }
 
             actor.TickSkillCooldowns();
+            ApplyPassiveOnTurnStart(actor);
+
+            if (!actor.IsAlive || !actor.CanAct)
+            {
+                RefreshViews();
+                yield break;
+            }
 
             if (actor.IsHero)
             {
@@ -1297,19 +1304,47 @@ namespace ClockworkWasteland.Combat
                     if (skill.baseValue > 0)
                     {
                         var damage = CalculateDamage(actor, skill, target);
-                        target.TakeDamage(damage.Amount);
+                        var protector = FindBodyguardProtector(actor, target);
+                        var protectorDamage = 0;
+                        var targetDamage = damage.Amount;
+                        if (protector != null)
+                        {
+                            protectorDamage = Mathf.Max(1, Mathf.RoundToInt(damage.Amount * 0.3f));
+                            targetDamage = Mathf.Max(1, damage.Amount - protectorDamage);
+                            ui.AddLog($"{protector.DisplayName} 挺身保护 {target.DisplayName}，分担了 {protectorDamage} 点伤害。");
+                            ApplyRawDamage(protector, protectorDamage, actor);
+                        }
+
+                        var ironWillTriggered = ApplyPassiveBeforeDeath(target, targetDamage);
+                        if (!ironWillTriggered)
+                        {
+                            ApplyRawDamage(target, targetDamage, actor);
+                        }
+
                         CombatAudio.Instance.PlayImpact();
                         ui.AddLog(damage.IsCritical
-                            ? $"{actor.DisplayName} \u4f7f\u7528 {skill.skillName}\u66b4\u51fb\uff01{target.DisplayName} \u53d7\u5230 {damage.Amount} \u70b9\u4f24\u5bb3\u3002"
-                            : $"{actor.DisplayName} \u4f7f\u7528 {skill.skillName}\uff0c{target.DisplayName} \u53d7\u5230 {damage.Amount} \u70b9\u4f24\u5bb3\u3002");
+                            ? $"{actor.DisplayName} \u4f7f\u7528 {skill.skillName}\u66b4\u51fb\uff01{target.DisplayName} \u53d7\u5230 {targetDamage} \u70b9\u4f24\u5bb3\u3002"
+                            : $"{actor.DisplayName} \u4f7f\u7528 {skill.skillName}\uff0c{target.DisplayName} \u53d7\u5230 {targetDamage} \u70b9\u4f24\u5bb3\u3002");
 
                         if (views.TryGetValue(target, out var targetView))
                         {
-                            targetView.ShowFloatingText(damage.IsCritical ? $"-{damage.Amount}!" : $"-{damage.Amount}", Color.red, damage.IsCritical ? 1.55f : 1f);
+                            targetView.ShowFloatingText(damage.IsCritical ? $"-{targetDamage}!" : $"-{targetDamage}", Color.red, damage.IsCritical ? 1.55f : 1f);
                             if (!target.IsAlive)
                             {
                                 yield return StartCoroutine(targetView.PlayDeathCue());
+                                ApplyPassiveOnKill(actor, target);
                                 HandleDefeatedUnit(target, skill);
+                            }
+                        }
+
+                        if (protector != null && views.TryGetValue(protector, out var protectorView))
+                        {
+                            protectorView.ShowFloatingText($"-{protectorDamage}", new Color(0.95f, 0.45f, 0.12f));
+                            if (!protector.IsAlive)
+                            {
+                                yield return StartCoroutine(protectorView.PlayDeathCue());
+                                ApplyPassiveOnKill(actor, protector);
+                                HandleDefeatedUnit(protector, skill);
                             }
                         }
                     }
@@ -1891,9 +1926,53 @@ namespace ClockworkWasteland.Combat
                         {
                             HandleDefeatedUnit(target, null);
                         }
-                    }
+                }
                     break;
             }
+        }
+
+        private void ApplyRawDamage(BattleUnit target, int amount, BattleUnit attacker)
+        {
+            if (target == null || amount <= 0)
+            {
+                return;
+            }
+
+            target.TakeDamage(amount);
+
+            if (target.IsHero && target.Definition.passive == HeroPassive.ThornArmor && attacker != null && attacker.IsAlive)
+            {
+                var reflectDamage = Mathf.Max(1, Mathf.RoundToInt(amount * 0.2f));
+                attacker.TakeDamage(reflectDamage);
+                ui.AddLog($"{target.DisplayName} 的荆棘护甲反弹了 {reflectDamage} 点伤害给 {attacker.DisplayName}。");
+
+                if (views.TryGetValue(attacker, out var attackerView))
+                {
+                    attackerView.ShowFloatingText($"-{reflectDamage}", new Color(0.85f, 0.25f, 0.95f));
+                }
+
+                if (!attacker.IsAlive)
+                {
+                    ApplyPassiveOnKill(target, attacker);
+                    HandleDefeatedUnit(attacker, null);
+                }
+            }
+        }
+
+        private BattleUnit FindBodyguardProtector(BattleUnit attacker, BattleUnit protectedUnit)
+        {
+            if (protectedUnit == null || !protectedUnit.IsHero || protectedUnit.IsCorpse)
+            {
+                return null;
+            }
+
+            return heroes.FirstOrDefault(candidate =>
+                candidate != null &&
+                candidate != protectedUnit &&
+                candidate.IsAlive &&
+                !candidate.IsCorpse &&
+                candidate.Definition.passive == HeroPassive.Bodyguard &&
+                Mathf.Abs(candidate.CurrentPosition - protectedUnit.CurrentPosition) == 1);
         }
 
         private bool ApplyPassiveBeforeDeath(BattleUnit unit, int incomingDamage)

@@ -2,6 +2,24 @@
 
 namespace ClockworkWasteland.Combat
 {
+    public readonly struct HeroProgressionResult
+    {
+        public HeroProgressionResult(int experienceGained, int levelsGained, int levelBefore, int levelAfter, int healthRestoredFromGrowth)
+        {
+            ExperienceGained = experienceGained;
+            LevelsGained = levelsGained;
+            LevelBefore = levelBefore;
+            LevelAfter = levelAfter;
+            HealthRestoredFromGrowth = healthRestoredFromGrowth;
+        }
+
+        public int ExperienceGained { get; }
+        public int LevelsGained { get; }
+        public int LevelBefore { get; }
+        public int LevelAfter { get; }
+        public int HealthRestoredFromGrowth { get; }
+    }
+
     [CreateAssetMenu(menuName = "Clockwork Wasteland/Combat/Combatant Definition")]
     public sealed class CombatantDefinition : ScriptableObject
     {
@@ -162,11 +180,19 @@ namespace ClockworkWasteland.Combat
 
         public int AddExperience(int amount)
         {
+            return GrantExperienceReward(amount).LevelsGained;
+        }
+
+        public HeroProgressionResult GrantExperienceReward(int amount)
+        {
             if (!isHero || amount <= 0)
             {
-                return 0;
+                return new HeroProgressionResult(0, 0, Level, Level, 0);
             }
 
+            EnsureRuntimeHealth();
+            var levelBefore = Level;
+            var healthBefore = CurrentHealth;
             currentExperience += amount;
             var levelsGained = 0;
             var requiredExperience = ExperienceToNextLevel;
@@ -179,7 +205,7 @@ namespace ClockworkWasteland.Combat
                 requiredExperience = ExperienceToNextLevel;
             }
 
-            return levelsGained;
+            return new HeroProgressionResult(amount, levelsGained, levelBefore, Level, Mathf.Max(0, CurrentHealth - healthBefore));
         }
     }
 

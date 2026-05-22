@@ -1038,19 +1038,18 @@ namespace ClockworkWasteland.Combat
             var results = new List<BattleRewardResult>();
             foreach (var hero in heroes.Where(unit => unit.IsHero && unit.IsAlive && !unit.IsCorpse))
             {
-                var experienceGained = Random.Range(10, 21);
-                var maxHealthBefore = hero.MaxHealth;
-                var levelsGained = hero.Definition.AddExperience(experienceGained);
-                var maxHealthGain = Mathf.Max(0, hero.MaxHealth - maxHealthBefore);
-                hero.RestoreForMaxHealthGain(maxHealthGain);
+                var progression = hero.Definition.GrantExperienceReward(Random.Range(10, 21));
+                results.Add(new BattleRewardResult(hero.Definition, progression.ExperienceGained, progression.LevelsGained));
+                ui.AddLog($"{hero.Definition.displayName} \u83b7\u5f97 {progression.ExperienceGained} \u7ecf\u9a8c\u3002");
 
-                results.Add(new BattleRewardResult(hero.Definition, experienceGained, levelsGained));
-                ui.AddLog($"{hero.Definition.displayName} \u83b7\u5f97 {experienceGained} \u7ecf\u9a8c\u3002");
-
-                if (levelsGained > 0)
+                if (progression.HealthRestoredFromGrowth > 0)
                 {
-                    var firstNewLevel = hero.Definition.Level - levelsGained + 1;
-                    for (var level = firstNewLevel; level <= hero.Definition.Level; level++)
+                    hero.RestoreForMaxHealthGain(progression.HealthRestoredFromGrowth);
+                }
+
+                if (progression.LevelsGained > 0)
+                {
+                    for (var level = progression.LevelBefore + 1; level <= progression.LevelAfter; level++)
                     {
                         ui.AddLog($"{hero.Definition.displayName} \u5347\u5230\u4e86 {level} \u7ea7\u3002");
                     }

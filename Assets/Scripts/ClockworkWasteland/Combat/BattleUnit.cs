@@ -6,6 +6,7 @@ namespace ClockworkWasteland.Combat
 {
     public sealed class BattleUnit
     {
+        private const int DefaultResourceCap = 6;
         private readonly List<StatusInstance> statuses = new List<StatusInstance>();
         private readonly Dictionary<SkillData, int> skillCooldowns = new Dictionary<SkillData, int>();
 
@@ -23,6 +24,7 @@ namespace ClockworkWasteland.Combat
         public int OccupiedSlotCount => System.Math.Max(1, Definition.occupiedSlotCount);
         public int Health { get; private set; }
         public int Resource { get; private set; }
+        public int MaxResource => DefaultResourceCap;
         public int ActionPoints { get; private set; } = 1;
         public bool IsCorpse { get; private set; }
         public bool IsHero => Definition.isHero;
@@ -84,6 +86,18 @@ namespace ClockworkWasteland.Combat
             ActionPoints = System.Math.Max(0, ActionPoints - 1);
             Resource = System.Math.Max(0, Resource - skill.manaCost);
             StartCooldown(skill);
+        }
+
+        public int GainResource(int amount)
+        {
+            if (amount <= 0)
+            {
+                return 0;
+            }
+
+            var before = Resource;
+            Resource = System.Math.Min(MaxResource, Resource + amount);
+            return Resource - before;
         }
 
         public int GetCooldownRemaining(SkillData skill)

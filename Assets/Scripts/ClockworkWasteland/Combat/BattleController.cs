@@ -1140,6 +1140,7 @@ namespace ClockworkWasteland.Combat
 
             actor.TickSkillCooldowns();
             ApplyPassiveOnTurnStart(actor);
+            ApplyArchetypeTurnStart(actor);
 
             if (!actor.IsAlive || !actor.CanAct)
             {
@@ -1388,6 +1389,8 @@ namespace ClockworkWasteland.Combat
                     ui.AddLog($"{target.DisplayName} \u83b7\u5f97\u72b6\u6001\uff1a{skill.applyBuff.buffName}\u3002");
                 }
             }
+
+            ApplyArchetypeActionResource(actor, skill, targets);
 
             yield return StartCoroutine(MoveAttackFocusLunge(lungeState, false));
             RefreshViews();
@@ -2241,6 +2244,78 @@ namespace ClockworkWasteland.Combat
             }
 
             return Mathf.Max(1, amount);
+        }
+
+        private void ApplyArchetypeTurnStart(BattleUnit actor)
+        {
+            if (actor == null || !actor.CanAct)
+            {
+                return;
+            }
+
+            var gained = 0;
+            switch (actor.Archetype)
+            {
+                case CombatArchetype.Bulwark:
+                    gained = actor.IsFrontline ? actor.GainResource(1) : 0;
+                    break;
+                case CombatArchetype.Executioner:
+                    gained = GetLivingOpponents(actor).Any(target => target.HealthRatio <= 0.6f) ? actor.GainResource(1) : 0;
+                    break;
+                case CombatArchetype.Artificer:
+                    gained = actor.IsBackline ? actor.GainResource(1) : 0;
+                    break;
+                case CombatArchetype.Physician:
+                    gained = GetLivingAllies(actor, includeSelf: true).Any(target => target.HealthRatio < 0.85f) ? actor.GainResource(1) : 0;
+                    break;
+            }
+
+            if (gained > 0)
+            {
+                ui.AddLog($"{actor.DisplayName} 的{actor.Definition.ArchetypeDisplayName}节奏恢复了 {gained} 点资源。");
+            }
+        }
+
+        private void ApplyArchetypeActionResource(BattleUnit actor, SkillData skill, BattleUnit[] targets)
+        {
+            if (actor == null || skill == null || targets == null || targets.Length == 0)
+            {
+                return;
+            }
+
+            var gained = 0;
+            switch (actor.Archetype)
+            {
+                case CombatArchetype.Bulwark:
+                    if (targets.Any(target => target.IsFrontline))
+                    {
+                        gained = actor.GainResource(1);
+                    }
+                    break;
+                case CombatArchetype.Executioner:
+                    if (targets.Any(target => !target.IsAlive || target.HealthRatio <= 0.5f))
+                    {
+                        gained = actor.GainResource(1);
+                    }
+                    break;
+                case CombatArchetype.Artificer:
+                    if (skill.skillType == SkillDataType.控制 || targets.Length >= 2 || targets.Any(target => target.IsBackline))
+                    {
+                        gained = actor.GainResource(1);
+                    }
+                    break;
+                case CombatArchetype.Physician:
+                    if (skill.skillType == SkillDataType.治疗)
+                    {
+                        gained = actor.GainResource(targets.Count(target => target.HealthRatio < 1f) >= 2 ? 2 : 1);
+                    }
+                    break;
+            }
+
+            if (gained > 0)
+            {
+                ui.AddLog($"{actor.DisplayName} 积累了 {gained} 点资源。");
+            }
         }
 
         private static Color GetDamageColor(SkillDataType skillType)

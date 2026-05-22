@@ -270,6 +270,7 @@ namespace ClockworkWasteland.Combat
                 $"\u504f\u597d\u7ad9\u4f4d\uff1a{selectedUnit.Definition.PreferredRowDisplayName}\n" +
                 $"\u7b49\u7ea7\uff1a{selectedUnit.Level}\n" +
                 $"\u751f\u547d\uff1a{selectedUnit.Health}/{selectedUnit.MaxHealth}\n" +
+                $"\u8d44\u6e90\uff1a{selectedUnit.Resource}/{selectedUnit.MaxResource}\n" +
                 $"\u653b\u51fb\uff1a{selectedUnit.Attack}\n" +
                 $"\u9632\u5fa1\uff1a{selectedUnit.Defense}\n" +
                 $"\u7ad9\u4f4d\uff1a{selectedUnit.CurrentPosition}\n" +

@@ -268,6 +268,26 @@ namespace ClockworkWasteland.Combat
             ui.SetGold(gold);
         }
 
+        private void ResetCombatSelectionState()
+        {
+            waitingForPlayer = false;
+            resolvingPlayerAction = false;
+            currentActor = null;
+            selectedUnit = null;
+            selectedSkill = null;
+            validSelectedTargets = new BattleUnit[0];
+            SetTargetHighlights(validSelectedTargets);
+        }
+
+        private void ResetCombatRuntimeState(bool clearTurnQueue)
+        {
+            ResetCombatSelectionState();
+            if (clearTurnQueue)
+            {
+                turnQueue.Clear();
+            }
+        }
+
         private bool TryValidateSelectedHeroesForBattle()
         {
             if (selectedHeroDefinitions.Count == 0)
@@ -1084,6 +1104,7 @@ namespace ClockworkWasteland.Combat
                 }
             }
 
+            ResetCombatRuntimeState(clearTurnQueue: true);
             ui.ClearActionPanels();
             ui.SetTurn(heroes.Any(hero => hero.CanAct) ? "\u80dc\u5229" : "\u5931\u8d25");
             ui.AddLog(heroes.Any(hero => hero.CanAct) ? "\u5c0f\u961f\u6491\u8fc7\u4e86\u8fd9\u573a\u906d\u9047\u3002" : "\u8fdc\u5f81\u961f\u5012\u4e0b\u4e86\u3002");
@@ -2583,12 +2604,7 @@ namespace ClockworkWasteland.Combat
 
         private void PrepareBattle(int battleNumber, bool bossBattle)
         {
-            currentActor = null;
-            selectedUnit = null;
-            selectedSkill = null;
-            waitingForPlayer = false;
-            resolvingPlayerAction = false;
-            validSelectedTargets = new BattleUnit[0];
+            ResetCombatRuntimeState(clearTurnQueue: true);
             round = 0;
             battleBackgroundIndex = battleBackgrounds != null && battleBackgrounds.Length > 0
                 ? Mathf.Clamp(battleNumber - 1, 0, battleBackgrounds.Length - 1)
@@ -2645,13 +2661,7 @@ namespace ClockworkWasteland.Combat
 
         private void ClearAllUnits()
         {
-            waitingForPlayer = false;
-            resolvingPlayerAction = false;
-            currentActor = null;
-            selectedUnit = null;
-            selectedSkill = null;
-            validSelectedTargets = new BattleUnit[0];
-            turnQueue.Clear();
+            ResetCombatRuntimeState(clearTurnQueue: true);
 
             foreach (var view in views.Values.ToArray())
             {

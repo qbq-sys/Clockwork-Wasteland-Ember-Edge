@@ -2129,8 +2129,20 @@ namespace ClockworkWasteland.Combat
                         amount = Mathf.RoundToInt(amount * 1.3f);
                     }
                     break;
+                case "hero_04_iron_cut":
+                    if (target.HealthRatio >= 0.7f)
+                    {
+                        amount = Mathf.RoundToInt(amount * 1.15f);
+                    }
+                    break;
                 case "hero_08_scrap_volley":
                     if (target.IsBackline)
+                    {
+                        amount = Mathf.RoundToInt(amount * 1.15f);
+                    }
+                    break;
+                case "hero_05_iron_cut":
+                    if (target.HealthRatio <= 0.5f)
                     {
                         amount = Mathf.RoundToInt(amount * 1.15f);
                     }
@@ -2149,6 +2161,18 @@ namespace ClockworkWasteland.Combat
 
             switch (skill.skillId)
             {
+                case "hero_02_iron_cut":
+                    if (actor.HealthRatio < 0.85f)
+                    {
+                        var selfHeal = Mathf.Max(1, Mathf.RoundToInt(actor.MaxHealth * 0.08f));
+                        actor.Heal(selfHeal);
+                        ui.AddLog($"{actor.DisplayName} 借近身补刀稳住阵脚，恢复了 {selfHeal} 点生命。");
+                        if (views.TryGetValue(actor, out var medicActorView))
+                        {
+                            medicActorView.ShowFloatingText("+" + selfHeal, new Color(0.48f, 1f, 0.48f), 0.85f);
+                        }
+                    }
+                    break;
                 case "hero_06_field_stitch":
                     var cooledSkill = target.ReduceRandomCooldown(1);
                     if (cooledSkill != null)
@@ -2157,6 +2181,18 @@ namespace ClockworkWasteland.Combat
                         if (views.TryGetValue(target, out var fieldStitchTargetView))
                         {
                             fieldStitchTargetView.ShowFloatingText("\u51b7\u5374-1", new Color(0.76f, 0.9f, 1f), 0.85f);
+                        }
+                    }
+                    break;
+                case "hero_07_iron_cut":
+                    if (actor.IsFrontline)
+                    {
+                        var selfHeal = Mathf.Max(1, Mathf.RoundToInt(actor.MaxHealth * 0.06f));
+                        actor.Heal(selfHeal);
+                        ui.AddLog($"{actor.DisplayName} 用拦截打击稳住前线，恢复了 {selfHeal} 点生命。");
+                        if (views.TryGetValue(actor, out var bodyguardActorView))
+                        {
+                            bodyguardActorView.ShowFloatingText("+" + selfHeal, new Color(0.55f, 0.95f, 0.7f), 0.85f);
                         }
                     }
                     break;
@@ -2192,6 +2228,40 @@ namespace ClockworkWasteland.Combat
             }
 
             var livingTargets = targets.Count(target => target != null && target.IsAlive);
+            switch (skill.skillId)
+            {
+                case "hero_01_iron_cut":
+                    if (livingTargets > 0 && targets.Any(target => target != null && target.IsFrontline && actor.IsFrontline))
+                    {
+                        var gained = actor.GainResource(1);
+                        if (gained > 0)
+                        {
+                            ui.AddLog($"{actor.DisplayName} 在前线对撞中稳住节奏，获得了 {gained} 点资源。");
+                        }
+                    }
+                    break;
+                case "hero_05_gear_sting":
+                    if (livingTargets > 0 && actor.IsBackline && targets.Any(target => target != null && target.IsBackline))
+                    {
+                        var gained = actor.GainResource(1);
+                        if (gained > 0)
+                        {
+                            ui.AddLog($"{actor.DisplayName} 从后排完成精准刺杀，回收了 {gained} 点资源。");
+                        }
+                    }
+                    break;
+                case "hero_08_ember_rend":
+                    if (livingTargets > 0 && targets.Any(target => target != null && target.IsBackline))
+                    {
+                        var gained = actor.GainResource(1);
+                        if (gained > 0)
+                        {
+                            ui.AddLog($"{actor.DisplayName} 的余热割裂压中了后排，获得了 {gained} 点资源。");
+                        }
+                    }
+                    break;
+            }
+
             if (skill.skillId == "hero_03_scrap_volley" && livingTargets >= 3)
             {
                 var gained = actor.GainResource(1);

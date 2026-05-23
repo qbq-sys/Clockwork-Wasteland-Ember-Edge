@@ -1115,19 +1115,6 @@ namespace ClockworkWasteland.Combat
 
         private void DisableTooltipRaycasts()
         {
-            if (!TryGetComponent<CanvasGroup>(out var canvasGroup) || canvasGroup == null)
-            {
-                canvasGroup = gameObject.AddComponent<CanvasGroup>();
-            }
-
-            if (canvasGroup == null)
-            {
-                return;
-            }
-
-            canvasGroup.blocksRaycasts = false;
-            canvasGroup.interactable = false;
-
             foreach (var graphic in GetComponentsInChildren<Graphic>(true))
             {
                 graphic.raycastTarget = false;

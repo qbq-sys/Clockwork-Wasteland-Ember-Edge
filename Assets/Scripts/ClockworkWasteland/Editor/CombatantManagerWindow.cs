@@ -554,7 +554,7 @@ namespace ClockworkWasteland.EditorTools
                 return;
             }
 
-            var idleFrames = PrepareManagedIdleFrames(characterId, createIdleFrames.Where(sprite => sprite != null).ToArray());
+            var idleFrames = PrepareManagedIdleFrames(characterId, ResolveIdleSourceSprites(createIdleFrames, createIdleSourceAsset));
             if (idleFrames.Length == 0)
             {
                 EditorUtility.DisplayDialog("创建单位", "至少需要一张待机帧图片。", "确定");
@@ -608,7 +608,7 @@ namespace ClockworkWasteland.EditorTools
                 return;
             }
 
-            var idleFrames = PrepareManagedIdleFrames(combatant.characterId, editIdleFrames.Where(sprite => sprite != null).ToArray());
+            var idleFrames = PrepareManagedIdleFrames(combatant.characterId, ResolveIdleSourceSprites(editIdleFrames, editIdleSourceAsset));
             if (idleFrames.Length > 0)
             {
                 combatant.idleAnimationFrames = idleFrames;
@@ -959,13 +959,22 @@ namespace ClockworkWasteland.EditorTools
         private static void BindCombatantViewReferences(CombatantView view, Transform visualRoot, SpriteRenderer bodyRenderer, SpriteRenderer actionOverlay, SpriteRenderer hitOverlay, Transform nameplatePosition, BoxCollider2D clickCollider)
         {
             var serializedView = new SerializedObject(view);
-            serializedView.FindProperty("visualRoot").objectReferenceValue = visualRoot;
-            serializedView.FindProperty("spriteRenderer").objectReferenceValue = bodyRenderer;
-            serializedView.FindProperty("overlayRenderer").objectReferenceValue = actionOverlay;
-            serializedView.FindProperty("hitOverlayRenderer").objectReferenceValue = hitOverlay;
-            serializedView.FindProperty("nameplatePosition").objectReferenceValue = nameplatePosition;
-            serializedView.FindProperty("clickCollider").objectReferenceValue = clickCollider;
+            SetObjectReferenceIfPropertyExists(serializedView, "visualRoot", visualRoot);
+            SetObjectReferenceIfPropertyExists(serializedView, "spriteRenderer", bodyRenderer);
+            SetObjectReferenceIfPropertyExists(serializedView, "overlayRenderer", actionOverlay);
+            SetObjectReferenceIfPropertyExists(serializedView, "hitOverlayRenderer", hitOverlay);
+            SetObjectReferenceIfPropertyExists(serializedView, "nameplatePosition", nameplatePosition);
+            SetObjectReferenceIfPropertyExists(serializedView, "clickCollider", clickCollider);
             serializedView.ApplyModifiedPropertiesWithoutUndo();
+        }
+
+        private static void SetObjectReferenceIfPropertyExists(SerializedObject serializedObject, string propertyName, UnityEngine.Object value)
+        {
+            var property = serializedObject.FindProperty(propertyName);
+            if (property != null)
+            {
+                property.objectReferenceValue = value;
+            }
         }
 
         private static HeroGrowthData LoadOrCreateDefaultGrowthData()
@@ -1285,15 +1294,31 @@ namespace ClockworkWasteland.EditorTools
         private static void ReplaceSpriteListFromAsset(List<Sprite> target, UnityEngine.Object sourceAsset)
         {
             target.Clear();
+            target.AddRange(LoadSpritesFromAsset(sourceAsset));
+        }
+
+        private static Sprite[] ResolveIdleSourceSprites(List<Sprite> explicitSprites, UnityEngine.Object sourceAsset)
+        {
+            var sprites = explicitSprites.Where(sprite => sprite != null).ToArray();
+            if (sprites.Length > 0)
+            {
+                return sprites;
+            }
+
+            return LoadSpritesFromAsset(sourceAsset);
+        }
+
+        private static Sprite[] LoadSpritesFromAsset(UnityEngine.Object sourceAsset)
+        {
             if (sourceAsset == null)
             {
-                return;
+                return Array.Empty<Sprite>();
             }
 
             var assetPath = AssetDatabase.GetAssetPath(sourceAsset);
             if (string.IsNullOrWhiteSpace(assetPath))
             {
-                return;
+                return Array.Empty<Sprite>();
             }
 
             var sprites = AssetDatabase.LoadAllAssetsAtPath(assetPath)
@@ -1305,10 +1330,10 @@ namespace ClockworkWasteland.EditorTools
 
             if (sprites.Length == 0 && sourceAsset is Sprite singleSprite)
             {
-                sprites = new[] { singleSprite };
+                return new[] { singleSprite };
             }
 
-            target.AddRange(sprites);
+            return sprites;
         }
 
         private static void AddSelectedSkills(List<SkillData> target)

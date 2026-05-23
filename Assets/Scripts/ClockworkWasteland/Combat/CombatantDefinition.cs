@@ -43,6 +43,7 @@ namespace ClockworkWasteland.Combat
         public int corpseHealth = 3;
         public CombatArchetype archetype = CombatArchetype.Undefined;
         public CombatRowPreference preferredRow = CombatRowPreference.Flexible;
+        public CombatSpecialization specialization = CombatSpecialization.None;
 
         [Header("Recruitment")]
         public bool isUnlocked = true;
@@ -76,15 +77,21 @@ namespace ClockworkWasteland.Combat
         public int ArchetypeAttackBonus => GetArchetypeAttackBonus(archetype);
         public int ArchetypeDefenseBonus => GetArchetypeDefenseBonus(archetype);
         public int ArchetypeSpeedBonus => GetArchetypeSpeedBonus(archetype);
-        public int MaxHealthWithGrowth => maxHealth + (Level - 1) * GrowthMaxHealthPerLevel + ArchetypeMaxHealthBonus;
-        public int AttackWithGrowth => attack + (Level - 1) * GrowthAttackPerLevel + ArchetypeAttackBonus;
-        public int DefenseWithGrowth => defense + (Level - 1) * GrowthDefensePerLevel + ArchetypeDefenseBonus;
-        public int SpeedWithArchetype => Mathf.Max(0, speed + ArchetypeSpeedBonus);
+        public int SpecializationMaxHealthBonus => GetSpecializationMaxHealthBonus(specialization);
+        public int SpecializationAttackBonus => GetSpecializationAttackBonus(specialization);
+        public int SpecializationDefenseBonus => GetSpecializationDefenseBonus(specialization);
+        public int SpecializationSpeedBonus => GetSpecializationSpeedBonus(specialization);
+        public int MaxHealthWithGrowth => maxHealth + (Level - 1) * GrowthMaxHealthPerLevel + ArchetypeMaxHealthBonus + SpecializationMaxHealthBonus;
+        public int AttackWithGrowth => attack + (Level - 1) * GrowthAttackPerLevel + ArchetypeAttackBonus + SpecializationAttackBonus;
+        public int DefenseWithGrowth => defense + (Level - 1) * GrowthDefensePerLevel + ArchetypeDefenseBonus + SpecializationDefenseBonus;
+        public int SpeedWithArchetype => Mathf.Max(0, speed + ArchetypeSpeedBonus + SpecializationSpeedBonus);
         public int CurrentHealth => isHero ? Mathf.Clamp(currentHealth < 0 ? MaxHealthWithGrowth : currentHealth, 0, MaxHealthWithGrowth) : MaxHealthWithGrowth;
         public bool IsDead => isHero && CurrentHealth <= 0;
         public string ArchetypeDisplayName => GetArchetypeDisplayName(archetype);
         public string PreferredRowDisplayName => GetPreferredRowDisplayName(preferredRow);
         public string ArchetypeSummary => GetArchetypeSummary(archetype);
+        public string SpecializationDisplayName => GetSpecializationDisplayName(specialization);
+        public string SpecializationSummary => GetSpecializationSummary(specialization);
         public string PassiveDisplayName => GetPassiveDisplayName(passive);
 
         public bool PrefersFrontRows => preferredRow == CombatRowPreference.Front;
@@ -104,6 +111,7 @@ namespace ClockworkWasteland.Combat
             defense = Mathf.Max(0, defense);
             currentLevel = Mathf.Max(1, currentLevel);
             currentExperience = Mathf.Max(0, currentExperience);
+            specialization = NormalizeSpecialization(archetype, specialization);
             if (!isHero)
             {
                 currentHealth = -1;
@@ -182,6 +190,38 @@ namespace ClockworkWasteland.Combat
             }
         }
 
+        private static string GetSpecializationDisplayName(CombatSpecialization value)
+        {
+            switch (value)
+            {
+                case CombatSpecialization.Bastion: return "壁垒";
+                case CombatSpecialization.Sentinel: return "哨卫";
+                case CombatSpecialization.Slayer: return "斩杀号手";
+                case CombatSpecialization.Breaker: return "破阵者";
+                case CombatSpecialization.Bombardier: return "爆破手";
+                case CombatSpecialization.Controller: return "控场师";
+                case CombatSpecialization.Surgeon: return "外科医";
+                case CombatSpecialization.Stimulator: return "激励师";
+                default: return "未专精";
+            }
+        }
+
+        private static string GetSpecializationSummary(CombatSpecialization value)
+        {
+            switch (value)
+            {
+                case CombatSpecialization.Bastion: return "更偏纯防御与前排硬顶。";
+                case CombatSpecialization.Sentinel: return "更偏护卫、牵制与节奏维持。";
+                case CombatSpecialization.Slayer: return "更偏残血处决与爆发收尾。";
+                case CombatSpecialization.Breaker: return "更偏前排破阵与开口能力。";
+                case CombatSpecialization.Bombardier: return "更偏高压群攻与后排爆破。";
+                case CombatSpecialization.Controller: return "更偏控制、打断与节奏压制。";
+                case CombatSpecialization.Surgeon: return "更偏抢救、净化与单体治疗。";
+                case CombatSpecialization.Stimulator: return "更偏冷却支援、资源与队友加速。";
+                default: return "尚未选择专精分支。";
+            }
+        }
+
         private static int GetArchetypeMaxHealthBonus(CombatArchetype value)
         {
             switch (value)
@@ -233,6 +273,73 @@ namespace ClockworkWasteland.Combat
                     return -1;
                 default:
                     return 0;
+            }
+        }
+
+        private static int GetSpecializationMaxHealthBonus(CombatSpecialization value)
+        {
+            switch (value)
+            {
+                case CombatSpecialization.Bastion:
+                    return 4;
+                case CombatSpecialization.Surgeon:
+                    return 2;
+                default:
+                    return 0;
+            }
+        }
+
+        private static int GetSpecializationAttackBonus(CombatSpecialization value)
+        {
+            switch (value)
+            {
+                case CombatSpecialization.Slayer:
+                case CombatSpecialization.Bombardier:
+                    return 1;
+                default:
+                    return 0;
+            }
+        }
+
+        private static int GetSpecializationDefenseBonus(CombatSpecialization value)
+        {
+            switch (value)
+            {
+                case CombatSpecialization.Bastion:
+                    return 2;
+                case CombatSpecialization.Sentinel:
+                    return 1;
+                default:
+                    return 0;
+            }
+        }
+
+        private static int GetSpecializationSpeedBonus(CombatSpecialization value)
+        {
+            switch (value)
+            {
+                case CombatSpecialization.Controller:
+                case CombatSpecialization.Stimulator:
+                    return 1;
+                default:
+                    return 0;
+            }
+        }
+
+        private static CombatSpecialization NormalizeSpecialization(CombatArchetype archetype, CombatSpecialization specialization)
+        {
+            switch (archetype)
+            {
+                case CombatArchetype.Bulwark:
+                    return specialization == CombatSpecialization.Bastion || specialization == CombatSpecialization.Sentinel ? specialization : CombatSpecialization.None;
+                case CombatArchetype.Executioner:
+                    return specialization == CombatSpecialization.Slayer || specialization == CombatSpecialization.Breaker ? specialization : CombatSpecialization.None;
+                case CombatArchetype.Artificer:
+                    return specialization == CombatSpecialization.Bombardier || specialization == CombatSpecialization.Controller ? specialization : CombatSpecialization.None;
+                case CombatArchetype.Physician:
+                    return specialization == CombatSpecialization.Surgeon || specialization == CombatSpecialization.Stimulator ? specialization : CombatSpecialization.None;
+                default:
+                    return CombatSpecialization.None;
             }
         }
 

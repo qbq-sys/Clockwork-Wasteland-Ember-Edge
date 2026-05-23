@@ -32,6 +32,7 @@ namespace ClockworkWasteland.Combat
         public bool CanAct => IsAlive && !IsCorpse && !IsStunned;
         public IReadOnlyList<StatusInstance> Statuses => statuses;
         public CombatArchetype Archetype => Definition.archetype;
+        public CombatSpecialization Specialization => Definition.specialization;
         public CombatRowPreference PreferredRow => Definition.preferredRow;
         public bool HasCooldowns => skillCooldowns.Count > 0;
         public bool IsFrontline => CurrentPosition >= 1 && CurrentPosition <= 2;

@@ -315,7 +315,7 @@ namespace ClockworkWasteland.Combat
                     var stats = CombatUIScreenUtility.CreateText("Stats", card.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero, 15, TextAnchor.UpperLeft);
                     stats.rectTransform.offsetMin = new Vector2(24f, 74f);
                     stats.rectTransform.offsetMax = new Vector2(-24f, -196f);
-                    stats.text = $"\u804c\u80fd {hero.ArchetypeDisplayName}\n\u504f\u597d {hero.PreferredRowDisplayName}\n\u751f\u547d {hero.MaxHealthWithGrowth}\n\u653b\u51fb {hero.AttackWithGrowth}\n\u9632\u5fa1 {hero.DefenseWithGrowth}\n\u901f\u5ea6 {hero.SpeedWithArchetype}\n\u4ef7\u683c {hero.recruitPrice}\u91d1\u5e01";
+                    stats.text = $"\u804c\u80fd {hero.ArchetypeDisplayName}\n\u4e13\u7cbe {hero.SpecializationDisplayName}\n\u504f\u597d {hero.PreferredRowDisplayName}\n\u751f\u547d {hero.MaxHealthWithGrowth}\n\u653b\u51fb {hero.AttackWithGrowth}\n\u9632\u5fa1 {hero.DefenseWithGrowth}\n\u901f\u5ea6 {hero.SpeedWithArchetype}\n\u4ef7\u683c {hero.recruitPrice}\u91d1\u5e01";
                     CombatUIScreenUtility.SetTextStyle(stats, new Color(0.88f, 0.8f, 0.66f), false);
 
                     CombatUIScreenUtility.CreateButton(card.rectTransform, "\u62db\u52df", new Vector2(130f, -306f), () => onRecruit?.Invoke(hero), currentGold >= hero.recruitPrice);
@@ -417,7 +417,7 @@ namespace ClockworkWasteland.Combat
                 var stats = CombatUIScreenUtility.CreateText("Stats", card.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero, 15, TextAnchor.UpperLeft);
                 stats.rectTransform.offsetMin = new Vector2(92f, 36f);
                 stats.rectTransform.offsetMax = new Vector2(-20f, -48f);
-                stats.text = $"\u804c\u80fd {hero.ArchetypeDisplayName}  \u504f\u597d {hero.PreferredRowDisplayName}\n\u7b49\u7ea7 {hero.Level}  EXP {hero.Experience}/{hero.ExperienceToNextLevel}\n\u751f\u547d {hero.CurrentHealth}/{hero.MaxHealthWithGrowth}\n\u653b\u51fb {hero.AttackWithGrowth}\n\u9632\u5fa1 {hero.DefenseWithGrowth}\n\u901f\u5ea6 {hero.SpeedWithArchetype}";
+                stats.text = $"\u804c\u80fd {hero.ArchetypeDisplayName}  \u4e13\u7cbe {hero.SpecializationDisplayName}\n\u504f\u597d {hero.PreferredRowDisplayName}\n\u7b49\u7ea7 {hero.Level}  EXP {hero.Experience}/{hero.ExperienceToNextLevel}\n\u751f\u547d {hero.CurrentHealth}/{hero.MaxHealthWithGrowth}\n\u653b\u51fb {hero.AttackWithGrowth}\n\u9632\u5fa1 {hero.DefenseWithGrowth}\n\u901f\u5ea6 {hero.SpeedWithArchetype}";
                 CombatUIScreenUtility.SetTextStyle(stats, new Color(0.84f, 0.78f, 0.66f), false);
                 CombatUIScreenUtility.CreateButton(card.rectTransform, selected ? "\u53d6\u6d88" : "\u9009\u62e9", new Vector2(125f, -148f), () => onToggleHero?.Invoke(hero), true);
             }
@@ -545,7 +545,7 @@ namespace ClockworkWasteland.Combat
             CombatUIScreenUtility.SetTextStyle(levelText, new Color(0.72f, 0.68f, 0.55f), false);
 
             var archetypeText = CombatUIScreenUtility.CreateText("Archetype", heroCodexBg.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(detailX + 160f, -136f), new Vector2(-40f, -158f), 14, TextAnchor.MiddleLeft);
-            archetypeText.text = $"职能 {selectedHero.ArchetypeDisplayName}   偏好站位 {selectedHero.PreferredRowDisplayName}";
+            archetypeText.text = $"职能 {selectedHero.ArchetypeDisplayName}   专精 {selectedHero.SpecializationDisplayName}   偏好站位 {selectedHero.PreferredRowDisplayName}";
             CombatUIScreenUtility.SetTextStyle(archetypeText, new Color(0.78f, 0.73f, 0.6f), false);
 
             // Divider
@@ -564,6 +564,8 @@ namespace ClockworkWasteland.Combat
                              $"速度：{selectedHero.SpeedWithArchetype} （{speedDesc}）\n" +
                              $"职能定位：{selectedHero.ArchetypeDisplayName}\n" +
                              $"原型特征：{selectedHero.ArchetypeSummary}\n" +
+                             $"专精分支：{selectedHero.SpecializationDisplayName}\n" +
+                             $"专精特征：{selectedHero.SpecializationSummary}\n" +
                              $"偏好站位：{selectedHero.PreferredRowDisplayName}\n" +
                              $"招募价格：{selectedHero.recruitPrice} 金币";
             CombatUIScreenUtility.SetTextStyle(statsData, new Color(0.82f, 0.78f, 0.66f), false);

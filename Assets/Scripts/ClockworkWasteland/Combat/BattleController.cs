@@ -1976,6 +1976,7 @@ namespace ClockworkWasteland.Combat
 
             amount = ApplyPassiveToDamage(actor, target, amount);
             amount = ApplyArchetypeToDamage(actor, skill, target, amount);
+            amount = ApplySpecializationToDamage(actor, skill, target, amount);
             amount = ApplySkillSpecificDamageModifier(actor, skill, target, amount);
 
             var critical = Random.value < 0.1f;
@@ -2124,6 +2125,44 @@ namespace ClockworkWasteland.Combat
             return Mathf.Max(1, amount);
         }
 
+        private int ApplySpecializationToDamage(BattleUnit actor, SkillData skill, BattleUnit target, int amount)
+        {
+            if (actor == null || skill == null || target == null || amount <= 0)
+            {
+                return amount;
+            }
+
+            switch (actor.Specialization)
+            {
+                case CombatSpecialization.Slayer:
+                    if (target.HealthRatio <= 0.5f)
+                    {
+                        amount = Mathf.RoundToInt(amount * 1.12f);
+                    }
+                    break;
+                case CombatSpecialization.Breaker:
+                    if (target.IsFrontline || target.HealthRatio >= 0.7f)
+                    {
+                        amount = Mathf.RoundToInt(amount * 1.1f);
+                    }
+                    break;
+                case CombatSpecialization.Bombardier:
+                    if (skill.targetType == SkillDataTargetType.全体敌 || target.IsBackline)
+                    {
+                        amount = Mathf.RoundToInt(amount * 1.1f);
+                    }
+                    break;
+                case CombatSpecialization.Controller:
+                    if (skill.skillType == SkillDataType.控制)
+                    {
+                        amount = Mathf.RoundToInt(amount * 1.1f);
+                    }
+                    break;
+            }
+
+            return Mathf.Max(1, amount);
+        }
+
         private int ApplySkillSpecificDamageModifier(BattleUnit actor, SkillData skill, BattleUnit target, int amount)
         {
             if (actor == null || skill == null || target == null || amount <= 0)
@@ -2252,6 +2291,40 @@ namespace ClockworkWasteland.Combat
             }
 
             var livingTargets = targets.Count(target => target != null && target.IsAlive);
+            switch (actor.Specialization)
+            {
+                case CombatSpecialization.Sentinel:
+                    if (actor.IsFrontline && targets.Any(target => target != null && target.IsFrontline))
+                    {
+                        var sentinelGain = actor.GainResource(1);
+                        if (sentinelGain > 0)
+                        {
+                            ui.AddLog($"{actor.DisplayName} 的哨卫专精稳住前线，获得了 {sentinelGain} 点资源。");
+                        }
+                    }
+                    break;
+                case CombatSpecialization.Controller:
+                    if (skill.skillType == SkillDataType.控制)
+                    {
+                        var controllerGain = actor.GainResource(1);
+                        if (controllerGain > 0)
+                        {
+                            ui.AddLog($"{actor.DisplayName} 的控场专精从压制中回收了 {controllerGain} 点资源。");
+                        }
+                    }
+                    break;
+                case CombatSpecialization.Stimulator:
+                    if (skill.skillType == SkillDataType.治疗 && targets.Any(target => target != null && target.HasCooldowns))
+                    {
+                        var stimGain = actor.GainResource(1);
+                        if (stimGain > 0)
+                        {
+                            ui.AddLog($"{actor.DisplayName} 的激励专精帮助队友转冷，获得了 {stimGain} 点资源。");
+                        }
+                    }
+                    break;
+            }
+
             switch (skill.skillId)
             {
                 case "hero_01_iron_cut":
@@ -2491,7 +2564,34 @@ namespace ClockworkWasteland.Combat
                 amount = Mathf.RoundToInt(amount * 1.25f);
             }
 
+            amount = ApplySpecializationToHealing(actor, skill, target, amount);
             amount = ApplySkillSpecificHealingModifier(actor, skill, target, amount);
+            return Mathf.Max(1, amount);
+        }
+
+        private int ApplySpecializationToHealing(BattleUnit actor, SkillData skill, BattleUnit target, int amount)
+        {
+            if (actor == null || skill == null || target == null || amount <= 0)
+            {
+                return amount;
+            }
+
+            switch (actor.Specialization)
+            {
+                case CombatSpecialization.Surgeon:
+                    if (target.HealthRatio <= 0.5f)
+                    {
+                        amount = Mathf.RoundToInt(amount * 1.12f);
+                    }
+                    break;
+                case CombatSpecialization.Stimulator:
+                    if (target.HasCooldowns)
+                    {
+                        amount = Mathf.RoundToInt(amount * 1.08f);
+                    }
+                    break;
+            }
+
             return Mathf.Max(1, amount);
         }
 
@@ -2548,6 +2648,38 @@ namespace ClockworkWasteland.Combat
             if (gained > 0)
             {
                 ui.AddLog($"{actor.DisplayName} 的{actor.Definition.ArchetypeDisplayName}节奏恢复了 {gained} 点资源。");
+            }
+
+            ApplySpecializationTurnStart(actor);
+        }
+
+        private void ApplySpecializationTurnStart(BattleUnit actor)
+        {
+            if (actor == null || !actor.CanAct)
+            {
+                return;
+            }
+
+            var gained = 0;
+            switch (actor.Specialization)
+            {
+                case CombatSpecialization.Bastion:
+                    gained = actor.IsFrontline && actor.HealthRatio < 0.8f ? actor.GainResource(1) : 0;
+                    break;
+                case CombatSpecialization.Slayer:
+                    gained = GetLivingOpponents(actor).Any(target => target.HealthRatio <= 0.4f) ? actor.GainResource(1) : 0;
+                    break;
+                case CombatSpecialization.Bombardier:
+                    gained = actor.IsBackline ? actor.GainResource(1) : 0;
+                    break;
+                case CombatSpecialization.Surgeon:
+                    gained = GetLivingAllies(actor, includeSelf: true).Any(target => target.HealthRatio <= 0.5f) ? actor.GainResource(1) : 0;
+                    break;
+            }
+
+            if (gained > 0)
+            {
+                ui.AddLog($"{actor.DisplayName} 的{actor.Definition.SpecializationDisplayName}专精恢复了 {gained} 点资源。");
             }
         }
 

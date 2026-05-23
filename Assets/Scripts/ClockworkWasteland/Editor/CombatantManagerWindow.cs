@@ -43,6 +43,7 @@ namespace ClockworkWasteland.EditorTools
         private Color createTint = Color.white;
         private CombatArchetype createArchetype = CombatArchetype.Undefined;
         private CombatRowPreference createPreferredRow = CombatRowPreference.Flexible;
+        private CombatSpecialization createSpecialization = CombatSpecialization.None;
         private HeroGrowthData createGrowthData;
         private Sprite createAttackSprite;
         private Sprite createHitSprite;
@@ -228,6 +229,7 @@ namespace ClockworkWasteland.EditorTools
             createTint = EditorGUILayout.ColorField("Tint", createTint);
             createArchetype = (CombatArchetype)EditorGUILayout.EnumPopup("Archetype", createArchetype);
             createPreferredRow = (CombatRowPreference)EditorGUILayout.EnumPopup("Preferred Row", createPreferredRow);
+            createSpecialization = (CombatSpecialization)EditorGUILayout.EnumPopup("Specialization", createSpecialization);
             createGrowthData = (HeroGrowthData)EditorGUILayout.ObjectField("Growth Data", createGrowthData, typeof(HeroGrowthData), false);
 
             EditorGUILayout.Space(6f);
@@ -352,6 +354,7 @@ namespace ClockworkWasteland.EditorTools
             combatant.tint = createTint;
             combatant.archetype = createArchetype;
             combatant.preferredRow = createPreferredRow;
+            combatant.specialization = createSpecialization;
             combatant.growthData = createIsHero ? (createGrowthData != null ? createGrowthData : LoadOrCreateDefaultGrowthData()) : null;
             combatant.idleAnimationFrames = idleFrames;
             combatant.battleSprite = idleFrames[0];

@@ -81,4 +81,17 @@
         Mid,
         Back
     }
+
+    public enum CombatSpecialization
+    {
+        None,
+        Bastion,
+        Sentinel,
+        Slayer,
+        Breaker,
+        Bombardier,
+        Controller,
+        Surgeon,
+        Stimulator
+    }
 }

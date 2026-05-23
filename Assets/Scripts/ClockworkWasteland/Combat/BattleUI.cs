@@ -314,6 +314,8 @@ namespace ClockworkWasteland.Combat
                 $"{side}{active}\n\n" +
                 $"\u804c\u80fd\uff1a{selectedUnit.Definition.ArchetypeDisplayName}\n" +
                 $"\u5b9a\u4f4d\uff1a{selectedUnit.Definition.ArchetypeSummary}\n" +
+                $"\u4e13\u7cbe\uff1a{selectedUnit.Definition.SpecializationDisplayName}\n" +
+                $"\u4e13\u7cbe\u7279\u5f81\uff1a{selectedUnit.Definition.SpecializationSummary}\n" +
                 $"\u88ab\u52a8\uff1a{selectedUnit.Definition.PassiveDisplayName}\n" +
                 $"\u504f\u597d\u7ad9\u4f4d\uff1a{selectedUnit.Definition.PreferredRowDisplayName}\n" +
                 $"\u7b49\u7ea7\uff1a{selectedUnit.Level}\n" +
@@ -553,7 +555,7 @@ namespace ClockworkWasteland.Combat
                 var stats = CreateText("Stats", card, new Vector2(0f, 0f), new Vector2(1f, 1f), Vector2.zero, Vector2.zero, 15, TextAnchor.UpperLeft);
                 stats.rectTransform.offsetMin = new Vector2(92f, 36f);
                 stats.rectTransform.offsetMax = new Vector2(-20f, -48f);
-                stats.text = $"\u804c\u80fd {hero.ArchetypeDisplayName}  \u504f\u597d {hero.PreferredRowDisplayName}\n\u7b49\u7ea7 {hero.Level}  EXP {hero.Experience}/{hero.ExperienceToNextLevel}\n\u751f\u547d {hero.CurrentHealth}/{hero.MaxHealthWithGrowth}\n\u653b\u51fb {hero.AttackWithGrowth}\n\u9632\u5fa1 {hero.DefenseWithGrowth}\n\u901f\u5ea6 {hero.SpeedWithArchetype}";
+                stats.text = $"\u804c\u80fd {hero.ArchetypeDisplayName}  \u4e13\u7cbe {hero.SpecializationDisplayName}\n\u504f\u597d {hero.PreferredRowDisplayName}\n\u7b49\u7ea7 {hero.Level}  EXP {hero.Experience}/{hero.ExperienceToNextLevel}\n\u751f\u547d {hero.CurrentHealth}/{hero.MaxHealthWithGrowth}\n\u653b\u51fb {hero.AttackWithGrowth}\n\u9632\u5fa1 {hero.DefenseWithGrowth}\n\u901f\u5ea6 {hero.SpeedWithArchetype}";
                 SetTextStyle(stats, new Color(0.84f, 0.78f, 0.66f), false);
 
                 CreateButton(card, selected ? "\u53d6\u6d88" : "\u9009\u62e9", new Vector2(125f, -148f), () => onToggleHero?.Invoke(hero), true, null);
@@ -711,7 +713,7 @@ namespace ClockworkWasteland.Combat
                     var stats = CreateText("Stats", card, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero, 15, TextAnchor.UpperLeft);
                     stats.rectTransform.offsetMin = new Vector2(24f, 74f);
                     stats.rectTransform.offsetMax = new Vector2(-24f, -196f);
-                    stats.text = $"\u804c\u80fd {hero.ArchetypeDisplayName}\n\u504f\u597d {hero.PreferredRowDisplayName}\n\u751f\u547d {hero.MaxHealthWithGrowth}\n\u653b\u51fb {hero.AttackWithGrowth}\n\u9632\u5fa1 {hero.DefenseWithGrowth}\n\u901f\u5ea6 {hero.SpeedWithArchetype}\n\u4ef7\u683c {hero.recruitPrice}\u91d1\u5e01";
+                    stats.text = $"\u804c\u80fd {hero.ArchetypeDisplayName}\n\u4e13\u7cbe {hero.SpecializationDisplayName}\n\u504f\u597d {hero.PreferredRowDisplayName}\n\u751f\u547d {hero.MaxHealthWithGrowth}\n\u653b\u51fb {hero.AttackWithGrowth}\n\u9632\u5fa1 {hero.DefenseWithGrowth}\n\u901f\u5ea6 {hero.SpeedWithArchetype}\n\u4ef7\u683c {hero.recruitPrice}\u91d1\u5e01";
                     SetTextStyle(stats, new Color(0.88f, 0.8f, 0.66f), false);
 
                     CreateButton(card, "\u62db\u52df", new Vector2(130f, -306f), () => onRecruit?.Invoke(hero), currentGold >= hero.recruitPrice, null);

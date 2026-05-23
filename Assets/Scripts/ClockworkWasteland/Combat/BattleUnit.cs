@@ -182,15 +182,15 @@ namespace ClockworkWasteland.Combat
             statuses.Add(new StatusInstance(displayName, duration, tickDamage));
         }
 
-        public void AddOrRefreshBuff(BuffData buff)
+        public void AddOrRefreshBuff(BuffData buff, int duration)
         {
-            if (buff == null || buff.duration <= 0)
+            if (buff == null || duration <= 0)
             {
                 return;
             }
 
             statuses.RemoveAll(status => status.DisplayName == buff.buffName);
-            statuses.Add(new StatusInstance(buff.buffName, buff.duration, buff.tickDamage, buff.stun));
+            statuses.Add(new StatusInstance(buff.buffName, duration, buff.tickDamage, buff.stun));
         }
 
         public int TickStatuses()

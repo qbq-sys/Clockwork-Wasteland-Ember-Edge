@@ -1,5 +1,6 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using UnityEngine;
 
@@ -49,22 +50,26 @@ namespace ClockworkWasteland.Combat
 
     public readonly struct AttackLungeState
     {
-        public AttackLungeState(CombatantView actorView, Vector3 actorStart, Vector3 actorEnd, CombatantView[] targetViews, Vector3[] targetStarts, Vector3[] targetEnds)
+        public AttackLungeState(CombatantView actorView, Vector3 actorStart, Vector3 actorEnd, Vector3 actorRecoil, CombatantView[] targetViews, Vector3[] targetStarts, Vector3[] targetEnds, Vector3[] targetRecoils)
         {
             ActorView = actorView;
             ActorStart = actorStart;
             ActorEnd = actorEnd;
+            ActorRecoil = actorRecoil;
             TargetViews = targetViews;
             TargetStarts = targetStarts;
             TargetEnds = targetEnds;
+            TargetRecoils = targetRecoils;
         }
 
         public CombatantView ActorView { get; }
         public Vector3 ActorStart { get; }
         public Vector3 ActorEnd { get; }
+        public Vector3 ActorRecoil { get; }
         public CombatantView[] TargetViews { get; }
         public Vector3[] TargetStarts { get; }
         public Vector3[] TargetEnds { get; }
+        public Vector3[] TargetRecoils { get; }
         public bool IsValid => ActorView != null && TargetViews != null && TargetViews.Length > 0;
     }
 
@@ -91,18 +96,30 @@ namespace ClockworkWasteland.Combat
 
     public readonly struct AdventureMapOption
     {
-        public AdventureMapOption(string mapId, string displayName, string description, int difficulty)
+        public AdventureMapOption(AdventureMapData data, bool isUnlocked)
         {
-            MapId = mapId;
-            DisplayName = displayName;
-            Description = description;
-            Difficulty = difficulty;
+            Data = data;
+            MapId = data != null ? data.mapId : string.Empty;
+            DisplayName = data != null ? data.displayName : "未命名地图";
+            Description = data != null ? data.description : string.Empty;
+            PreviewSprite = data != null ? data.backgroundSprite : null;
+            BackgroundOffset = data != null ? data.backgroundOffset : Vector2.zero;
+            BackgroundScale = data != null ? Mathf.Max(0.1f, data.backgroundScale) : 1f;
+            BattleCount = data != null ? Mathf.Max(1, data.BattleCount) : 1;
+            IsUnlocked = isUnlocked;
+            UnlockSummary = data != null ? data.GetUnlockSummary() : string.Empty;
         }
 
+        public AdventureMapData Data { get; }
         public string MapId { get; }
         public string DisplayName { get; }
         public string Description { get; }
-        public int Difficulty { get; }
+        public Sprite PreviewSprite { get; }
+        public Vector2 BackgroundOffset { get; }
+        public float BackgroundScale { get; }
+        public int BattleCount { get; }
+        public bool IsUnlocked { get; }
+        public string UnlockSummary { get; }
     }
 
     public readonly struct SaveSlotSummary
@@ -127,6 +144,7 @@ namespace ClockworkWasteland.Combat
         public int gold;
         public string savedAt;
         public List<HeroSaveData> heroes = new List<HeroSaveData>();
+        public List<string> clearedMapIds = new List<string>();
     }
 
     [System.Serializable]
@@ -145,13 +163,16 @@ namespace ClockworkWasteland.Combat
         private const int MaxFormationSlots = 4;
         private const int MapNodeCount = 3;
         private const int InitialGold = 1200;
+        private const float InitialCombatantY = 0.2f;
         private const float FormationFeetY = -1.8f;
         private const float HeroFrontSlotX = -0.8f;
         private const float EnemyFrontSlotX = 1.3f;
         private const float BaseFormationSlotSpacing = 1.1f;
         private const float ReferenceFormationVisualScale = 0.8f;
-        private const int AttackFocusActorSortingOrder = 120;
-        private const int AttackFocusTargetSortingOrder = 121;
+        private const int AttackFocusTargetSortingOrder = 300;
+        private const int AttackFocusActorSortingOrder = 301;
+        private const int AttackFocusTargetOverlaySortingOrder = 302;
+        private const int AttackFocusActorOverlaySortingOrder = 303;
         private const int SaveSlotCount = 3;
         private const string LegacySaveKey = "ClockworkWasteland.Save.v1";
         private const string SaveSlotKeyPrefix = "ClockworkWasteland.SaveSlot.v2.";
@@ -163,6 +184,7 @@ namespace ClockworkWasteland.Combat
         [SerializeField] private CombatantDefinition[] heroParty;
         [SerializeField] private CombatantDefinition[] enemyParty;
         [SerializeField] private CombatantDefinition[] heroPoolConfig;
+        [SerializeField] private AdventureMapCatalog adventureMapCatalog;
 
         [Header("Presentation")]
         [SerializeField] private BattleUI battleUIPrefab;
@@ -175,13 +197,20 @@ namespace ClockworkWasteland.Combat
         [Header("Attack Focus")]
         [SerializeField] private Material attackFocusBlurMaterial;
         [SerializeField] private float attackFocusZoomRatio = 0.62f;
+        [SerializeField] private Vector2 attackFocusCameraOffset = new Vector2(0f, -0.05f);
         [SerializeField] private float attackFocusScale = 1.2f;
         [SerializeField] private float attackFocusBlurStrength = 0.45f;
         [SerializeField] private Color attackFocusBlurTint = new Color(0.68f, 0.68f, 0.72f, 1f);
         [SerializeField] private float attackFocusLungeDuration = 0.09f;
         [SerializeField] private float attackFocusHitPause = 0.05f;
+        [SerializeField] private float attackFocusScaleRestoreDuration = 0.2f;
+        [SerializeField, Range(0f, 1f)] private float attackFocusRecoilRatio = 0.22f;
+        [SerializeField] private float attackFocusReturnDuration = 0.07f;
         [SerializeField, Range(0f, 0.9f)] private float attackFocusSingleLungeRatio = 0.4f;
         [SerializeField] private float attackFocusSingleMinDistance = 0.8f;
+        [SerializeField] private float attackFocusSingleActorOffset = 1.15f;
+        [SerializeField] private float attackFocusSingleTargetOffset = 1.15f;
+        [SerializeField] private float attackFocusFriendlyAdvanceOffset = 1.15f;
         [SerializeField] private float attackFocusAoeActorOffset = 1.15f;
         [SerializeField] private float attackFocusAoeTargetOffset = 1.35f;
         [SerializeField] private float attackFocusAoeTargetSpacing = 1.35f;
@@ -205,6 +234,10 @@ namespace ClockworkWasteland.Combat
         private Vector3 defaultCameraPosition;
         private float defaultCameraSize;
         private SkillData swapSkill;
+        private readonly HashSet<string> clearedMapIds = new HashSet<string>();
+        private AdventureBattleConfig currentAdventureBattle;
+        private SpriteRenderer battleBackdropRenderer;
+        private SkillData passTurnSkill;
         private int currentBattleNumber;
         private int gold;
         private InventoryItemData[] shopItems = new InventoryItemData[0];
@@ -232,13 +265,14 @@ namespace ClockworkWasteland.Combat
         {
             fallbackSprite = CreateFallbackSprite();
             swapSkill = CreateSwapSkill();
+            passTurnSkill = CreatePassTurnSkill();
             SetupScene();
             CombatAudio.Ensure();
             CacheDefaultCamera();
             LoadDefaultPresentationPrefabs();
             shopItems = LoadShopItems();
             LoadOrCreateGameState();
-            ShowLobby();
+            ShowTitleScreen();
         }
 
         public void RunAttackFlowByIndices(int attackerIndex, int skillIndex, int targetIndex)
@@ -271,7 +305,8 @@ namespace ClockworkWasteland.Combat
 
         private void ShowTitleScreen()
         {
-            ShowLobby();
+            PrepareNonCombatScreen("开始界面");
+            ui.ShowTitleScreen(HasAnySaveSlots(), StartNewGame, ShowContinueGameSlots, ShowSettings, QuitGame, ShowLobby);
         }
 
         private void PrepareNonCombatScreen(string turnLabel, bool stopMusic = true)
@@ -341,7 +376,7 @@ namespace ClockworkWasteland.Combat
         private void ShowLobby()
         {
             PrepareNonCombatScreen("\u5927\u5385");
-            ui.ShowLobby(gold, HasAnySaveSlots(), StartNewGame, ShowContinueGameSlots, ShowTavern, ShowAdventureMap, ShowHeroCodex, ShowSettings, QuitGame);
+            ui.ShowLobby(gold, ShowTavern, ShowAdventureMap, ShowHeroCodex, ShowTitleScreen);
         }
 
         private void StartNewGame()
@@ -407,6 +442,13 @@ namespace ClockworkWasteland.Combat
 
         private void SelectAdventureMap(AdventureMapOption map)
         {
+            if (!map.IsUnlocked)
+            {
+                ui.AddLog($"\u5730\u56fe\u5c1a\u672a\u89e3\u9501\uff1a{map.UnlockSummary}");
+                ShowAdventureMap();
+                return;
+            }
+
             selectedAdventureMap = map;
             ui.AddLog($"\u9009\u62e9\u5730\u56fe\uff1a{map.DisplayName}\u3002");
             ShowTeamSelection();
@@ -617,14 +659,17 @@ namespace ClockworkWasteland.Combat
             tavernOffers.AddRange(GetTavernOffers());
         }
 
-        private static IReadOnlyList<AdventureMapOption> GetAdventureMaps()
+        private IReadOnlyList<AdventureMapOption> GetAdventureMaps()
         {
-            return new[]
+            var maps = LoadAdventureMaps();
+            if (maps.Length == 0)
             {
-                new AdventureMapOption("rust_wastes", "\u9508\u94c1\u8352\u539f", "\u6807\u51c6\u5192\u9669\u8def\u7ebf\uff0c\u9002\u5408\u6d4b\u8bd5\u961f\u4f0d\u3002", 1),
-                new AdventureMapOption("ember_foundry", "\u4f59\u70ec\u94f8\u5382", "\u66f4\u591a\u6218\u6597\u8282\u70b9\uff0c\u5956\u52b1\u66f4\u9ad8\u3002", 2),
-                new AdventureMapOption("clockwork_depths", "\u53d1\u6761\u6df1\u5904", "\u9ad8\u5371\u9669\u8def\u7ebf\uff0c\u540e\u7eed\u53ef\u63a5 Boss \u548c\u7279\u6b8a\u4e8b\u4ef6\u3002", 3)
-            };
+                return CreateFallbackAdventureMaps();
+            }
+
+            return maps
+                .Select(map => new AdventureMapOption(map, map != null && map.IsUnlocked(clearedMapIds)))
+                .ToArray();
         }
 
         private void LoadOrCreateGameState()
@@ -646,6 +691,7 @@ namespace ClockworkWasteland.Combat
 
         private void ApplySaveData(GameSaveData save)
         {
+            clearedMapIds.Clear();
             if (save == null)
             {
                 gold = InitialGold;
@@ -673,6 +719,14 @@ namespace ClockworkWasteland.Combat
                     ? (CombatSpecialization)state.specialization
                     : CombatSpecialization.None;
             }
+
+            if (save.clearedMapIds != null)
+            {
+                foreach (var mapId in save.clearedMapIds.Where(mapId => !string.IsNullOrWhiteSpace(mapId)))
+                {
+                    clearedMapIds.Add(mapId.Trim());
+                }
+            }
         }
 
         private CombatantDefinition[] BuildHeroPool()
@@ -683,7 +737,7 @@ namespace ClockworkWasteland.Combat
 
             return configuredPool.Length > 0
                 ? configuredPool
-                : DemoBattleBootstrap.CreateHeroPool();
+                : LoadHeroPool();
         }
 
         private void NormalizeHeroPool(IEnumerable<CombatantDefinition> heroesToNormalize)
@@ -830,6 +884,7 @@ namespace ClockworkWasteland.Combat
             {
                 gold = Mathf.Max(0, gold),
                 savedAt = System.DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
+                clearedMapIds = clearedMapIds.OrderBy(mapId => mapId).ToList(),
                 heroes = totalHeroPool
                     .Where(hero => hero != null && hero.isHero)
                     .Select(hero => new HeroSaveData
@@ -851,13 +906,60 @@ namespace ClockworkWasteland.Combat
         private void ShowContinueGameSlots()
         {
             PrepareNonCombatScreen("\u7ee7\u7eed\u6e38\u620f");
-            ui.ShowSaveSlots("\u9009\u62e9\u8981\u7ee7\u7eed\u7684\u5b58\u6863", GetSaveSlotSummaries(), false, LoadSelectedSaveSlot, ShowLobby);
+            ui.ShowSaveSlots("\u9009\u62e9\u8981\u7ee7\u7eed\u7684\u5b58\u6863", GetSaveSlotSummaries(), false, LoadSelectedSaveSlot, ConfirmDeleteFromContinueSlots, ShowTitleScreen);
         }
 
         private void ShowManualSaveSlots()
         {
             PrepareNonCombatScreen("\u4fdd\u5b58\u6e38\u620f", false);
-            ui.ShowSaveSlots("\u9009\u62e9\u8981\u8986\u76d6\u7684\u5b58\u6863", GetSaveSlotSummaries(), true, ConfirmSaveToSlot, ShowSettings);
+            ui.ShowSaveSlots("\u9009\u62e9\u8981\u8986\u76d6\u7684\u5b58\u6863", GetSaveSlotSummaries(), true, ConfirmSaveToSlot, ConfirmDeleteFromManualSlots, ShowSettings);
+        }
+
+        private void ConfirmDeleteFromContinueSlots(int slotIndex)
+        {
+            ConfirmDeleteSlot(slotIndex, ShowContinueGameSlots);
+        }
+
+        private void ConfirmDeleteFromManualSlots(int slotIndex)
+        {
+            ConfirmDeleteSlot(slotIndex, ShowManualSaveSlots);
+        }
+
+        private void ConfirmDeleteSlot(int slotIndex, System.Action onReturn)
+        {
+            var summary = GetSaveSlotSummary(slotIndex);
+            if (!summary.HasSave)
+            {
+                onReturn?.Invoke();
+                return;
+            }
+
+            ui.ShowChoicePrompt(
+                $"\u786e\u5b9a\u5220\u9664{summary.Title}\u5417\uff1f\n{summary.Detail}",
+                "\u53d6\u6d88",
+                onReturn,
+                "\u786e\u8ba4\u5220\u9664",
+                () =>
+                {
+                    DeleteSaveSlot(slotIndex);
+                    onReturn?.Invoke();
+                });
+        }
+
+        private void DeleteSaveSlot(int slotIndex)
+        {
+            var key = GetSaveKey(slotIndex);
+            if (!PlayerPrefs.HasKey(key))
+            {
+                return;
+            }
+
+            PlayerPrefs.DeleteKey(key);
+            PlayerPrefs.Save();
+            if (activeSaveSlotIndex == slotIndex)
+            {
+                activeSaveSlotIndex = -1;
+            }
         }
 
         private void LoadSelectedSaveSlot(int slotIndex)
@@ -1073,9 +1175,31 @@ namespace ClockworkWasteland.Combat
 
         private IEnumerator SelectedAdventureLoop()
         {
-            currentBattleNumber = Mathf.Max(1, selectedAdventureMap.Difficulty);
-            ui.AddLog($"\u5192\u9669\u5f00\u59cb\uff1a{selectedAdventureMap.DisplayName}\u3002");
-            yield return StartCoroutine(RunCombatEncounter(selectedAdventureMap.Difficulty >= 3));
+            var mapData = selectedAdventureMap.Data;
+            var battles = mapData != null ? mapData.GetBattles() : System.Array.Empty<AdventureBattleConfig>();
+            if (battles.Count == 0)
+            {
+                currentBattleNumber = 1;
+                ui.AddLog($"\u5192\u9669\u5f00\u59cb\uff1a{selectedAdventureMap.DisplayName}\u3002");
+                currentAdventureBattle = null;
+                yield return StartCoroutine(RunCombatEncounter(false));
+            }
+            else
+            {
+                ui.AddLog($"\u5192\u9669\u5f00\u59cb\uff1a{selectedAdventureMap.DisplayName}\u3002");
+                for (var battleIndex = 0; battleIndex < battles.Count; battleIndex++)
+                {
+                    currentBattleNumber = battleIndex + 1;
+                    currentAdventureBattle = battles[battleIndex];
+                    yield return StartCoroutine(RunCombatEncounter(currentAdventureBattle != null && currentAdventureBattle.isBossBattle));
+
+                    if (!heroes.Any(hero => hero.CanAct))
+                    {
+                        yield return StartCoroutine(ShowDefeatAndReturn());
+                        yield break;
+                    }
+                }
+            }
 
             if (!heroes.Any(hero => hero.CanAct))
             {
@@ -1083,6 +1207,12 @@ namespace ClockworkWasteland.Combat
                 yield break;
             }
 
+            if (!string.IsNullOrWhiteSpace(selectedAdventureMap.MapId))
+            {
+                clearedMapIds.Add(selectedAdventureMap.MapId);
+            }
+
+            currentAdventureBattle = null;
             SaveGameState();
             ShowLobby();
         }
@@ -1273,7 +1403,9 @@ namespace ClockworkWasteland.Combat
 
         private IReadOnlyList<BattleRewardResult> GrantVictoryRewards(out int goldGained)
         {
-            goldGained = Random.Range(50, 151);
+            var rewardMin = currentAdventureBattle != null ? currentAdventureBattle.goldRewardMin : 50;
+            var rewardMax = currentAdventureBattle != null ? currentAdventureBattle.goldRewardMax : 150;
+            goldGained = Random.Range(Mathf.Min(rewardMin, rewardMax), Mathf.Max(rewardMin, rewardMax) + 1);
             gold += goldGained;
             ui.SetGold(gold);
             ui.AddLog($"\u83b7\u5f97\u91d1\u5e01 {goldGained}\u3002");
@@ -1281,7 +1413,9 @@ namespace ClockworkWasteland.Combat
             var results = new List<BattleRewardResult>();
             foreach (var hero in heroes.Where(unit => unit.IsHero && unit.IsAlive && !unit.IsCorpse))
             {
-                var progression = hero.Definition.GrantExperienceReward(Random.Range(10, 21));
+                var expMin = currentAdventureBattle != null ? currentAdventureBattle.experienceRewardMin : 10;
+                var expMax = currentAdventureBattle != null ? currentAdventureBattle.experienceRewardMax : 20;
+                var progression = hero.Definition.GrantExperienceReward(Random.Range(Mathf.Min(expMin, expMax), Mathf.Max(expMin, expMax) + 1));
                 results.Add(new BattleRewardResult(hero.Definition, progression.ExperienceGained, progression.LevelsGained));
                 ui.AddLog($"{hero.Definition.displayName} \u83b7\u5f97 {progression.ExperienceGained} \u7ecf\u9a8c\u3002");
 
@@ -1581,6 +1715,12 @@ namespace ClockworkWasteland.Combat
                 yield break;
             }
 
+            if (skill.isPassSkill)
+            {
+                ui.AddLog($"{actor.DisplayName} 选择了跳过回合。");
+                yield break;
+            }
+
             var targets = ResolveTargets(actor, skill, primaryTarget).Where(target => IsValidTarget(actor, skill, target)).ToArray();
             if (targets.Length == 0)
             {
@@ -1593,13 +1733,10 @@ namespace ClockworkWasteland.Combat
             }
 
             actor.SpendResourcesFor(skill);
-            var useImpactPresentation = IsImpactPresentationSkill(skill);
-            if (useImpactPresentation)
-            {
-                CombatAudio.Instance.PlayAttack(skill);
-            }
-
             var mainTarget = targets[0];
+            var useImpactPresentation = IsImpactPresentationSkill(skill);
+            var useFriendlyAdvancePresentation = ShouldUseFriendlyAdvancePresentation(actor, skill, mainTarget);
+            var useAdvancePresentation = useImpactPresentation || useFriendlyAdvancePresentation;
             views.TryGetValue(mainTarget, out var mainTargetView);
             var targetViews = targets
                 .Select(target => views.TryGetValue(target, out var view) ? view : null)
@@ -1607,24 +1744,42 @@ namespace ClockworkWasteland.Combat
                 .ToArray();
             SetTargetHighlights(new[] { mainTarget });
 
-            yield return StartCoroutine(BeginAttackFocus(actorView, mainTargetView, targetViews));
-            var lungeState = CreateAttackLungeState(actorView, targetViews);
-            yield return StartCoroutine(MoveAttackFocusLunge(lungeState, true));
-            yield return new WaitForSecondsRealtime(attackFocusHitPause);
+            var lungeState = default(AttackLungeState);
+            if (useAdvancePresentation)
+            {
+                yield return StartCoroutine(BeginAttackFocus(actorView, mainTargetView, targetViews));
+                lungeState = CreateAttackLungeState(actorView, targetViews, useImpactPresentation);
+                yield return StartCoroutine(MoveAttackFocusLunge(lungeState, true));
+                yield return new WaitForSecondsRealtime(attackFocusHitPause);
+            }
 
             var overlayDuration = Mathf.Max(MinCombatOverlayDuration, skill.overlayDuration);
+            Coroutine presentationCoroutine = null;
             if (useImpactPresentation && mainTargetView != null)
             {
+                CombatAudio.Instance.PlayAttack(skill);
                 var attackSprite = ResolveAttackSprite(actor, skill);
-                var hitSprite = ResolveHitSprite(mainTarget, skill);
-                yield return StartCoroutine(PlayAttackAndHitOverlays(actorView, mainTargetView, attackSprite, hitSprite, overlayDuration));
+                var hitSprites = targets
+                    .Select(target => ResolveHitSprite(target, skill))
+                    .ToArray();
+                presentationCoroutine = StartCoroutine(PlayAttackAndHitOverlays(actorView, targetViews, attackSprite, hitSprites, overlayDuration, lungeState));
             }
             else if (useImpactPresentation)
             {
-                yield return StartCoroutine(actorView.PlayOverlay(ResolveAttackSprite(actor, skill), overlayDuration));
+                CombatAudio.Instance.PlayAttack(skill);
+                presentationCoroutine = StartCoroutine(actorView.PlayOverlay(ResolveAttackSprite(actor, skill), overlayDuration));
+            }
+            else if (useFriendlyAdvancePresentation)
+            {
+                CombatAudio.Instance.PlayAttack(skill);
+                presentationCoroutine = StartCoroutine(actorView.PlayOverlay(ResolveAttackSprite(actor, skill), overlayDuration));
             }
 
-            yield return StartCoroutine(ScreenShake(GetShakeStrength(skill), Mathf.Clamp(skill.baseValue * 0.015f, 0.1f, 0.2f)));
+            Coroutine shakeCoroutine = null;
+            if (useImpactPresentation)
+            {
+                shakeCoroutine = StartCoroutine(ScreenShake(GetShakeStrength(skill), Mathf.Clamp(skill.baseValue * 0.015f, 0.1f, 0.2f)));
+            }
 
             foreach (var target in targets)
             {
@@ -1650,7 +1805,6 @@ namespace ClockworkWasteland.Combat
                             ApplyRawDamage(target, targetDamage, actor);
                         }
 
-                        CombatAudio.Instance.PlayImpact();
                         ui.AddLog(damage.IsCritical
                             ? $"{actor.DisplayName} \u4f7f\u7528 {skill.skillName}\u66b4\u51fb\uff01{target.DisplayName} \u53d7\u5230 {targetDamage} \u70b9\u4f24\u5bb3\u3002"
                             : $"{actor.DisplayName} \u4f7f\u7528 {skill.skillName}\uff0c{target.DisplayName} \u53d7\u5230 {targetDamage} \u70b9\u4f24\u5bb3\u3002");
@@ -1682,7 +1836,7 @@ namespace ClockworkWasteland.Combat
                 {
                     var amount = CalculateHealingAmount(actor, skill, target);
                     target.Heal(amount);
-                    CombatAudio.Instance.PlayHeal();
+                    CombatAudio.Instance.PlayAttack(skill);
                     ui.AddLog($"{actor.DisplayName} \u4f7f\u7528 {skill.skillName}\uff0c{target.DisplayName} \u6062\u590d {amount} \u70b9\u751f\u547d\u3002");
 
                     if (views.TryGetValue(target, out var targetView))
@@ -1693,22 +1847,41 @@ namespace ClockworkWasteland.Combat
 
                 if (skill.applyBuff != null && target.CanAct)
                 {
-                    target.AddOrRefreshBuff(skill.applyBuff);
+                    target.AddOrRefreshBuff(skill.applyBuff, Mathf.Max(1, skill.applyBuffDuration));
                     ui.AddLog($"{target.DisplayName} \u83b7\u5f97\u72b6\u6001\uff1a{skill.applyBuff.buffName}\u3002");
                 }
 
                 ApplySkillSpecificPostEffect(actor, skill, target);
             }
 
+            if (presentationCoroutine != null)
+            {
+                yield return presentationCoroutine;
+            }
+
+            if (shakeCoroutine != null)
+            {
+                yield return shakeCoroutine;
+            }
+
             ApplySkillSpecificActionReward(actor, skill, targets);
             ApplySkillSpecificActionRisk(actor, skill, targets);
             ApplyArchetypeActionResource(actor, skill, targets);
 
-            yield return StartCoroutine(MoveAttackFocusLunge(lungeState, false));
+            if (useAdvancePresentation)
+            {
+                yield return StartCoroutine(MoveAttackFocusLungeBack(lungeState));
+            }
+
+            if (useAdvancePresentation)
+            {
+                yield return StartCoroutine(EndAttackFocus(actorView, targetViews));
+            }
+
             RefreshViews();
             LayoutFormation(true);
             LayoutFormation(false);
-            yield return StartCoroutine(EndAttackFocus(actorView, mainTargetView));
+
             SetTargetHighlights(new BattleUnit[0]);
             yield return new WaitForSeconds(0.25f);
         }
@@ -1810,7 +1983,14 @@ namespace ClockworkWasteland.Combat
                 ? unit.Definition.skills.Where(skill => skill != null)
                 : Enumerable.Empty<SkillData>();
 
-            return unit != null && unit.IsHero ? definedSkills.Concat(new[] { swapSkill }) : definedSkills;
+            if (unit == null)
+            {
+                return definedSkills;
+            }
+
+            return unit.IsHero
+                ? definedSkills.Concat(new[] { swapSkill, passTurnSkill })
+                : definedSkills.Concat(new[] { passTurnSkill });
         }
 
         private SkillData SelectEnemySkill(BattleUnit actor)
@@ -1846,6 +2026,11 @@ namespace ClockworkWasteland.Combat
 
         private float ScoreEnemySkill(BattleUnit actor, SkillData skill)
         {
+            if (skill != null && skill.isPassSkill)
+            {
+                return -10000f;
+            }
+
             var validTargets = GetValidTargets(actor, skill).ToArray();
             if (validTargets.Length == 0)
             {
@@ -2134,18 +2319,42 @@ namespace ClockworkWasteland.Combat
             return (isHero ? heroSlots : enemySlots).Where(unit => unit != null && unit.IsAlive);
         }
 
-        private static IEnumerator PlayAttackAndHitOverlays(CombatantView actorView, CombatantView targetView, Sprite attackSprite, Sprite hitSprite, float duration)
+        private static IEnumerator PlayAttackAndHitOverlays(CombatantView actorView, IReadOnlyList<CombatantView> targetViews, Sprite attackSprite, IReadOnlyList<Sprite> hitSprites, float duration, AttackLungeState lungeState)
         {
+            var validTargetViews = (targetViews ?? new CombatantView[0]).Where(view => view != null).ToArray();
             actorView.SetCombatEmphasis(true, 60);
-            targetView.SetCombatEmphasis(true, 61);
+            for (var i = 0; i < validTargetViews.Length; i++)
+            {
+                validTargetViews[i].SetCombatEmphasis(true, 61);
+            }
+
             var bulletTime = actorView.StartCoroutine(PlayBulletTime());
-            var attack = actorView.StartCoroutine(actorView.PlayOverlay(attackSprite, duration, 0.1f, 80));
-            var hit = targetView.StartCoroutine(targetView.PlayHitOverlay(hitSprite, duration, 81));
+            var recoil = lungeState.IsValid ? actorView.StartCoroutine(PlayAttackFocusRecoil(lungeState)) : null;
+            var attack = actorView.StartCoroutine(actorView.PlayOverlay(attackSprite, duration, 0.1f, AttackFocusActorOverlaySortingOrder));
+            var hits = validTargetViews
+                .Select((targetView, index) =>
+                {
+                    var hitSprite = hitSprites != null && index < hitSprites.Count ? hitSprites[index] : null;
+                    return targetView.StartCoroutine(targetView.PlayHitOverlay(hitSprite, duration, AttackFocusTargetOverlaySortingOrder));
+                })
+                .ToArray();
             yield return attack;
-            yield return hit;
+            foreach (var hit in hits)
+            {
+                yield return hit;
+            }
+
             yield return bulletTime;
+            if (recoil != null)
+            {
+                yield return recoil;
+            }
+
             actorView.SetCombatEmphasis(false, 0);
-            targetView.SetCombatEmphasis(false, 0);
+            for (var i = 0; i < validTargetViews.Length; i++)
+            {
+                validTargetViews[i].SetCombatEmphasis(false, 0);
+            }
         }
 
         private static IEnumerator PlayBulletTime()
@@ -2193,9 +2402,25 @@ namespace ClockworkWasteland.Combat
             return value * value * value;
         }
 
+        private static float EaseInExpo(float value)
+        {
+            value = Mathf.Clamp01(value);
+            return value <= 0f ? 0f : Mathf.Pow(2f, 10f * (value - 1f));
+        }
+
         private static bool IsImpactPresentationSkill(SkillData skill)
         {
             return skill != null && (skill.skillType == SkillDataType.伤害 || skill.skillType == SkillDataType.控制);
+        }
+
+        private static bool ShouldUseFriendlyAdvancePresentation(BattleUnit actor, SkillData skill, BattleUnit primaryTarget)
+        {
+            return actor != null &&
+                   skill != null &&
+                   primaryTarget != null &&
+                   actor != primaryTarget &&
+                   actor.IsHero == primaryTarget.IsHero &&
+                   skill.targetType == SkillDataTargetType.单友;
         }
 
         private static Sprite ResolveAttackSprite(BattleUnit actor, SkillData skill)
@@ -3077,7 +3302,10 @@ namespace ClockworkWasteland.Combat
 
             var startPosition = camera.transform.position;
             var startSize = camera.orthographicSize;
-            var targetPosition = new Vector3(focusPosition.x, Mathf.Clamp(focusPosition.y + 0.4f, -0.4f, 1.2f), startPosition.z);
+            var targetPosition = new Vector3(
+                focusPosition.x + attackFocusCameraOffset.x,
+                Mathf.Clamp(focusPosition.y + 0.4f + attackFocusCameraOffset.y, -1.4f, 1.2f),
+                startPosition.z);
             var targetSize = Mathf.Max(2.65f, defaultCameraSize * 0.66f);
             const float duration = 0.3f;
             var elapsed = 0f;
@@ -3085,7 +3313,7 @@ namespace ClockworkWasteland.Combat
             while (elapsed < duration)
             {
                 elapsed += Time.unscaledDeltaTime;
-                var t = Smooth01(elapsed / duration);
+                var t = EaseOutCubic(elapsed / duration);
                 camera.transform.position = Vector3.Lerp(startPosition, targetPosition, t);
                 camera.orthographicSize = Mathf.Lerp(startSize, targetSize, t);
                 yield return null;
@@ -3113,19 +3341,75 @@ namespace ClockworkWasteland.Combat
             yield return StartCoroutine(FocusCameraBetween(actorView.transform.position, targetView.transform.position));
         }
 
-        private IEnumerator EndAttackFocus(CombatantView actorView, CombatantView targetView)
+        private IEnumerator EndAttackFocus(CombatantView actorView, IReadOnlyCollection<CombatantView> focusTargetViews)
         {
-            foreach (var view in views.Values)
+            var focusViews = new List<CombatantView>();
+            if (actorView != null)
             {
-                view?.SetFocusScale(1f);
-                view?.SetFocusLayer(false, 0);
+                focusViews.Add(actorView);
+            }
+
+            if (focusTargetViews != null)
+            {
+                foreach (var focusTargetView in focusTargetViews)
+                {
+                    if (focusTargetView != null && !focusViews.Contains(focusTargetView))
+                    {
+                        focusViews.Add(focusTargetView);
+                    }
+                }
+            }
+
+            yield return StartCoroutine(AnimateFocusScaleRestore(focusViews));
+
+            foreach (var view in focusViews)
+            {
+                view.SetFocusLayer(false, 0);
             }
 
             ClearFocusBlur();
             yield return StartCoroutine(RestoreCamera());
         }
 
-        private AttackLungeState CreateAttackLungeState(CombatantView actorView, IReadOnlyList<CombatantView> targetViews)
+        private IEnumerator AnimateFocusScaleRestore(IReadOnlyList<CombatantView> focusViews)
+        {
+            if (focusViews == null || focusViews.Count == 0)
+            {
+                yield break;
+            }
+
+            var duration = Mathf.Max(0f, attackFocusScaleRestoreDuration);
+            if (duration <= 0.001f)
+            {
+                for (var i = 0; i < focusViews.Count; i++)
+                {
+                    focusViews[i]?.SetFocusScale(1f);
+                }
+
+                yield break;
+            }
+
+            var elapsed = 0f;
+            while (elapsed < duration)
+            {
+                elapsed += Time.unscaledDeltaTime;
+                var t = Mathf.Clamp01(elapsed / duration);
+                var scale = Mathf.Lerp(attackFocusScale, 1f, Smooth01(t));
+                for (var i = 0; i < focusViews.Count; i++)
+                {
+                    focusViews[i]?.SetFocusScale(scale);
+                }
+
+                yield return null;
+            }
+
+            for (var i = 0; i < focusViews.Count; i++)
+            {
+                focusViews[i]?.SetFocusScale(1f);
+            }
+        }
+
+        private AttackLungeState CreateAttackLungeState(CombatantView actorView, IReadOnlyList<CombatantView> targetViews, bool moveTargets)
         {
             if (actorView == null || targetViews == null || targetViews.Count == 0)
             {
@@ -3145,24 +3429,26 @@ namespace ClockworkWasteland.Combat
             var targetStarts = orderedTargets.Select(view => view.transform.position).ToArray();
             var actorEnd = actorStart;
             var targetEnds = new Vector3[targetStarts.Length];
+            var actorRecoil = actorStart;
+            var targetRecoils = new Vector3[targetStarts.Length];
 
-            if (orderedTargets.Length == 1)
+            if (!moveTargets)
+            {
+                var targetCenter = targetStarts.Aggregate(Vector3.zero, (sum, position) => sum + position) / targetStarts.Length;
+                var focusCenter = (actorStart + targetCenter) * 0.5f;
+                actorEnd = new Vector3(focusCenter.x - attackFocusFriendlyAdvanceOffset, actorStart.y, actorStart.z);
+                for (var i = 0; i < targetEnds.Length; i++)
+                {
+                    targetEnds[i] = targetStarts[i];
+                }
+            }
+            else if (orderedTargets.Length == 1)
             {
                 var targetStart = targetStarts[0];
-                var delta = targetStart - actorStart;
-                var startDistance = delta.magnitude;
-                if (startDistance > 0.001f)
-                {
-                    var desiredDistance = Mathf.Max(attackFocusSingleMinDistance, startDistance * (1f - Mathf.Clamp01(attackFocusSingleLungeRatio)));
-                    var moveDistancePerSide = Mathf.Max(0f, (startDistance - desiredDistance) * 0.5f);
-                    var direction = delta / startDistance;
-                    actorEnd = actorStart + direction * moveDistancePerSide;
-                    targetEnds[0] = targetStart - direction * moveDistancePerSide;
-                }
-                else
-                {
-                    targetEnds[0] = targetStart;
-                }
+                var focusCenter = (actorStart + targetStart) * 0.5f;
+                var direction = actorStart.x <= targetStart.x ? 1f : -1f;
+                actorEnd = new Vector3(focusCenter.x - direction * attackFocusSingleActorOffset, actorStart.y, actorStart.z);
+                targetEnds[0] = new Vector3(focusCenter.x + direction * attackFocusSingleTargetOffset, targetStart.y, targetStart.z);
             }
             else
             {
@@ -3179,7 +3465,13 @@ namespace ClockworkWasteland.Combat
                 }
             }
 
-            return new AttackLungeState(actorView, actorStart, actorEnd, orderedTargets, targetStarts, targetEnds);
+            actorRecoil = Vector3.Lerp(actorEnd, actorStart, Mathf.Clamp01(attackFocusRecoilRatio));
+            for (var i = 0; i < targetEnds.Length; i++)
+            {
+                targetRecoils[i] = Vector3.Lerp(targetEnds[i], targetStarts[i], Mathf.Clamp01(attackFocusRecoilRatio));
+            }
+
+            return new AttackLungeState(actorView, actorStart, actorEnd, actorRecoil, orderedTargets, targetStarts, targetEnds, targetRecoils);
         }
 
         private IEnumerator MoveAttackFocusLunge(AttackLungeState state, bool moveIn)
@@ -3244,7 +3536,10 @@ namespace ClockworkWasteland.Combat
             var startPosition = camera.transform.position;
             var startSize = camera.orthographicSize;
             var center = (actorPosition + targetPosition) * 0.5f;
-            var cameraTargetPosition = new Vector3(center.x, Mathf.Clamp(center.y + 0.35f, -0.55f, 1.25f), startPosition.z);
+            var cameraTargetPosition = new Vector3(
+                center.x + attackFocusCameraOffset.x,
+                Mathf.Clamp(center.y + 0.35f + attackFocusCameraOffset.y, -1.4f, 1.25f),
+                startPosition.z);
             var targetSize = Mathf.Max(2.35f, defaultCameraSize * attackFocusZoomRatio);
             const float duration = 0.24f;
             var elapsed = 0f;
@@ -3252,7 +3547,7 @@ namespace ClockworkWasteland.Combat
             while (elapsed < duration)
             {
                 elapsed += Time.unscaledDeltaTime;
-                var t = Smooth01(elapsed / duration);
+                var t = EaseOutCubic(elapsed / duration);
                 camera.transform.position = Vector3.Lerp(startPosition, cameraTargetPosition, t);
                 camera.orthographicSize = Mathf.Lerp(startSize, targetSize, t);
                 yield return null;
@@ -3404,7 +3699,7 @@ namespace ClockworkWasteland.Combat
             }
 
             EnsureAudioListener();
-            CreateBackdrop(ResolveBattleBackground());
+            UpdateBackdrop(ResolveBattleBackground(), Vector2.zero, 1f);
 
             ui = battleUIPrefab != null
                 ? Instantiate(battleUIPrefab)
@@ -3445,7 +3740,25 @@ namespace ClockworkWasteland.Combat
 
         private void SetupHeroUnits()
         {
-            var heroDefinitions = heroParty != null && heroParty.Length > 0 ? heroParty : DemoBattleBootstrap.CreateDefaultHeroes();
+            var heroDefinitions = heroParty != null && heroParty.Length > 0
+                ? heroParty
+                : selectedHeroDefinitions.Where(hero => hero != null).Take(MaxFormationSlots).ToArray();
+
+            if (heroDefinitions == null || heroDefinitions.Length == 0)
+            {
+                heroDefinitions = GetDeployableHeroPool().Take(MaxFormationSlots).ToArray();
+            }
+
+            if (heroDefinitions == null || heroDefinitions.Length == 0)
+            {
+                heroDefinitions = LoadHeroPool().Take(MaxFormationSlots).ToArray();
+            }
+
+            if (heroDefinitions == null || heroDefinitions.Length == 0)
+            {
+                heroDefinitions = DemoBattleBootstrap.CreateDefaultHeroes();
+            }
+
             SpawnTeam(heroDefinitions, heroes, heroSlots, true);
             LayoutFormation(true);
         }
@@ -3458,17 +3771,46 @@ namespace ClockworkWasteland.Combat
                 ? Mathf.Clamp(battleNumber - 1, 0, battleBackgrounds.Length - 1)
                 : battleBackgroundIndex;
 
+            var mapBackground = selectedAdventureMap.Data != null ? selectedAdventureMap.Data.backgroundSprite : null;
+            var mapOffset = selectedAdventureMap.Data != null ? selectedAdventureMap.Data.backgroundOffset : Vector2.zero;
+            var mapScale = selectedAdventureMap.Data != null ? selectedAdventureMap.Data.backgroundScale : 1f;
+            var battleBackground = currentAdventureBattle != null && currentAdventureBattle.backgroundOverride != null
+                ? currentAdventureBattle.backgroundOverride
+                : mapBackground;
+            var battleOffset = currentAdventureBattle != null && currentAdventureBattle.backgroundOverride != null
+                ? currentAdventureBattle.backgroundOffset
+                : mapOffset;
+            var battleScale = currentAdventureBattle != null && currentAdventureBattle.backgroundOverride != null
+                ? currentAdventureBattle.backgroundScale
+                : mapScale;
+            UpdateBackdrop(battleBackground != null ? battleBackground : ResolveBattleBackground(), battleOffset, battleScale);
+
             ClearEnemyUnits();
 
-            var enemyDefinitions = bossBattle
-                ? DemoBattleBootstrap.CreateBossEnemies()
-                : SelectRandomEnemyEncounter();
-            SpawnTeam(enemyDefinitions, enemies, enemySlots, false);
+            var configuredPlacements = currentAdventureBattle != null
+                ? currentAdventureBattle.GetOrderedPlacements()
+                : System.Array.Empty<AdventureEnemyPlacement>();
+
+            if (configuredPlacements.Count > 0)
+            {
+                SpawnConfiguredEnemyTeam(configuredPlacements);
+            }
+            else
+            {
+                var enemyDefinitions = bossBattle
+                    ? DemoBattleBootstrap.CreateBossEnemies()
+                    : SelectRandomEnemyEncounter();
+                SpawnTeam(enemyDefinitions, enemies, enemySlots, false);
+            }
+
             LayoutFormation(true);
             LayoutFormation(false);
             RefreshViews();
             ui.SetRound(1);
-            ui.SetTurn(bossBattle ? "\u6700\u7ec8 Boss \u6218" : $"\u7b2c {battleNumber} \u573a\u6218\u6597");
+            var turnLabel = currentAdventureBattle != null && !string.IsNullOrWhiteSpace(currentAdventureBattle.displayName)
+                ? currentAdventureBattle.displayName
+                : (bossBattle ? "\u6700\u7ec8 Boss \u6218" : $"\u7b2c {battleNumber} \u573a\u6218\u6597");
+            ui.SetTurn(turnLabel);
         }
 
         private CombatantDefinition[] SelectRandomEnemyEncounter()
@@ -3499,8 +3841,7 @@ namespace ClockworkWasteland.Combat
         private static CombatantDefinition[] LoadEnemyPool()
         {
 #if UNITY_EDITOR
-            var assetEnemies = AssetDatabase.FindAssets("t:CombatantDefinition", new[] { "Assets/ClockworkWastelandDemo/Data/Combatants" })
-                .Select(AssetDatabase.GUIDToAssetPath)
+            var assetEnemies = EnumerateCombatantAssets()
                 .Select(AssetDatabase.LoadAssetAtPath<CombatantDefinition>)
                 .Where(enemy => enemy != null && !enemy.isHero)
                 .OrderBy(enemy => enemy.characterId)
@@ -3513,6 +3854,137 @@ namespace ClockworkWasteland.Combat
 #endif
             return DemoBattleBootstrap.CreateDefaultEnemies();
         }
+
+        private static CombatantDefinition[] LoadHeroPool()
+        {
+#if UNITY_EDITOR
+            var assetHeroes = EnumerateCombatantAssets()
+                .Select(AssetDatabase.LoadAssetAtPath<CombatantDefinition>)
+                .Where(hero => hero != null && hero.isHero)
+                .OrderBy(hero => hero.characterId)
+                .ToArray();
+
+            if (assetHeroes.Length > 0)
+            {
+                return assetHeroes.Select(Instantiate).ToArray();
+            }
+#endif
+            return DemoBattleBootstrap.CreateHeroPool();
+        }
+
+        private AdventureMapData[] LoadAdventureMaps()
+        {
+            var catalog = adventureMapCatalog != null ? adventureMapCatalog : Resources.Load<AdventureMapCatalog>("Adventure/AdventureMapCatalog");
+#if UNITY_EDITOR
+            if (catalog == null)
+            {
+                catalog = AssetDatabase.LoadAssetAtPath<AdventureMapCatalog>("Assets/Resources/Adventure/AdventureMapCatalog.asset");
+            }
+#endif
+            return catalog != null
+                ? catalog.GetOrderedMaps().Where(map => map != null).ToArray()
+                : System.Array.Empty<AdventureMapData>();
+        }
+
+        private static AdventureMapOption[] CreateFallbackAdventureMaps()
+        {
+            var fallback = ScriptableObject.CreateInstance<AdventureMapData>();
+            fallback.mapId = "rust_wastes";
+            fallback.displayName = "\u9508\u94c1\u8352\u539f";
+            fallback.description = "\u6807\u51c6\u5192\u9669\u8def\u7ebf\uff0c\u9002\u5408\u6d4b\u8bd5\u961f\u4f0d\u3002";
+            fallback.unlockType = AdventureMapUnlockType.Default;
+            fallback.unlockDescription = "\u9ed8\u8ba4\u89e3\u9501";
+            fallback.backgroundScale = 1f;
+            fallback.battles = new List<AdventureBattleConfig>
+            {
+                new AdventureBattleConfig
+                {
+                    battleId = "battle_01",
+                    displayName = "\u7b2c 1 \u573a\u6218\u6597",
+                    description = "\u9ed8\u8ba4\u793a\u4f8b\u6218\u6597\u3002"
+                }
+            };
+            return new[] { new AdventureMapOption(fallback, true) };
+        }
+
+        private void SpawnConfiguredEnemyTeam(IReadOnlyList<AdventureEnemyPlacement> placements)
+        {
+            if (placements == null || placements.Count == 0)
+            {
+                SpawnTeam(SelectRandomEnemyEncounter(), enemies, enemySlots, false);
+                return;
+            }
+
+            for (var index = 0; index < placements.Count; index++)
+            {
+                var placement = placements[index];
+                if (placement == null || placement.combatant == null)
+                {
+                    continue;
+                }
+
+                var slot = Mathf.Clamp(placement.slot, 1, MaxFormationSlots);
+                if (enemySlots[slot - 1] != null)
+                {
+                    continue;
+                }
+
+                var definition = CloneEnemyDefinitionForBattle(placement);
+                definition.isHero = false;
+                definition.occupiedSlotCount = Mathf.Max(1, definition.occupiedSlotCount);
+                var unit = new BattleUnit(definition, slot);
+                enemies.Add(unit);
+                enemySlots[slot - 1] = unit;
+
+                var view = CreateCombatantView(unit);
+                view.transform.position = new Vector3(GetBaseSlotX(false, unit.CurrentPosition), InitialCombatantY, 0f);
+                view.Initialize(unit, fallbackSprite, 1f, HandleUnitClicked, nameplatePrefab);
+                view.AlignFeetTo(FormationFeetY);
+                views[unit] = view;
+            }
+
+            if (enemies.Count == 0)
+            {
+                SpawnTeam(SelectRandomEnemyEncounter(), enemies, enemySlots, false);
+            }
+        }
+
+        private static CombatantDefinition CloneEnemyDefinitionForBattle(AdventureEnemyPlacement placement)
+        {
+            var source = placement.combatant;
+            var clone = Instantiate(source);
+            clone.isHero = false;
+            clone.currentLevel = 1;
+            clone.currentExperience = 0;
+            clone.currentHealth = -1;
+
+            var level = Mathf.Max(1, placement.level);
+            var extraLevels = Mathf.Max(0, level - 1);
+            clone.maxHealth += extraLevels * Mathf.Max(2, source.GrowthMaxHealthPerLevel);
+            clone.attack += extraLevels * Mathf.Max(1, source.GrowthAttackPerLevel);
+            clone.defense += extraLevels * Mathf.Max(1, source.GrowthDefensePerLevel);
+            clone.speed += Mathf.FloorToInt(extraLevels * 0.5f);
+            clone.name = $"{source.name}_Lv{level}";
+            return clone;
+        }
+
+#if UNITY_EDITOR
+        private static IEnumerable<string> EnumerateCombatantAssets()
+        {
+            const string combatantsFolder = "Assets/ClockworkWastelandDemo/Data/Combatants";
+            var projectRoot = Directory.GetCurrentDirectory().Replace('\\', '/');
+            var absoluteFolder = Path.Combine(Directory.GetCurrentDirectory(), combatantsFolder.Replace('/', Path.DirectorySeparatorChar));
+            if (!Directory.Exists(absoluteFolder))
+            {
+                return Enumerable.Empty<string>();
+            }
+
+            return Directory
+                .GetFiles(absoluteFolder, "*.asset", SearchOption.TopDirectoryOnly)
+                .Select(path => path.Replace('\\', '/'))
+                .Select(path => path.Replace(projectRoot + "/", string.Empty));
+        }
+#endif
 
         private void ClearEnemyUnits()
         {
@@ -3565,11 +4037,110 @@ namespace ClockworkWasteland.Combat
                 slots[i] = unit;
 
                 var view = CreateCombatantView(unit);
-                view.transform.position = new Vector3(GetBaseSlotX(isHero, unit.CurrentPosition), -0.35f, 0f);
+                view.transform.position = new Vector3(GetBaseSlotX(isHero, unit.CurrentPosition), InitialCombatantY, 0f);
                 var runtimeScaleMultiplier = isHero ? heroVisualScale : 1f;
                 view.Initialize(unit, fallbackSprite, runtimeScaleMultiplier, HandleUnitClicked, nameplatePrefab);
                 view.AlignFeetTo(FormationFeetY);
                 views[unit] = view;
+            }
+        }
+
+        private static IEnumerator PlayAttackFocusRecoil(AttackLungeState state)
+        {
+            if (!state.IsValid)
+            {
+                yield break;
+            }
+
+            var duration = Mathf.Max(0.01f, BulletTimeDuration);
+            var elapsed = 0f;
+            while (elapsed < duration)
+            {
+                elapsed += Time.unscaledDeltaTime;
+                var t = Mathf.Clamp01(elapsed / duration);
+                var eased = EaseInExpo(t);
+
+                if (state.ActorView != null)
+                {
+                    state.ActorView.transform.position = Vector3.LerpUnclamped(state.ActorEnd, state.ActorRecoil, eased);
+                }
+
+                for (var i = 0; i < state.TargetViews.Length; i++)
+                {
+                    var targetView = state.TargetViews[i];
+                    if (targetView == null)
+                    {
+                        continue;
+                    }
+
+                    targetView.transform.position = Vector3.LerpUnclamped(state.TargetEnds[i], state.TargetRecoils[i], eased);
+                }
+
+                yield return null;
+            }
+
+            if (state.ActorView != null)
+            {
+                state.ActorView.transform.position = state.ActorRecoil;
+            }
+
+            for (var i = 0; i < state.TargetViews.Length; i++)
+            {
+                if (state.TargetViews[i] != null)
+                {
+                    state.TargetViews[i].transform.position = state.TargetRecoils[i];
+                }
+            }
+        }
+
+        private IEnumerator MoveAttackFocusLungeBack(AttackLungeState state)
+        {
+            if (!state.IsValid)
+            {
+                yield break;
+            }
+
+            var duration = Mathf.Max(0.01f, attackFocusReturnDuration);
+            var actorCurrent = state.ActorView != null ? state.ActorView.transform.position : state.ActorRecoil;
+            var targetCurrents = state.TargetViews.Select(view => view != null ? view.transform.position : Vector3.zero).ToArray();
+            var elapsed = 0f;
+
+            while (elapsed < duration)
+            {
+                elapsed += Time.unscaledDeltaTime;
+                var t = Mathf.Clamp01(elapsed / duration);
+                var eased = EaseInCubic(t);
+
+                if (state.ActorView != null)
+                {
+                    state.ActorView.transform.position = Vector3.LerpUnclamped(actorCurrent, state.ActorStart, eased);
+                }
+
+                for (var i = 0; i < state.TargetViews.Length; i++)
+                {
+                    var targetView = state.TargetViews[i];
+                    if (targetView == null)
+                    {
+                        continue;
+                    }
+
+                    targetView.transform.position = Vector3.LerpUnclamped(targetCurrents[i], state.TargetStarts[i], eased);
+                }
+
+                yield return null;
+            }
+
+            if (state.ActorView != null)
+            {
+                state.ActorView.transform.position = state.ActorStart;
+            }
+
+            for (var i = 0; i < state.TargetViews.Length; i++)
+            {
+                if (state.TargetViews[i] != null)
+                {
+                    state.TargetViews[i].transform.position = state.TargetStarts[i];
+                }
             }
         }
 
@@ -3616,7 +4187,7 @@ namespace ClockworkWasteland.Combat
                 }
 
                 unit.CurrentPosition = i + 1;
-                view.transform.position = new Vector3(GetFormationSlotX(isHero, slots, unit.CurrentPosition), -0.35f, 0f);
+                view.transform.position = new Vector3(GetFormationSlotX(isHero, slots, unit.CurrentPosition), InitialCombatantY, 0f);
                 view.AlignFeetTo(FormationFeetY);
             }
         }
@@ -3699,6 +4270,25 @@ namespace ClockworkWasteland.Combat
             return skill;
         }
 
+        private static SkillData CreatePassTurnSkill()
+        {
+            var skill = ScriptableObject.CreateInstance<SkillData>();
+            skill.skillId = "pass_turn";
+            skill.skillName = "跳过回合";
+            skill.description = "本回合不执行技能，直接结束行动。";
+            skill.skillType = SkillDataType.治疗;
+            skill.targetType = SkillDataTargetType.自己;
+            skill.baseValue = 0;
+            skill.powerMultiplier = 1f;
+            skill.casterAllowedPositions = new[] { 1, 2, 3, 4 };
+            skill.targetAllowedPositions = new[] { 1, 2, 3, 4 };
+            skill.manaCost = 0;
+            skill.cooldown = 0;
+            skill.overlayDuration = 0.05f;
+            skill.isPassSkill = true;
+            return skill;
+        }
+
         private static Sprite CreateFallbackSprite()
         {
             var texture = new Texture2D(32, 48);
@@ -3740,30 +4330,38 @@ namespace ClockworkWasteland.Combat
             return battleBackgrounds[index];
         }
 
-        private static void CreateBackdrop(Sprite backgroundSprite)
+        private void UpdateBackdrop(Sprite backgroundSprite, Vector2 offset, float scaleMultiplier)
         {
-            if (backgroundSprite != null)
+            if (battleBackdropRenderer == null)
             {
                 var background = new GameObject("Battle Background");
-                var renderer = background.AddComponent<SpriteRenderer>();
-                renderer.sprite = backgroundSprite;
-                renderer.sortingOrder = -20;
-                renderer.color = Color.white;
+                battleBackdropRenderer = background.AddComponent<SpriteRenderer>();
+                battleBackdropRenderer.sortingOrder = -20;
+                battleBackdropRenderer.color = Color.white;
                 background.transform.position = new Vector3(0f, 0f, 4f);
+            }
 
+            if (battleBackdropRenderer == null)
+            {
+                return;
+            }
+
+            battleBackdropRenderer.sprite = backgroundSprite;
+            var backgroundTransform = battleBackdropRenderer.transform;
+            backgroundTransform.position = new Vector3(offset.x, offset.y, 4f);
+
+            if (backgroundSprite != null)
+            {
                 var spriteSize = backgroundSprite.bounds.size;
                 if (spriteSize.x > 0f && spriteSize.y > 0f)
                 {
-                    var camera = Camera.main;
-                    var targetHeight = camera != null && camera.orthographic
-                        ? camera.orthographicSize * 2f
-                        : 8.8f;
-                    var targetWidth = camera != null
-                        ? targetHeight * camera.aspect
-                        : 15.7f;
-                    var scale = Mathf.Max(targetWidth / spriteSize.x, targetHeight / spriteSize.y);
-                    background.transform.localScale = new Vector3(scale, scale, 1f);
+                    var scale = Mathf.Max(0.01f, scaleMultiplier);
+                    backgroundTransform.localScale = new Vector3(scale, scale, 1f);
                 }
+            }
+            else
+            {
+                backgroundTransform.localScale = Vector3.one;
             }
         }
 

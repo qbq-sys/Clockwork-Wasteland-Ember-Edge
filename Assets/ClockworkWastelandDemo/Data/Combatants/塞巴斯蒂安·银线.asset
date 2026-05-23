@@ -1,0 +1,78 @@
+%YAML 1.1
+%TAG !u! tag:yousandi.cn,2023:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 55b526a2479a1ac4fa2357ba61b423b6, type: 3}
+  m_Name: "\u585E\u5DF4\u65AF\u8482\u5B89\xB7\u94F6\u7EBF"
+  m_EditorClassIdentifier: 
+  characterId: hero_04
+  displayName: "\u585E\u5DF4\u65AF\u8482\u5B89\xB7\u94F6\u7EBF"
+  isHero: 1
+  portrait: {fileID: 1339177080, guid: a4ca27b162d47bc4599cca9d6e838b98, type: 3}
+  battleSprite: {fileID: 1339177080, guid: a4ca27b162d47bc4599cca9d6e838b98, type: 3}
+  idleAnimationFrames:
+  - {fileID: 1339177080, guid: a4ca27b162d47bc4599cca9d6e838b98, type: 3}
+  - {fileID: -486803096, guid: a4ca27b162d47bc4599cca9d6e838b98, type: 3}
+  - {fileID: -1958873294, guid: a4ca27b162d47bc4599cca9d6e838b98, type: 3}
+  - {fileID: 1583707971, guid: a4ca27b162d47bc4599cca9d6e838b98, type: 3}
+  - {fileID: 1475183269, guid: a4ca27b162d47bc4599cca9d6e838b98, type: 3}
+  - {fileID: -1055711066, guid: a4ca27b162d47bc4599cca9d6e838b98, type: 3}
+  - {fileID: -1365724330, guid: a4ca27b162d47bc4599cca9d6e838b98, type: 3}
+  - {fileID: 701192544, guid: a4ca27b162d47bc4599cca9d6e838b98, type: 3}
+  - {fileID: 1493295703, guid: a4ca27b162d47bc4599cca9d6e838b98, type: 3}
+  - {fileID: -459370440, guid: a4ca27b162d47bc4599cca9d6e838b98, type: 3}
+  - {fileID: 262294378, guid: a4ca27b162d47bc4599cca9d6e838b98, type: 3}
+  - {fileID: 2042410353, guid: a4ca27b162d47bc4599cca9d6e838b98, type: 3}
+  - {fileID: -1892975745, guid: a4ca27b162d47bc4599cca9d6e838b98, type: 3}
+  - {fileID: 359200331, guid: a4ca27b162d47bc4599cca9d6e838b98, type: 3}
+  - {fileID: -1371880014, guid: a4ca27b162d47bc4599cca9d6e838b98, type: 3}
+  - {fileID: -411143932, guid: a4ca27b162d47bc4599cca9d6e838b98, type: 3}
+  - {fileID: 457493387, guid: a4ca27b162d47bc4599cca9d6e838b98, type: 3}
+  - {fileID: -2018995116, guid: a4ca27b162d47bc4599cca9d6e838b98, type: 3}
+  - {fileID: 1862202315, guid: a4ca27b162d47bc4599cca9d6e838b98, type: 3}
+  - {fileID: 1357151728, guid: a4ca27b162d47bc4599cca9d6e838b98, type: 3}
+  - {fileID: 1758388364, guid: a4ca27b162d47bc4599cca9d6e838b98, type: 3}
+  - {fileID: 2002318846, guid: a4ca27b162d47bc4599cca9d6e838b98, type: 3}
+  - {fileID: 936071931, guid: a4ca27b162d47bc4599cca9d6e838b98, type: 3}
+  - {fileID: 1190924270, guid: a4ca27b162d47bc4599cca9d6e838b98, type: 3}
+  - {fileID: -362804808, guid: a4ca27b162d47bc4599cca9d6e838b98, type: 3}
+  - {fileID: 703311311, guid: a4ca27b162d47bc4599cca9d6e838b98, type: 3}
+  - {fileID: -154194482, guid: a4ca27b162d47bc4599cca9d6e838b98, type: 3}
+  - {fileID: 1067772828, guid: a4ca27b162d47bc4599cca9d6e838b98, type: 3}
+  - {fileID: -235668314, guid: a4ca27b162d47bc4599cca9d6e838b98, type: 3}
+  - {fileID: 1161143705, guid: a4ca27b162d47bc4599cca9d6e838b98, type: 3}
+  - {fileID: -766448490, guid: a4ca27b162d47bc4599cca9d6e838b98, type: 3}
+  - {fileID: -1131530007, guid: a4ca27b162d47bc4599cca9d6e838b98, type: 3}
+  - {fileID: 1929181846, guid: a4ca27b162d47bc4599cca9d6e838b98, type: 3}
+  - {fileID: 506941255, guid: a4ca27b162d47bc4599cca9d6e838b98, type: 3}
+  - {fileID: 356925075, guid: a4ca27b162d47bc4599cca9d6e838b98, type: 3}
+  - {fileID: 2020786879, guid: a4ca27b162d47bc4599cca9d6e838b98, type: 3}
+  unitPrefab: {fileID: 5217936666060753235, guid: a1040000000000000000000000000004, type: 3}
+  unitPrefabPath: Assets/ClockworkWastelandDemo/Prefabs/CombatUnits/hero_04_Unit.prefab
+  tint: {r: 1, g: 1, b: 1, a: 1}
+  visualScale: 1
+  occupiedSlotCount: 1
+  corpseHealth: 3
+  archetype: 2
+  preferredRow: 2
+  specialization: 0
+  isUnlocked: 1
+  recruitPrice: 500
+  maxHealth: 32
+  speed: 5
+  attack: 8
+  defense: 2
+  passive: 0
+  growthData: {fileID: 0}
+  currentLevel: 1
+  currentExperience: 0
+  currentHealth: -1
+  skills:
+  - {fileID: 11400000, guid: ef56995f83887ba41b8db14c6574290f, type: 2}

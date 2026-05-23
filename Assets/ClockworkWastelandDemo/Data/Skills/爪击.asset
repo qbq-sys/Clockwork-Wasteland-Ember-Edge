@@ -20,16 +20,14 @@ MonoBehaviour:
   baseValue: 6
   powerMultiplier: 1
   targetType: 0
-  casterAllowedPositions:
-  - 1
-  - 2
-  targetAllowedPositions:
-  - 1
-  - 2
+  casterAllowedPositions: 010000000200000003000000
+  targetAllowedPositions: 010000000200000003000000
   manaCost: 0
   cooldown: 0
   applyBuff: {fileID: 0}
+  applyBuffDuration: 1
   attackSprite: {fileID: 0}
   hitSprite: {fileID: 0}
+  skillSfx: {fileID: 8300000, guid: 315cd3961e5526641a5957f15e038b2e, type: 3}
   overlayDuration: 0.2
   isSwapSkill: 0

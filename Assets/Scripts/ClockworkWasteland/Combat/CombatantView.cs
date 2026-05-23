@@ -7,6 +7,8 @@ namespace ClockworkWasteland.Combat
 {
     public sealed class CombatantView : MonoBehaviour
     {
+        private const float DefaultNameplatePositionY = -1.726f;
+
         [Header("Prefab Hooks")]
         [SerializeField] private Transform visualRoot;
         [SerializeField] private SpriteRenderer spriteRenderer;
@@ -21,9 +23,12 @@ namespace ClockworkWasteland.Combat
         private int animationFrame;
         private Action<BattleUnit> clicked;
         private Vector3 baseLocalScale;
+        private Vector3 baseVisualLocalPosition;
         private int baseSortingOrder;
         private int overlayBaseSortingOrder;
         private int hitOverlayBaseSortingOrder;
+        private bool hasFeetAlignment;
+        private float lastFeetWorldY;
 
         public BattleUnit Unit => unit;
         public float FormationSpacingScale => Mathf.Max(0.8f, GetVisualScale().x / 0.8f);
@@ -57,6 +62,7 @@ namespace ClockworkWasteland.Combat
             var scale = Mathf.Max(0.1f, battleUnit.Definition.visualScale * scaleMultiplier);
             SetVisualScale(new Vector3(scale, scale, 1f));
             baseLocalScale = GetVisualScale();
+            baseVisualLocalPosition = visualRoot != null ? visualRoot.localPosition : Vector3.zero;
             spriteRenderer.flipX = battleUnit.IsHero;
 
             AttachNameplate(nameplatePrefab);
@@ -94,6 +100,15 @@ namespace ClockworkWasteland.Combat
             spriteRenderer.sprite = idleFrames[animationFrame];
         }
 
+        public void NotifyClickedFromProxy()
+        {
+            if (unit == null)
+            {
+                return;
+            }
+
+            clicked?.Invoke(unit);
+        }
         public void SetHighlighted(bool highlighted)
         {
             if (spriteRenderer == null || unit == null || !unit.IsAlive)
@@ -147,28 +162,42 @@ namespace ClockworkWasteland.Combat
                 return;
             }
 
+            hasFeetAlignment = true;
+            lastFeetWorldY = worldY;
+
+            if (visualRoot != null)
+            {
+                visualRoot.localPosition = baseVisualLocalPosition;
+            }
+
             var offset = worldY - spriteRenderer.bounds.min.y;
-            transform.position += new Vector3(0f, offset, 0f);
+            if (visualRoot != null)
+            {
+                visualRoot.localPosition += new Vector3(0f, offset, 0f);
+            }
+        }
+
+        public void ResetVisualOffset()
+        {
+            if (visualRoot != null)
+            {
+                visualRoot.localPosition = baseVisualLocalPosition;
+            }
         }
 
         public IEnumerator MoveToFormation(float worldX, float feetY, float duration)
         {
-            if (spriteRenderer == null)
-            {
-                transform.position = new Vector3(worldX, transform.position.y, transform.position.z);
-                yield break;
-            }
-
             var start = transform.position;
-            var targetY = transform.position.y + feetY - spriteRenderer.bounds.min.y;
-            var target = new Vector3(worldX, targetY, start.z);
+            var target = new Vector3(worldX, start.y, start.z);
             var elapsed = 0f;
+            AlignFeetTo(feetY);
 
             while (elapsed < duration)
             {
                 elapsed += Time.deltaTime;
                 var t = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(elapsed / duration));
                 transform.position = Vector3.Lerp(start, target, t);
+                AlignFeetTo(feetY);
                 yield return null;
             }
 
@@ -324,7 +353,7 @@ namespace ClockworkWasteland.Combat
             {
                 var positionObject = new GameObject("NameplatePosition");
                 positionObject.transform.SetParent(transform, false);
-                positionObject.transform.localPosition = new Vector3(0f, -1.826f, 0f);
+                positionObject.transform.localPosition = new Vector3(0f, DefaultNameplatePositionY, 0f);
                 nameplatePosition = positionObject.transform;
             }
         }
@@ -494,6 +523,10 @@ namespace ClockworkWasteland.Combat
         private void SetVisualScale(Vector3 scale)
         {
             (visualRoot != null ? visualRoot : transform).localScale = scale;
+            if (hasFeetAlignment)
+            {
+                AlignFeetTo(lastFeetWorldY);
+            }
         }
 
         internal void NotifyClicked()
@@ -505,18 +538,5 @@ namespace ClockworkWasteland.Combat
         }
     }
 
-    public sealed class CombatantClickProxy : MonoBehaviour
-    {
-        private CombatantView owner;
 
-        public void Bind(CombatantView view)
-        {
-            owner = view;
-        }
-
-        private void OnMouseDown()
-        {
-            owner?.NotifyClicked();
-        }
-    }
 }

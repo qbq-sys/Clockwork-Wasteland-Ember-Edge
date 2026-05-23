@@ -44,30 +44,12 @@ namespace ClockworkWasteland.Combat
 
         public void PlayAttack(SkillData skill)
         {
-            if (skill != null && IsGunLikeSkill(skill))
-            {
-                PlayOneShot(FindClip("\u67aa\u51fb") ?? FindAnyCombatClip(), 1f);
-                return;
-            }
-
-            var slashClip = FindRandomClip("\u5200\u780d");
-            if (slashClip != null)
-            {
-                PlayOneShot(slashClip, 1f);
-                return;
-            }
-
-            PlayOneShot(FindClip("\u6280\u80fd\u6253\u51fb") ?? FindAnyCombatClip(), 1f);
-        }
-
-        public void PlayImpact()
-        {
-            PlayOneShot(FindRandomClip("\u6253\u51fb") ?? FindAnyCombatClip(), 1f);
+            PlayOneShot(skill != null ? skill.skillSfx : null, 1f);
         }
 
         public void PlayHeal()
         {
-            PlayOneShot(FindClip("\u56de\u8840", "\u6cbb\u7597") ?? FindAnyCombatClip(), 1f);
+            PlayOneShot(FindClip("\u56de\u8840", "\u6cbb\u7597"), 1f);
         }
 
         public void PlayBossMusic()
@@ -119,25 +101,6 @@ namespace ClockworkWasteland.Combat
         private AudioClip FindClip(params string[] keywords)
         {
             return clips.FirstOrDefault(clip => clip.MatchesAny(keywords))?.Clip;
-        }
-
-        private AudioClip FindRandomClip(params string[] keywords)
-        {
-            var matches = clips
-                .Where(clip => clip.MatchesAny(keywords))
-                .ToArray();
-            return matches.Length > 0 ? matches[Random.Range(0, matches.Length)].Clip : null;
-        }
-
-        private AudioClip FindAnyCombatClip()
-        {
-            return FindRandomClip("\u5200\u780d", "\u67aa\u51fb", "\u6253\u51fb", "\u6280\u80fd", "\u901a\u7528");
-        }
-
-        private static bool IsGunLikeSkill(SkillData skill)
-        {
-            var id = (skill.skillId ?? string.Empty).ToLowerInvariant();
-            return id.Contains("volley") || id.Contains("storm") || id.Contains("shot") || id.Contains("gun");
         }
 
         private void LoadClips()

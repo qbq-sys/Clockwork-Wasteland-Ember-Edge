@@ -19,14 +19,19 @@ namespace ClockworkWasteland.Combat
         public int manaCost;
         public int cooldown;
         public BuffData applyBuff;
+        [Min(1)]
+        public int applyBuffDuration = 1;
 
         [Header("Presentation")]
         public Sprite attackSprite;
         public Sprite hitSprite;
+        public AudioClip skillSfx;
         [Range(0.05f, 0.5f)]
         public float overlayDuration = 0.2f;
 
         [HideInInspector]
         public bool isSwapSkill;
+        [HideInInspector]
+        public bool isPassSkill;
     }
 }

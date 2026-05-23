@@ -1,0 +1,49 @@
+%YAML 1.1
+%TAG !u! tag:yousandi.cn,2023:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c4f3aec762594b04f84a84ce7aa31693, type: 3}
+  m_Name: "\u84B8\u6C7D\u8FB9\u754C"
+  m_EditorClassIdentifier: 
+  mapId: map_01
+  displayName: "\u84B8\u6C7D\u8FB9\u754C"
+  description: "\u5730\u56FE\u63CF\u8FF0\u9884\u7559\u3002"
+  backgroundSprite: {fileID: 21300000, guid: 0a7ba24e71ca3e148aca2f859d0f1214, type: 3}
+  backgroundOffset: {x: 1.66, y: 2.902}
+  backgroundScale: 0.8
+  unlockType: 0
+  prerequisiteMap: {fileID: 0}
+  unlockDescription: "\u9ED8\u8BA4\u89E3\u9501"
+  battles:
+  - battleId: battle_01
+    displayName: "4\u51F6\u7259"
+    description: "\u9996\u573A\u6218\u6597\u3002"
+    backgroundOverride: {fileID: 0}
+    backgroundOffset: {x: 0, y: 0}
+    backgroundScale: 1
+    isBossBattle: 0
+    goldRewardMin: 50
+    goldRewardMax: 150
+    experienceRewardMin: 10
+    experienceRewardMax: 20
+    rewardDescription: "\u6807\u51C6\u6218\u6597\u5956\u52B1\u3002"
+    enemies:
+    - combatant: {fileID: 11400000, guid: 4b45a2f402ea51e4880c2d7b3f524838, type: 2}
+      slot: 1
+      level: 1
+    - combatant: {fileID: 11400000, guid: 4b45a2f402ea51e4880c2d7b3f524838, type: 2}
+      slot: 2
+      level: 1
+    - combatant: {fileID: 11400000, guid: 4b45a2f402ea51e4880c2d7b3f524838, type: 2}
+      slot: 3
+      level: 1
+    - combatant: {fileID: 11400000, guid: 4b45a2f402ea51e4880c2d7b3f524838, type: 2}
+      slot: 4
+      level: 1

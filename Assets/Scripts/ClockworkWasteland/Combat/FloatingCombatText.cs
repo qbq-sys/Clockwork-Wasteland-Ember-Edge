@@ -31,7 +31,7 @@ namespace ClockworkWasteland.Combat
             var renderer = GetComponent<MeshRenderer>();
             if (renderer != null)
             {
-                renderer.sortingOrder = 80;
+                renderer.sortingOrder = 600;
                 if (label.font != null)
                 {
                     renderer.material = label.font.material;

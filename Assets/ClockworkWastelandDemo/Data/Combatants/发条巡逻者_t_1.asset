@@ -1,0 +1,78 @@
+%YAML 1.1
+%TAG !u! tag:yousandi.cn,2023:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 55b526a2479a1ac4fa2357ba61b423b6, type: 3}
+  m_Name: "\u53D1\u6761\u5DE1\u903B\u8005_t_1"
+  m_EditorClassIdentifier: 
+  characterId: enemy_03
+  displayName: "\u53D1\u6761\u5DE1\u903B\u8005_t_1"
+  isHero: 0
+  portrait: {fileID: -25872868, guid: 59a05054c026bfd48b5dd25084c27381, type: 3}
+  battleSprite: {fileID: -25872868, guid: 59a05054c026bfd48b5dd25084c27381, type: 3}
+  idleAnimationFrames:
+  - {fileID: -25872868, guid: 59a05054c026bfd48b5dd25084c27381, type: 3}
+  - {fileID: 1347485893, guid: 59a05054c026bfd48b5dd25084c27381, type: 3}
+  - {fileID: -1802527071, guid: 59a05054c026bfd48b5dd25084c27381, type: 3}
+  - {fileID: 1593494239, guid: 59a05054c026bfd48b5dd25084c27381, type: 3}
+  - {fileID: -1245844790, guid: 59a05054c026bfd48b5dd25084c27381, type: 3}
+  - {fileID: 1478216919, guid: 59a05054c026bfd48b5dd25084c27381, type: 3}
+  - {fileID: 1859593827, guid: 59a05054c026bfd48b5dd25084c27381, type: 3}
+  - {fileID: -400263866, guid: 59a05054c026bfd48b5dd25084c27381, type: 3}
+  - {fileID: -421348968, guid: 59a05054c026bfd48b5dd25084c27381, type: 3}
+  - {fileID: 1713491419, guid: 59a05054c026bfd48b5dd25084c27381, type: 3}
+  - {fileID: -905802650, guid: 59a05054c026bfd48b5dd25084c27381, type: 3}
+  - {fileID: -92786665, guid: 59a05054c026bfd48b5dd25084c27381, type: 3}
+  - {fileID: 363406686, guid: 59a05054c026bfd48b5dd25084c27381, type: 3}
+  - {fileID: -1179113051, guid: 59a05054c026bfd48b5dd25084c27381, type: 3}
+  - {fileID: -1951334087, guid: 59a05054c026bfd48b5dd25084c27381, type: 3}
+  - {fileID: 1280069866, guid: 59a05054c026bfd48b5dd25084c27381, type: 3}
+  - {fileID: -1281122891, guid: 59a05054c026bfd48b5dd25084c27381, type: 3}
+  - {fileID: -1839587162, guid: 59a05054c026bfd48b5dd25084c27381, type: 3}
+  - {fileID: -1789049101, guid: 59a05054c026bfd48b5dd25084c27381, type: 3}
+  - {fileID: -2040637344, guid: 59a05054c026bfd48b5dd25084c27381, type: 3}
+  - {fileID: -329548518, guid: 59a05054c026bfd48b5dd25084c27381, type: 3}
+  - {fileID: 2105744786, guid: 59a05054c026bfd48b5dd25084c27381, type: 3}
+  - {fileID: 1337466746, guid: 59a05054c026bfd48b5dd25084c27381, type: 3}
+  - {fileID: -1246088977, guid: 59a05054c026bfd48b5dd25084c27381, type: 3}
+  - {fileID: -1519484925, guid: 59a05054c026bfd48b5dd25084c27381, type: 3}
+  - {fileID: -1217231333, guid: 59a05054c026bfd48b5dd25084c27381, type: 3}
+  - {fileID: -1041779998, guid: 59a05054c026bfd48b5dd25084c27381, type: 3}
+  - {fileID: -1963943849, guid: 59a05054c026bfd48b5dd25084c27381, type: 3}
+  - {fileID: -1449710472, guid: 59a05054c026bfd48b5dd25084c27381, type: 3}
+  - {fileID: 1832495715, guid: 59a05054c026bfd48b5dd25084c27381, type: 3}
+  - {fileID: -219374724, guid: 59a05054c026bfd48b5dd25084c27381, type: 3}
+  - {fileID: -90889529, guid: 59a05054c026bfd48b5dd25084c27381, type: 3}
+  - {fileID: 1921356104, guid: 59a05054c026bfd48b5dd25084c27381, type: 3}
+  - {fileID: -1004041818, guid: 59a05054c026bfd48b5dd25084c27381, type: 3}
+  - {fileID: -1915338801, guid: 59a05054c026bfd48b5dd25084c27381, type: 3}
+  - {fileID: 1517120569, guid: 59a05054c026bfd48b5dd25084c27381, type: 3}
+  unitPrefab: {fileID: 4627931910744801465, guid: b6d55d7405ad6214e8fc9c2f2def62fc, type: 3}
+  unitPrefabPath: Assets/ClockworkWastelandDemo/Prefabs/CombatUnits/enemy_03_Unit.prefab
+  tint: {r: 1, g: 1, b: 1, a: 1}
+  visualScale: 1
+  occupiedSlotCount: 1
+  corpseHealth: 3
+  archetype: 1
+  preferredRow: 1
+  specialization: 0
+  isUnlocked: 0
+  recruitPrice: 500
+  maxHealth: 32
+  speed: 5
+  attack: 8
+  defense: 2
+  passive: 0
+  growthData: {fileID: 0}
+  currentLevel: 1
+  currentExperience: 0
+  currentHealth: -1
+  skills:
+  - {fileID: 11400000, guid: ed97969e4cc2fab47adb8b8116df4f69, type: 2}

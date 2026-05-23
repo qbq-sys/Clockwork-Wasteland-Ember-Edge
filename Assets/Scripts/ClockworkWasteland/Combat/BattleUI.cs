@@ -431,27 +431,10 @@ namespace ClockworkWasteland.Combat
             ClearRuntimeButtons(buttonParent);
         }
 
-        public void ShowTitleScreen(Action onStartGame, Action onOpenSettings, Action onQuit)
+        public void ShowTitleScreen(bool showContinue, Action onStartGame, Action onContinueGame, Action onOpenSettings, Action onQuit, Action onBack)
         {
-            EnsureOverlay();
-            overlayPanel.gameObject.SetActive(true);
-            ClearChildren(overlayPanel);
-
-            var panel = CreatePanel("TitlePanel", overlayPanel, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(760f, 520f), new Color(0.028f, 0.023f, 0.022f, 0.97f));
-            panel.GetComponent<Image>().sprite = descriptionSprite;
-            panel.GetComponent<Image>().type = Image.Type.Sliced;
-
-            var title = CreateText("Title", panel, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -112f), new Vector2(-80f, 96f), 34, TextAnchor.MiddleCenter);
-            title.text = "Clockwork Wasteland\nEmber Edge";
-            SetTextStyle(title, new Color(0.98f, 0.78f, 0.38f), true);
-
-            var subtitle = CreateText("Subtitle", panel, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -198f), new Vector2(-120f, 40f), 18, TextAnchor.MiddleCenter);
-            subtitle.text = "\u53d1\u6761\u8352\u539f\uff1a\u4f59\u70ec\u4e4b\u5203";
-            SetTextStyle(subtitle, new Color(0.82f, 0.72f, 0.54f), false);
-
-            CreateButton(panel, "\u5f00\u59cb\u6e38\u620f", new Vector2(380f, -282f), () => onStartGame?.Invoke(), true, null);
-            CreateButton(panel, "\u8bbe\u7f6e", new Vector2(380f, -342f), () => onOpenSettings?.Invoke(), true, null);
-            CreateButton(panel, "\u9000\u51fa", new Vector2(380f, -402f), () => onQuit?.Invoke(), true, null);
+            EnsureRuntimePrefabUi();
+            runtimeUiManager?.ShowStartMenu(showContinue, onStartGame, onContinueGame, onOpenSettings, onQuit, onBack);
         }
 
         public void ShowSettingsScreen(Action onBack, Action onSaveGame)
@@ -597,16 +580,16 @@ namespace ClockworkWasteland.Combat
             CreateButton(rootPanel, "\u5f00\u59cb\u6218\u6597", new Vector2(590f, -708f), onStartBattle.Invoke, selectedHeroes.Count > 0, null);
         }
 
-        public void ShowLobby(int currentGold, bool showContinue, Action onStartNewGame, Action onContinueGame, Action onOpenTavern, Action onOpenAdventure, Action onOpenHeroCodex, Action onOpenSettings, Action onQuit)
+        public void ShowLobby(int currentGold, Action onOpenTavern, Action onOpenAdventure, Action onOpenHeroCodex, Action onOpenMenu)
         {
             EnsureRuntimePrefabUi();
-            runtimeUiManager?.ShowLobby(currentGold, showContinue, onStartNewGame, onContinueGame, onOpenTavern, onOpenAdventure, onOpenHeroCodex, onOpenSettings, onQuit);
+            runtimeUiManager?.ShowLobby(currentGold, onOpenTavern, onOpenAdventure, onOpenHeroCodex, onOpenMenu);
         }
 
-        public void ShowSaveSlots(string title, IReadOnlyList<SaveSlotSummary> slots, bool allowEmptySelection, Action<int> onSelect, Action onBack)
+        public void ShowSaveSlots(string title, IReadOnlyList<SaveSlotSummary> slots, bool allowEmptySelection, Action<int> onSelect, Action<int> onDelete, Action onBack)
         {
             EnsureRuntimePrefabUi();
-            runtimeUiManager?.ShowSaveSlots(title, slots, allowEmptySelection, onSelect, onBack);
+            runtimeUiManager?.ShowSaveSlots(title, slots, allowEmptySelection, onSelect, onDelete, onBack);
         }
 
         public void ShowAdventureMap(IReadOnlyList<AdventureMapOption> maps, Action<AdventureMapOption> onSelect, Action onBack)

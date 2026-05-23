@@ -191,7 +191,6 @@ namespace ClockworkWasteland.Combat
             var buff = ScriptableObject.CreateInstance<BuffData>();
             buff.buffId = displayName;
             buff.buffName = displayName;
-            buff.duration = duration;
             buff.stun = stun;
             buff.tickDamage = tickDamage;
             return buff;

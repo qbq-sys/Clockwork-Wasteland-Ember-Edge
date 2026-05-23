@@ -14,7 +14,7 @@ namespace ClockworkWasteland.EditorTools
         private const string Root = "Assets/ClockworkWastelandDemo";
         private const string ItemsPath = "Assets/Resources/Items";
         private const string SkillsPath = Root + "/Data/Skills";
-        private const string BuffsPath = Root + "/Data/Buffs";
+        private const string BuffsPath = "Assets/Resources/Buffs";
         private const string GrowthsPath = Root + "/Data/Growth";
         private const string CombatantsPath = Root + "/Data/Combatants";
         private const string PrefabsPath = Root + "/Prefabs";
@@ -23,6 +23,7 @@ namespace ClockworkWasteland.EditorTools
         private const string CombatUnitPrefabPath = PrefabsPath + "/CombatUnit.prefab";
         private const string CombatNameplatePrefabPath = PrefabsPath + "/CombatNameplate.prefab";
         private const string ScenePath = "Assets/Scenes/CombatDemo.unity";
+        private const float NameplatePositionY = -1.726f;
 
         private static BattleUI CreateBattleUIPrefab()
         {
@@ -215,7 +216,7 @@ namespace ClockworkWasteland.EditorTools
 
             var nameplatePosition = new GameObject("NameplatePosition");
             nameplatePosition.transform.SetParent(root.transform, false);
-            nameplatePosition.transform.localPosition = new Vector3(0f, -1.826f, 0f);
+            nameplatePosition.transform.localPosition = new Vector3(0f, NameplatePositionY, 0f);
 
             var prefab = PrefabUtility.SaveAsPrefabAsset(root, prefabPath);
             Object.DestroyImmediate(root);
@@ -319,7 +320,6 @@ namespace ClockworkWasteland.EditorTools
             buff.buffId = buffId;
             buff.buffName = displayName;
             buff.description = description;
-            buff.duration = duration;
             buff.stun = stun;
             buff.tickDamage = tickDamage;
             EditorUtility.SetDirty(buff);

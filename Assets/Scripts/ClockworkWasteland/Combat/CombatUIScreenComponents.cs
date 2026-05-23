@@ -13,6 +13,7 @@ namespace ClockworkWasteland.Combat
     public sealed partial class UIManager
     {
         private const string LobbyPrefabPath = "Assets/UI/Prefabs/LobbyUI.prefab";
+        private const string StartMenuPrefabPath = "Assets/UI/Prefabs/StartMenuUI.prefab";
         private const string TavernPrefabPath = "Assets/UI/Prefabs/TavernUI.prefab";
         private const string AdventurePrefabPath = "Assets/UI/Prefabs/AdventureMapUI.prefab";
         private const string TeamSelectionPrefabPath = "Assets/UI/Prefabs/TeamSelectionUI.prefab";
@@ -23,6 +24,7 @@ namespace ClockworkWasteland.Combat
         private const string BattleHudPrefabPath = "Assets/UI/Prefabs/BattleHudUI.prefab";
         private const string SkillDescriptionPrefabPath = "Assets/UI/Prefabs/SkillDescriptionUI.prefab";
 
+        [SerializeField] private StartMenuUI startMenuPrefab;
         [SerializeField] private LobbyUI lobbyPrefab;
         [SerializeField] private TavernUI tavernPrefab;
         [SerializeField] private AdventureMapUI adventureMapPrefab;
@@ -96,10 +98,16 @@ namespace ClockworkWasteland.Combat
             }
         }
 
-        public void ShowLobby(int currentGold, bool showContinue, Action onStartNewGame, Action onContinueGame, Action onOpenTavern, Action onOpenAdventure, Action onOpenHeroCodex, Action onOpenSettings, Action onQuit)
+        public void ShowStartMenu(bool showContinue, Action onStartNewGame, Action onContinueGame, Action onOpenSettings, Action onQuit, Action onBack)
+        {
+            var screen = ShowScreen(startMenuPrefab, StartMenuPrefabPath);
+            screen.Show(showContinue, onStartNewGame, onContinueGame, onOpenSettings, onQuit, onBack);
+        }
+
+        public void ShowLobby(int currentGold, Action onOpenTavern, Action onOpenAdventure, Action onOpenHeroCodex, Action onOpenMenu)
         {
             var screen = ShowScreen(lobbyPrefab, LobbyPrefabPath);
-            screen.Show(currentGold, showContinue, onStartNewGame, onContinueGame, onOpenTavern, onOpenAdventure, onOpenHeroCodex, onOpenSettings, onQuit);
+            screen.Show(currentGold, onOpenTavern, onOpenAdventure, onOpenHeroCodex, onOpenMenu);
         }
 
         public void ShowTavern(IReadOnlyList<CombatantDefinition> recruitableHeroes, int currentGold, Action<CombatantDefinition> onRecruit, Action onBack)
@@ -132,10 +140,10 @@ namespace ClockworkWasteland.Combat
             screen.Show(onBack, onSaveGame);
         }
 
-        public void ShowSaveSlots(string title, IReadOnlyList<SaveSlotSummary> slots, bool allowEmptySelection, Action<int> onSelect, Action onBack)
+        public void ShowSaveSlots(string title, IReadOnlyList<SaveSlotSummary> slots, bool allowEmptySelection, Action<int> onSelect, Action<int> onDelete, Action onBack)
         {
             var screen = ShowScreen(saveSlotPrefab, SaveSlotPrefabPath);
-            screen.Show(title, slots, allowEmptySelection, onSelect, onBack);
+            screen.Show(title, slots, allowEmptySelection, onSelect, onDelete, onBack);
         }
 
         public void ShowPopup(string message, string buttonLabel, Action onContinue)
@@ -247,13 +255,52 @@ namespace ClockworkWasteland.Combat
         }
     }
 
+    public sealed partial class StartMenuUI
+    {
+        public Image startMenuBg;
+        public Image heroShowcaseBg;
+
+        public void Show(bool showContinue, Action onStartNewGame, Action onContinueGame, Action onOpenSettings, Action onQuit, Action onBack)
+        {
+            var panelStyle = CombatUIImageStyle.Capture(startMenuBg);
+            var showcaseStyle = CombatUIImageStyle.Capture(heroShowcaseBg);
+            BuildLayout();
+            var root = PrepareRoot();
+            startMenuBg = CombatUIScreenUtility.CreatePanel("StartMenuPanel", root, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero, new Color(0.026f, 0.024f, 0.026f, 0.98f)).GetComponent<Image>();
+            panelStyle.ApplyTo(startMenuBg);
+
+            var title = CombatUIScreenUtility.CreateText("Title", startMenuBg.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -108f), new Vector2(-120f, 90f), 36, TextAnchor.MiddleCenter);
+            title.text = "Clockwork Wasteland\nEmber Edge";
+            CombatUIScreenUtility.SetTextStyle(title, new Color(0.98f, 0.78f, 0.38f), true);
+
+            heroShowcaseBg = CombatUIScreenUtility.CreatePanel("StartMenuShowcase", startMenuBg.rectTransform, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, 42f), new Vector2(760f, 420f), new Color(0.06f, 0.052f, 0.05f, 0.72f)).GetComponent<Image>();
+            showcaseStyle.ApplyTo(heroShowcaseBg);
+            var centerText = CombatUIScreenUtility.CreateText("CenterText", heroShowcaseBg.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero, 22, TextAnchor.MiddleCenter);
+            centerText.text = "\u5f00\u59cb\u754c\u9762\u80cc\u666f / \u7acb\u7ed8\u9884\u7559";
+            CombatUIScreenUtility.SetTextStyle(centerText, new Color(0.72f, 0.66f, 0.58f), false);
+
+            CombatUIScreenUtility.CreateButton(startMenuBg.rectTransform, "\u65b0\u6e38\u620f", new Vector2(560f, -860f), () => onStartNewGame?.Invoke(), true);
+            if (showContinue)
+            {
+                CombatUIScreenUtility.CreateButton(startMenuBg.rectTransform, "\u7ee7\u7eed\u6e38\u620f", new Vector2(760f, -860f), () => onContinueGame?.Invoke(), true);
+            }
+
+            CombatUIScreenUtility.CreateButton(startMenuBg.rectTransform, "\u8bbe\u7f6e", new Vector2(960f, -860f), () => onOpenSettings?.Invoke(), true);
+            CombatUIScreenUtility.CreateButton(startMenuBg.rectTransform, "\u9000\u51fa", new Vector2(1160f, -860f), () => onQuit?.Invoke(), true);
+            if (onBack != null)
+            {
+                CombatUIScreenUtility.CreateButton(startMenuBg.rectTransform, "\u8fd4\u56de\u5927\u5385", new Vector2(160f, -860f), () => onBack?.Invoke(), true);
+            }
+        }
+    }
+
     public sealed partial class LobbyUI
     {
         public Image lobbyBg;
         public Image heroShowcaseBg;
         public Image cardBg;
 
-        public void Show(int currentGold, bool showContinue, Action onStartNewGame, Action onContinueGame, Action onOpenTavern, Action onOpenAdventure, Action onOpenHeroCodex, Action onOpenSettings, Action onQuit)
+        public void Show(int currentGold, Action onOpenTavern, Action onOpenAdventure, Action onOpenHeroCodex, Action onOpenMenu)
         {
             var lobbyStyle = CombatUIImageStyle.Capture(lobbyBg);
             var showcaseStyle = CombatUIImageStyle.Capture(heroShowcaseBg);
@@ -277,17 +324,10 @@ namespace ClockworkWasteland.Combat
             gold.text = $"\u91d1\u5e01\uff1a{Mathf.Max(0, currentGold)}";
             CombatUIScreenUtility.SetTextStyle(gold, new Color(1f, 0.82f, 0.36f), true);
 
-            CombatUIScreenUtility.CreateButton(lobbyBg.rectTransform, "\u65b0\u6e38\u620f", new Vector2(470f, -830f), () => onStartNewGame?.Invoke(), true);
-            if (showContinue)
-            {
-                CombatUIScreenUtility.CreateButton(lobbyBg.rectTransform, "\u7ee7\u7eed\u6e38\u620f", new Vector2(650f, -830f), () => onContinueGame?.Invoke(), true);
-            }
-
             CombatUIScreenUtility.CreateButton(lobbyBg.rectTransform, "\u9152\u9986", new Vector2(470f, -928f), () => onOpenTavern?.Invoke(), true);
             CombatUIScreenUtility.CreateButton(lobbyBg.rectTransform, "\u5192\u9669", new Vector2(650f, -928f), () => onOpenAdventure?.Invoke(), true);
             CombatUIScreenUtility.CreateButton(lobbyBg.rectTransform, "\u82f1\u96c4\u56fe\u9274", new Vector2(830f, -928f), () => onOpenHeroCodex?.Invoke(), true);
-            CombatUIScreenUtility.CreateButton(lobbyBg.rectTransform, "\u8bbe\u7f6e", new Vector2(1010f, -928f), () => onOpenSettings?.Invoke(), true);
-            CombatUIScreenUtility.CreateButton(lobbyBg.rectTransform, "\u9000\u51fa", new Vector2(1190f, -928f), () => onQuit?.Invoke(), true);
+            CombatUIScreenUtility.CreateButton(lobbyBg.rectTransform, "\u4e3b\u83dc\u5355", new Vector2(1010f, -928f), () => onOpenMenu?.Invoke(), true);
         }
     }
 
@@ -375,9 +415,26 @@ namespace ClockworkWasteland.Combat
                 mapCardBg = card;
 
                 var preview = CombatUIScreenUtility.CreatePanel("Preview", card.rectTransform, new Vector2(0.5f, 1f), new Vector2(0.5f, 1f), new Vector2(0f, -88f), new Vector2(210f, 112f), new Color(0.12f, 0.1f, 0.09f, 1f));
-                var previewText = CombatUIScreenUtility.CreateText("PreviewText", preview, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero, 16, TextAnchor.MiddleCenter);
-                previewText.text = "\u5730\u56fe\u56fe\u7247\u9884\u7559";
-                CombatUIScreenUtility.SetTextStyle(previewText, new Color(0.72f, 0.66f, 0.58f), false);
+                if (map.PreviewSprite != null)
+                {
+                    var previewImageObject = new GameObject("PreviewImage", typeof(RectTransform), typeof(Image));
+                    previewImageObject.transform.SetParent(preview, false);
+                    var previewRect = previewImageObject.GetComponent<RectTransform>();
+                    previewRect.anchorMin = Vector2.zero;
+                    previewRect.anchorMax = Vector2.one;
+                    previewRect.offsetMin = new Vector2(6f, 6f);
+                    previewRect.offsetMax = new Vector2(-6f, -6f);
+                    var previewImage = previewImageObject.GetComponent<Image>();
+                    previewImage.sprite = map.PreviewSprite;
+                    previewImage.preserveAspect = true;
+                    previewImage.color = Color.white;
+                }
+                else
+                {
+                    var previewText = CombatUIScreenUtility.CreateText("PreviewText", preview, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero, 16, TextAnchor.MiddleCenter);
+                    previewText.text = "\u5730\u56fe\u56fe\u7247\u9884\u7559";
+                    CombatUIScreenUtility.SetTextStyle(previewText, new Color(0.72f, 0.66f, 0.58f), false);
+                }
 
                 var name = CombatUIScreenUtility.CreateText("Name", card.rectTransform, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -174f), new Vector2(-30f, 42f), 21, TextAnchor.MiddleCenter);
                 name.text = map.DisplayName;
@@ -386,10 +443,10 @@ namespace ClockworkWasteland.Combat
                 var description = CombatUIScreenUtility.CreateText("Description", card.rectTransform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero, 16, TextAnchor.UpperLeft);
                 description.rectTransform.offsetMin = new Vector2(28f, 76f);
                 description.rectTransform.offsetMax = new Vector2(-28f, -214f);
-                description.text = $"{map.Description}\n\u96be\u5ea6\uff1a{map.Difficulty}";
+                description.text = $"{map.Description}\n\u6218\u6597\u6570\uff1a{map.BattleCount}\n{(map.IsUnlocked ? "\u72b6\u6001\uff1a\u5df2\u89e3\u9501" : $"\u89e3\u9501\uff1a{map.UnlockSummary}")}";
                 CombatUIScreenUtility.SetTextStyle(description, new Color(0.88f, 0.8f, 0.66f), false);
 
-                CombatUIScreenUtility.CreateButton(card.rectTransform, "\u9009\u62e9", new Vector2(140f, -316f), () => onSelect?.Invoke(map), true);
+                CombatUIScreenUtility.CreateButton(card.rectTransform, map.IsUnlocked ? "\u9009\u62e9" : "\u672a\u89e3\u9501", new Vector2(140f, -316f), () => onSelect?.Invoke(map), map.IsUnlocked);
             }
 
             CombatUIScreenUtility.CreateButton(adventureBg.rectTransform, "\u8fd4\u56de\u5927\u5385", new Vector2(520f, -604f), () => onBack?.Invoke(), true);
@@ -720,7 +777,7 @@ namespace ClockworkWasteland.Combat
         public Image saveSlotBg;
         public Image slotCardBg;
 
-        public void Show(string titleText, IReadOnlyList<SaveSlotSummary> slots, bool allowEmptySelection, Action<int> onSelect, Action onBack)
+        public void Show(string titleText, IReadOnlyList<SaveSlotSummary> slots, bool allowEmptySelection, Action<int> onSelect, Action<int> onDelete, Action onBack)
         {
             var screenStyle = CombatUIImageStyle.Capture(saveSlotBg);
             var cardStyle = CombatUIImageStyle.Capture(slotCardBg);
@@ -754,6 +811,10 @@ namespace ClockworkWasteland.Combat
                 var buttonLabel = slot.HasSave ? (allowEmptySelection ? "\u8986\u76d6" : "\u8f7d\u5165") : (allowEmptySelection ? "\u4fdd\u5b58\u5230\u6b64" : "\u7a7a");
                 var canSelect = slot.HasSave || allowEmptySelection;
                 CombatUIScreenUtility.CreateButton(card.rectTransform, buttonLabel, new Vector2(120f, -310f), () => onSelect?.Invoke(slot.SlotIndex), canSelect);
+                if (slot.HasSave && onDelete != null)
+                {
+                    CombatUIScreenUtility.CreateButton(card.rectTransform, "\u5220\u9664", new Vector2(120f, -258f), () => onDelete?.Invoke(slot.SlotIndex), true);
+                }
             }
 
             CombatUIScreenUtility.CreateButton(saveSlotBg.rectTransform, "\u8fd4\u56de", new Vector2(490f, -566f), () => onBack?.Invoke(), true);
@@ -1471,6 +1532,7 @@ namespace ClockworkWasteland.Combat
             EditorApplication.delayCall += () =>
             {
                 if (!AssetDatabase.IsValidFolder("Assets/UI/Prefabs") ||
+                    !AssetDatabase.LoadAssetAtPath<StartMenuUI>("Assets/UI/Prefabs/StartMenuUI.prefab") ||
                     !AssetDatabase.LoadAssetAtPath<LobbyUI>("Assets/UI/Prefabs/LobbyUI.prefab") ||
                     !AssetDatabase.LoadAssetAtPath<TavernUI>("Assets/UI/Prefabs/TavernUI.prefab") ||
                     !AssetDatabase.LoadAssetAtPath<AdventureMapUI>("Assets/UI/Prefabs/AdventureMapUI.prefab") ||
@@ -1493,6 +1555,7 @@ namespace ClockworkWasteland.Combat
         {
             EnsureFolder("Assets", "UI");
             EnsureFolder("Assets/UI", "Prefabs");
+            CreatePrefab<StartMenuUI>("StartMenuUI");
             CreatePrefab<LobbyUI>("LobbyUI");
             CreatePrefab<TavernUI>("TavernUI");
             CreatePrefab<AdventureMapUI>("AdventureMapUI");
@@ -1546,9 +1609,15 @@ namespace ClockworkWasteland.Combat
 
         private static void BuildPreviewLayout(CombatUIScreen screen)
         {
+            if (screen is StartMenuUI startMenu)
+            {
+                startMenu.Show(true, null, null, null, null, null);
+                return;
+            }
+
             if (screen is LobbyUI lobby)
             {
-                lobby.Show(1200, true, null, null, null, null, null, null, null);
+                lobby.Show(1200, null, null, null, null);
                 return;
             }
 
@@ -1569,11 +1638,17 @@ namespace ClockworkWasteland.Combat
 
             if (screen is AdventureMapUI adventureMap)
             {
+                var previewMaps = new[]
+                {
+                    CreatePreviewAdventureMap("preview_1", "\u5e9f\u571f\u8fb9\u5883", "\u5730\u56fe\u63cf\u8ff0\u9884\u7559"),
+                    CreatePreviewAdventureMap("preview_2", "\u94a2\u94c1\u5de5\u574a", "\u5730\u56fe\u63cf\u8ff0\u9884\u7559"),
+                    CreatePreviewAdventureMap("preview_3", "\u7070\u70ec\u5730\u7a9f", "\u5730\u56fe\u63cf\u8ff0\u9884\u7559")
+                };
                 adventureMap.Show(new[]
                 {
-                    new AdventureMapOption("preview_1", "\u5e9f\u571f\u8fb9\u5883", "\u5730\u56fe\u63cf\u8ff0\u9884\u7559", 1),
-                    new AdventureMapOption("preview_2", "\u94a2\u94c1\u5de5\u574a", "\u5730\u56fe\u63cf\u8ff0\u9884\u7559", 2),
-                    new AdventureMapOption("preview_3", "\u7070\u70ec\u5730\u7a9f", "\u5730\u56fe\u63cf\u8ff0\u9884\u7559", 3)
+                    new AdventureMapOption(previewMaps[0], true),
+                    new AdventureMapOption(previewMaps[1], true),
+                    new AdventureMapOption(previewMaps[2], false)
                 }, null, null);
                 return;
             }
@@ -1621,7 +1696,7 @@ namespace ClockworkWasteland.Combat
                     new SaveSlotSummary(0, true, "\u5b58\u6863 1", "\u91d1\u5e01 1200  \u5df2\u89e3\u9501\u82f1\u96c4 4\n\u4fdd\u5b58\u65f6\u95f4 2026-05-23 12:00:00"),
                     new SaveSlotSummary(1, false, "\u5b58\u6863 2", "\u7a7a"),
                     new SaveSlotSummary(2, false, "\u5b58\u6863 3", "\u7a7a")
-                }, true, null, null);
+                }, true, null, null, null);
                 return;
             }
 
@@ -1660,6 +1735,27 @@ namespace ClockworkWasteland.Combat
             hero.currentExperience = 0;
             hero.currentHealth = 32;
             return hero;
+        }
+
+        private static AdventureMapData CreatePreviewAdventureMap(string mapId, string displayName, string description)
+        {
+            var map = ScriptableObject.CreateInstance<AdventureMapData>();
+            map.hideFlags = HideFlags.HideAndDontSave;
+            map.mapId = mapId;
+            map.displayName = displayName;
+            map.description = description;
+            map.unlockType = AdventureMapUnlockType.Default;
+            map.unlockDescription = "\u9884\u89c8\u7528\u5730\u56fe";
+            map.battles = new List<AdventureBattleConfig>
+            {
+                new AdventureBattleConfig
+                {
+                    battleId = "preview_battle_01",
+                    displayName = "\u9884\u89c8\u6218\u6597",
+                    description = "\u9884\u89c8\u7528"
+                }
+            };
+            return map;
         }
 
         private static void EnsureFolder(string parent, string child)

@@ -12,6 +12,7 @@ namespace ClockworkWasteland.EditorTools
     {
         private const string Root = "Assets/ClockworkWastelandDemo";
         private const string CombatantsPath = Root + "/Data/Combatants";
+        private const string SkillsPath = Root + "/Data/Skills";
         private const string GrowthsPath = Root + "/Data/Growth";
         private const string UnitPrefabsPath = Root + "/Prefabs/CombatUnits";
         private const string CharacterSpecificVfxRoot = "Assets/Art/VFX/Combat/CharacterSpecific";
@@ -21,12 +22,29 @@ namespace ClockworkWasteland.EditorTools
         private readonly List<Sprite> editIdleFrames = new List<Sprite>();
 
         private CombatantDefinition[] combatants = Array.Empty<CombatantDefinition>();
+        private SkillData[] skills = Array.Empty<SkillData>();
         private CombatantDefinition selectedCombatant;
+        private SkillData selectedSkill;
         private UnityEditor.Editor selectedCombatantEditor;
+        private UnityEditor.Editor selectedSkillEditor;
         private Vector2 listScroll;
         private Vector2 detailsScroll;
         private Vector2 createScroll;
+        private Vector2 skillListScroll;
+        private Vector2 skillDetailsScroll;
+        private Vector2 passiveListScroll;
+        private Vector2 passiveDetailsScroll;
         private int tabIndex;
+        private string skillSearch = string.Empty;
+        private string createSkillId = "new_skill";
+        private string createSkillName = "New Skill";
+        private string createSkillDescription = "A combat action.";
+        private SkillDataType createSkillType = SkillDataType.伤害;
+        private SkillDataTargetType createSkillTargetType = SkillDataTargetType.单敌;
+        private int createSkillBaseValue = 8;
+        private float createSkillPowerMultiplier = 1f;
+        private int createSkillManaCost;
+        private int createSkillCooldown;
 
         private string createCharacterId = "new_unit";
         private string createDisplayName = "New Unit";
@@ -62,6 +80,7 @@ namespace ClockworkWasteland.EditorTools
         private void OnEnable()
         {
             RefreshCombatants();
+            RefreshSkills();
             createGrowthData = LoadOrCreateDefaultGrowthData();
         }
 
@@ -80,8 +99,14 @@ namespace ClockworkWasteland.EditorTools
                 case 0:
                     DrawExistingUnitsTab();
                     break;
-                default:
+                case 1:
                     DrawCreateUnitTab();
+                    break;
+                case 2:
+                    DrawSkillsTab();
+                    break;
+                default:
+                    DrawPassivesTab();
                     break;
             }
         }
@@ -90,11 +115,12 @@ namespace ClockworkWasteland.EditorTools
         {
             using (new EditorGUILayout.HorizontalScope(EditorStyles.toolbar))
             {
-                tabIndex = GUILayout.Toolbar(tabIndex, new[] { "Existing Units", "Create Unit" }, EditorStyles.toolbarButton, GUILayout.Width(220f));
+                tabIndex = GUILayout.Toolbar(tabIndex, new[] { "Units", "Create Unit", "Skills", "Passives" }, EditorStyles.toolbarButton, GUILayout.Width(360f));
                 GUILayout.FlexibleSpace();
                 if (GUILayout.Button("Refresh", EditorStyles.toolbarButton, GUILayout.Width(90f)))
                 {
                     RefreshCombatants();
+                    RefreshSkills();
                 }
             }
         }
@@ -260,6 +286,188 @@ namespace ClockworkWasteland.EditorTools
             }
 
             EditorGUILayout.EndScrollView();
+        }
+
+        private void DrawSkillsTab()
+        {
+            using (new EditorGUILayout.HorizontalScope())
+            {
+                DrawSkillListPane();
+                DrawSkillDetailsPane();
+            }
+        }
+
+        private void DrawPassivesTab()
+        {
+            using (new EditorGUILayout.HorizontalScope())
+            {
+                DrawPassiveListPane();
+                DrawPassiveDetailsPane();
+            }
+        }
+
+        private void DrawSkillListPane()
+        {
+            using (new EditorGUILayout.VerticalScope(GUILayout.Width(340f)))
+            {
+                EditorGUILayout.LabelField("Skills", EditorStyles.boldLabel);
+                EditorGUILayout.HelpBox("Create new skills, inspect existing assets, and see which units currently use them.", MessageType.None);
+                skillSearch = EditorGUILayout.TextField("Search", skillSearch);
+
+                using (new EditorGUILayout.HorizontalScope())
+                {
+                    if (GUILayout.Button("Create Skill", GUILayout.Width(140f)))
+                    {
+                        CreateSkillAssetFromDraft();
+                    }
+
+                    if (GUILayout.Button("Duplicate Selected", GUILayout.Width(160f)))
+                    {
+                        DuplicateSelectedSkill();
+                    }
+                }
+
+                skillListScroll = EditorGUILayout.BeginScrollView(skillListScroll, "box");
+                foreach (var skill in skills.Where(DoesSkillMatchSearch))
+                {
+                    using (new EditorGUILayout.HorizontalScope())
+                    {
+                        var selected = selectedSkill == skill;
+                        if (GUILayout.Toggle(selected, $"{skill.skillName}  [{skill.skillId}]", "Button"))
+                        {
+                            SelectSkill(skill);
+                        }
+
+                        GUILayout.Label(skill.skillType.ToString(), GUILayout.Width(52f));
+                    }
+                }
+
+                EditorGUILayout.EndScrollView();
+
+                EditorGUILayout.Space(6f);
+                EditorGUILayout.LabelField("New Skill Draft", EditorStyles.boldLabel);
+                createSkillId = EditorGUILayout.TextField("Skill ID", createSkillId);
+                createSkillName = EditorGUILayout.TextField("Display Name", createSkillName);
+                createSkillDescription = EditorGUILayout.TextField("Description", createSkillDescription);
+                createSkillType = (SkillDataType)EditorGUILayout.EnumPopup("Type", createSkillType);
+                createSkillTargetType = (SkillDataTargetType)EditorGUILayout.EnumPopup("Target", createSkillTargetType);
+                createSkillBaseValue = EditorGUILayout.IntField("Base Value", createSkillBaseValue);
+                createSkillPowerMultiplier = EditorGUILayout.FloatField("Power Multiplier", createSkillPowerMultiplier);
+                createSkillManaCost = EditorGUILayout.IntField("Mana Cost", createSkillManaCost);
+                createSkillCooldown = EditorGUILayout.IntField("Cooldown", createSkillCooldown);
+            }
+        }
+
+        private void DrawSkillDetailsPane()
+        {
+            using (new EditorGUILayout.VerticalScope("box"))
+            {
+                if (selectedSkill == null)
+                {
+                    EditorGUILayout.LabelField("Skill Details", EditorStyles.boldLabel);
+                    EditorGUILayout.HelpBox("Choose a skill on the left.", MessageType.Info);
+                    return;
+                }
+
+                EditorGUILayout.LabelField(selectedSkill.skillName, EditorStyles.boldLabel);
+                EditorGUILayout.LabelField("Skill ID", selectedSkill.skillId);
+                EditorGUILayout.LabelField("Asset Path", AssetDatabase.GetAssetPath(selectedSkill));
+
+                using (new EditorGUILayout.HorizontalScope())
+                {
+                    if (GUILayout.Button("Ping Skill", GUILayout.Width(120f)))
+                    {
+                        EditorGUIUtility.PingObject(selectedSkill);
+                        Selection.activeObject = selectedSkill;
+                    }
+
+                    if (GUILayout.Button("Assign To Selected Unit", GUILayout.Width(180f)))
+                    {
+                        AssignSelectedSkillToSelectedCombatant();
+                    }
+                }
+
+                EditorGUILayout.Space(6f);
+                EditorGUILayout.LabelField("Used By", EditorStyles.boldLabel);
+                foreach (var combatant in GetCombatantsUsingSkill(selectedSkill))
+                {
+                    if (GUILayout.Button($"{combatant.displayName}  [{combatant.characterId}]", GUILayout.Width(280f)))
+                    {
+                        tabIndex = 0;
+                        SelectCombatant(combatant);
+                    }
+                }
+
+                if (!GetCombatantsUsingSkill(selectedSkill).Any())
+                {
+                    EditorGUILayout.HelpBox("No unit is currently using this skill.", MessageType.None);
+                }
+
+                EditorGUILayout.Space(8f);
+                skillDetailsScroll = EditorGUILayout.BeginScrollView(skillDetailsScroll);
+                EnsureSelectedSkillEditor();
+                selectedSkillEditor?.OnInspectorGUI();
+                EditorGUILayout.EndScrollView();
+            }
+        }
+
+        private void DrawPassiveListPane()
+        {
+            using (new EditorGUILayout.VerticalScope(GUILayout.Width(320f)))
+            {
+                EditorGUILayout.LabelField("Passives", EditorStyles.boldLabel);
+                EditorGUILayout.HelpBox("Inspect current passive rules and see which heroes are using them.", MessageType.None);
+                passiveListScroll = EditorGUILayout.BeginScrollView(passiveListScroll, "box");
+
+                foreach (HeroPassive passive in Enum.GetValues(typeof(HeroPassive)))
+                {
+                    if (passive == HeroPassive.None)
+                    {
+                        continue;
+                    }
+
+                    var isSelected = selectedPassive == passive;
+                    if (GUILayout.Toggle(isSelected, GetPassiveDisplayName(passive), "Button"))
+                    {
+                        selectedPassive = passive;
+                    }
+                }
+
+                EditorGUILayout.EndScrollView();
+            }
+        }
+
+        private HeroPassive selectedPassive = HeroPassive.Executioner;
+
+        private void DrawPassiveDetailsPane()
+        {
+            using (new EditorGUILayout.VerticalScope("box"))
+            {
+                EditorGUILayout.LabelField(GetPassiveDisplayName(selectedPassive), EditorStyles.boldLabel);
+                EditorGUILayout.HelpBox(GetPassiveRuleSummary(selectedPassive), MessageType.None);
+
+                EditorGUILayout.LabelField("Assigned Heroes", EditorStyles.boldLabel);
+                passiveDetailsScroll = EditorGUILayout.BeginScrollView(passiveDetailsScroll);
+                var users = combatants.Where(combatant => combatant != null && combatant.isHero && combatant.passive == selectedPassive).ToArray();
+                foreach (var combatant in users)
+                {
+                    if (GUILayout.Button($"{combatant.displayName}  [{combatant.characterId}]  {combatant.ArchetypeDisplayName}/{combatant.SpecializationDisplayName}", GUILayout.Width(420f)))
+                    {
+                        tabIndex = 0;
+                        SelectCombatant(combatant);
+                    }
+                }
+
+                if (users.Length == 0)
+                {
+                    EditorGUILayout.HelpBox("No hero is currently assigned to this passive.", MessageType.None);
+                }
+
+                EditorGUILayout.Space(10f);
+                EditorGUILayout.LabelField("Notes", EditorStyles.boldLabel);
+                EditorGUILayout.HelpBox(GetPassiveDesignNote(selectedPassive), MessageType.None);
+                EditorGUILayout.EndScrollView();
+            }
         }
 
         private void DrawSkillList()
@@ -647,6 +855,22 @@ namespace ClockworkWasteland.EditorTools
             }
         }
 
+        private void RefreshSkills()
+        {
+            skills = AssetDatabase.FindAssets("t:SkillData", new[] { SkillsPath })
+                .Select(AssetDatabase.GUIDToAssetPath)
+                .Select(AssetDatabase.LoadAssetAtPath<SkillData>)
+                .Where(skill => skill != null)
+                .OrderBy(skill => skill.skillName)
+                .ThenBy(skill => skill.skillId)
+                .ToArray();
+
+            if (selectedSkill != null)
+            {
+                selectedSkill = skills.FirstOrDefault(skill => skill == selectedSkill || skill.skillId == selectedSkill.skillId);
+            }
+        }
+
         private void SelectCombatant(CombatantDefinition combatant)
         {
             if (selectedCombatant == combatant)
@@ -683,6 +907,210 @@ namespace ClockworkWasteland.EditorTools
                 DestroyImmediate(selectedCombatantEditor);
                 selectedCombatantEditor = null;
             }
+
+            if (selectedSkillEditor != null)
+            {
+                DestroyImmediate(selectedSkillEditor);
+                selectedSkillEditor = null;
+            }
+        }
+
+        private void SelectSkill(SkillData skill)
+        {
+            if (selectedSkill == skill)
+            {
+                return;
+            }
+
+            selectedSkill = skill;
+            if (selectedSkillEditor != null)
+            {
+                DestroyImmediate(selectedSkillEditor);
+                selectedSkillEditor = null;
+            }
+        }
+
+        private void EnsureSelectedSkillEditor()
+        {
+            if (selectedSkill == null)
+            {
+                if (selectedSkillEditor != null)
+                {
+                    DestroyImmediate(selectedSkillEditor);
+                    selectedSkillEditor = null;
+                }
+
+                return;
+            }
+
+            if (selectedSkillEditor == null || selectedSkillEditor.target != selectedSkill)
+            {
+                if (selectedSkillEditor != null)
+                {
+                    DestroyImmediate(selectedSkillEditor);
+                }
+
+                selectedSkillEditor = UnityEditor.Editor.CreateEditor(selectedSkill);
+            }
+        }
+
+        private void CreateSkillAssetFromDraft()
+        {
+            EnsureFolderPath(SkillsPath);
+            var sanitizedId = SanitizeId(createSkillId);
+            if (string.IsNullOrWhiteSpace(sanitizedId))
+            {
+                EditorUtility.DisplayDialog("Create Skill", "Skill ID is required.", "OK");
+                return;
+            }
+
+            var assetPath = $"{SkillsPath}/{ToAssetName(createSkillName)}.asset";
+            var skill = AssetDatabase.LoadAssetAtPath<SkillData>(assetPath);
+            if (skill == null)
+            {
+                skill = ScriptableObject.CreateInstance<SkillData>();
+                AssetDatabase.CreateAsset(skill, assetPath);
+            }
+
+            skill.skillId = sanitizedId;
+            skill.skillName = string.IsNullOrWhiteSpace(createSkillName) ? sanitizedId : createSkillName.Trim();
+            skill.description = createSkillDescription ?? string.Empty;
+            skill.skillType = createSkillType;
+            skill.targetType = createSkillTargetType;
+            skill.baseValue = Mathf.Max(0, createSkillBaseValue);
+            skill.powerMultiplier = Mathf.Max(0.1f, createSkillPowerMultiplier);
+            skill.manaCost = Mathf.Max(0, createSkillManaCost);
+            skill.cooldown = Mathf.Max(0, createSkillCooldown);
+            skill.casterAllowedPositions = new[] { 1, 2, 3, 4 };
+            skill.targetAllowedPositions = new[] { 1, 2, 3, 4 };
+            EditorUtility.SetDirty(skill);
+            AssetDatabase.SaveAssets();
+            AssetDatabase.Refresh();
+            RefreshSkills();
+            SelectSkill(skill);
+        }
+
+        private void DuplicateSelectedSkill()
+        {
+            if (selectedSkill == null)
+            {
+                return;
+            }
+
+            EnsureFolderPath(SkillsPath);
+            var path = AssetDatabase.GetAssetPath(selectedSkill);
+            var duplicatedPath = AssetDatabase.GenerateUniqueAssetPath($"{SkillsPath}/{ToAssetName(selectedSkill.skillName)}_Copy.asset");
+            if (!AssetDatabase.CopyAsset(path, duplicatedPath))
+            {
+                EditorUtility.DisplayDialog("Duplicate Skill", "Failed to duplicate skill asset.", "OK");
+                return;
+            }
+
+            var duplicate = AssetDatabase.LoadAssetAtPath<SkillData>(duplicatedPath);
+            if (duplicate != null)
+            {
+                duplicate.skillId = $"{SanitizeId(selectedSkill.skillId)}_copy";
+                duplicate.skillName = $"{selectedSkill.skillName} Copy";
+                EditorUtility.SetDirty(duplicate);
+            }
+
+            AssetDatabase.SaveAssets();
+            AssetDatabase.Refresh();
+            RefreshSkills();
+            SelectSkill(duplicate);
+        }
+
+        private void AssignSelectedSkillToSelectedCombatant()
+        {
+            if (selectedSkill == null || selectedCombatant == null)
+            {
+                return;
+            }
+
+            var skillList = (selectedCombatant.skills ?? Array.Empty<SkillData>()).Where(skill => skill != null).ToList();
+            if (!skillList.Contains(selectedSkill))
+            {
+                skillList.Add(selectedSkill);
+                selectedCombatant.skills = skillList.ToArray();
+                EditorUtility.SetDirty(selectedCombatant);
+                AssetDatabase.SaveAssets();
+                RefreshCombatants();
+            }
+        }
+
+        private IEnumerable<CombatantDefinition> GetCombatantsUsingSkill(SkillData skill)
+        {
+            return combatants.Where(combatant => combatant != null && combatant.skills != null && combatant.skills.Contains(skill));
+        }
+
+        private bool DoesSkillMatchSearch(SkillData skill)
+        {
+            if (skill == null || string.IsNullOrWhiteSpace(skillSearch))
+            {
+                return skill != null;
+            }
+
+            return skill.skillName.IndexOf(skillSearch, StringComparison.OrdinalIgnoreCase) >= 0 ||
+                   skill.skillId.IndexOf(skillSearch, StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
+        private static string GetPassiveDisplayName(HeroPassive passive)
+        {
+            return passive switch
+            {
+                HeroPassive.Berserker => "狂战士",
+                HeroPassive.Executioner => "处决者",
+                HeroPassive.ChainReaction => "连锁反应",
+                HeroPassive.Backstab => "背刺",
+                HeroPassive.GlassCannon => "玻璃大炮",
+                HeroPassive.IronWill => "铁意志",
+                HeroPassive.Regenerator => "再生",
+                HeroPassive.ThornArmor => "荆棘护甲",
+                HeroPassive.Bodyguard => "保镖",
+                HeroPassive.Fortress => "堡垒",
+                HeroPassive.Tactician => "战术家",
+                HeroPassive.Scavenger => "回收者",
+                HeroPassive.Vanguard => "先锋",
+                HeroPassive.Reaper => "收割者",
+                HeroPassive.Inspirer => "鼓舞者",
+                _ => "无"
+            };
+        }
+
+        private static string GetPassiveRuleSummary(HeroPassive passive)
+        {
+            return passive switch
+            {
+                HeroPassive.Berserker => "血量低于 50% 时攻击提升。",
+                HeroPassive.Executioner => "攻击残血目标时伤害显著提升。",
+                HeroPassive.ChainReaction => "击杀后对另一敌人造成溅射伤害。",
+                HeroPassive.Backstab => "从后排压前排时伤害提高。",
+                HeroPassive.GlassCannon => "高攻击，低防御。",
+                HeroPassive.IronWill => "每场战斗首次致死时保留 1 点生命。",
+                HeroPassive.Regenerator => "回合开始时恢复生命。",
+                HeroPassive.ThornArmor => "受击时反弹部分伤害。",
+                HeroPassive.Bodyguard => "相邻队友受击时分担伤害。",
+                HeroPassive.Fortress => "位于前排时防御更高。",
+                HeroPassive.Tactician => "回合开始时帮助队友转冷。",
+                HeroPassive.Scavenger => "击杀敌人时自我恢复。",
+                HeroPassive.Vanguard => "位于前排时为全队提供攻击光环。",
+                HeroPassive.Reaper => "敌人死亡越多，自身伤害越高。",
+                HeroPassive.Inspirer => "回合开始时恢复全队生命。",
+                _ => "未定义。"
+            };
+        }
+
+        private static string GetPassiveDesignNote(HeroPassive passive)
+        {
+            return passive switch
+            {
+                HeroPassive.Executioner => "适合和 Slayer / Breaker 类专精配合，强化收尾节奏。",
+                HeroPassive.Backstab => "适合与后排点杀技能组合，形成高机动爆发。",
+                HeroPassive.Bodyguard => "更适合 Bulwark 的护卫路线，强化队友保护。",
+                HeroPassive.Tactician => "更适合 Stimulator 路线，围绕冷却和资源支援。",
+                HeroPassive.ChainReaction => "更适合 Bombardier 路线，强化 AOE 和击杀扩散。",
+                _ => "当前仍是 enum 规则；后续如需更深成长，可以升级成 PassiveData 资产。"
+            };
         }
 
         private static void ReplaceSpriteListFromSelection(List<Sprite> target)

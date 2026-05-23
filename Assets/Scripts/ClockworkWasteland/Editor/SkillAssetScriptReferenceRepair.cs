@@ -19,7 +19,7 @@ namespace ClockworkWasteland.Editor
             RepairSkillAssetReferences(false);
         }
 
-        [MenuItem("Clockwork Wasteland/Repair Skill Asset Script References")]
+        [MenuItem("Clockwork Wasteland/Tools/Repair Skill Asset Script References")]
         public static void RepairSkillAssetReferencesFromMenu()
         {
             RepairSkillAssetReferences(true);

@@ -51,10 +51,10 @@ namespace ClockworkWasteland.EditorTools
         private Sprite editAttackSprite;
         private Sprite editHitSprite;
 
-        [MenuItem("Clockwork Wasteland/Combatant Manager")]
+        [MenuItem("Clockwork Wasteland/Tools/Combat Content Manager")]
         public static void Open()
         {
-            var window = GetWindow<CombatantManagerWindow>("Combatant Manager");
+            var window = GetWindow<CombatantManagerWindow>("Combat Content Manager");
             window.minSize = new Vector2(1180f, 700f);
             window.Show();
         }

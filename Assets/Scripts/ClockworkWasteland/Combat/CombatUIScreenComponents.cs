@@ -1427,7 +1427,7 @@ namespace ClockworkWasteland.Combat
             };
         }
 
-        [MenuItem("Clockwork Wasteland/Create Screen UI Prefabs")]
+        [MenuItem("Clockwork Wasteland/Build/Create Screen UI Prefabs")]
         public static void CreateScreenUIPrefabs()
         {
             EnsureFolder("Assets", "UI");

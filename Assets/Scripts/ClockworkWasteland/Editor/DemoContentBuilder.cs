@@ -24,8 +24,7 @@ namespace ClockworkWasteland.EditorTools
         private const string CombatNameplatePrefabPath = PrefabsPath + "/CombatNameplate.prefab";
         private const string ScenePath = "Assets/Scenes/CombatDemo.unity";
 
-        [MenuItem("Clockwork Wasteland/Create Battle UI Prefab")]
-        public static BattleUI CreateBattleUIPrefab()
+        private static BattleUI CreateBattleUIPrefab()
         {
             EnsureFolder("Assets", "ClockworkWastelandDemo");
             EnsureFolder(Root, "Prefabs");
@@ -42,7 +41,7 @@ namespace ClockworkWasteland.EditorTools
             return AssetDatabase.LoadAssetAtPath<BattleUI>(BattleUIPrefabPath);
         }
 
-        [MenuItem("Clockwork Wasteland/Create Combat Unit Prefabs")]
+        [MenuItem("Clockwork Wasteland/Build/Create Combat Unit Prefabs")]
         public static void CreateCombatUnitPrefabs()
         {
             EnsureFolder("Assets", "ClockworkWastelandDemo");
@@ -163,7 +162,7 @@ namespace ClockworkWasteland.EditorTools
             return AssetDatabase.LoadAssetAtPath<CombatNameplate>(CombatNameplatePrefabPath);
         }
 
-        [MenuItem("Clockwork Wasteland/Create Character Unit Prefabs")]
+        [MenuItem("Clockwork Wasteland/Build/Rebuild Character Unit Prefabs")]
         public static void AssignExistingCombatantUnitPrefabs()
         {
             EnsureFolder("Assets", "ClockworkWastelandDemo");
@@ -223,7 +222,7 @@ namespace ClockworkWasteland.EditorTools
             return AssetDatabase.LoadAssetAtPath<CombatantView>(prefabPath);
         }
 
-        [MenuItem("Clockwork Wasteland/Create Combat Demo Assets")]
+        [MenuItem("Clockwork Wasteland/Build/Create Combat Demo Assets")]
         public static void CreateCombatDemoAssets()
         {
             EnsureFolder("Assets", "Resources");

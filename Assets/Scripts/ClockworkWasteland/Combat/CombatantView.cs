@@ -324,7 +324,7 @@ namespace ClockworkWasteland.Combat
             {
                 var positionObject = new GameObject("NameplatePosition");
                 positionObject.transform.SetParent(transform, false);
-                positionObject.transform.localPosition = new Vector3(0f, -0.24f, 0f);
+                positionObject.transform.localPosition = new Vector3(0f, -1.826f, 0f);
                 nameplatePosition = positionObject.transform;
             }
         }

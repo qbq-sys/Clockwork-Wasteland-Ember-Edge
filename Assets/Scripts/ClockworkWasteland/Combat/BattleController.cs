@@ -3350,7 +3350,8 @@ namespace ClockworkWasteland.Combat
 
                 var view = CreateCombatantView(unit);
                 view.transform.position = new Vector3(GetBaseSlotX(isHero, unit.CurrentPosition), -0.35f, 0f);
-                view.Initialize(unit, fallbackSprite, heroVisualScale, HandleUnitClicked, nameplatePrefab);
+                var runtimeScaleMultiplier = isHero ? heroVisualScale : 1f;
+                view.Initialize(unit, fallbackSprite, runtimeScaleMultiplier, HandleUnitClicked, nameplatePrefab);
                 view.AlignFeetTo(FormationFeetY);
                 views[unit] = view;
             }

@@ -215,7 +215,7 @@ namespace ClockworkWasteland.EditorTools
 
             var nameplatePosition = new GameObject("NameplatePosition");
             nameplatePosition.transform.SetParent(root.transform, false);
-            nameplatePosition.transform.localPosition = new Vector3(0f, -0.24f, 0f);
+            nameplatePosition.transform.localPosition = new Vector3(0f, -1.826f, 0f);
 
             var prefab = PrefabUtility.SaveAsPrefabAsset(root, prefabPath);
             Object.DestroyImmediate(root);

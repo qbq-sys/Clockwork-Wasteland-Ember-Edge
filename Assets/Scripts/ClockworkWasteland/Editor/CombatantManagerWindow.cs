@@ -870,7 +870,7 @@ namespace ClockworkWasteland.EditorTools
                 var nameplatePosition = EnsureChild(prefabRoot.transform, "NameplatePosition");
                 if (nameplatePosition.localPosition == Vector3.zero)
                 {
-                    nameplatePosition.localPosition = new Vector3(0f, -0.24f, 0f);
+                    nameplatePosition.localPosition = new Vector3(0f, -1.826f, 0f);
                 }
 
                 var colliderTransform = EnsureChild(prefabRoot.transform, "Collider");

@@ -3259,18 +3259,37 @@ namespace ClockworkWasteland.Combat
         {
             var pool = enemyParty != null && enemyParty.Length > 0
                 ? enemyParty.Where(enemy => enemy != null).ToArray()
-                : DemoBattleBootstrap.CreateDefaultEnemies();
+                : LoadEnemyPool();
 
             if (pool.Length == 0)
             {
                 return DemoBattleBootstrap.CreateDefaultEnemies();
             }
 
-            var count = Mathf.Clamp(Random.Range(2, 4), 1, Mathf.Min(MaxFormationSlots, pool.Length));
+            var maxCount = Mathf.Min(MaxFormationSlots, pool.Length);
+            var count = Random.Range(1, maxCount + 1);
             return pool
                 .OrderBy(_ => Random.value)
                 .Take(count)
                 .ToArray();
+        }
+
+        private static CombatantDefinition[] LoadEnemyPool()
+        {
+#if UNITY_EDITOR
+            var assetEnemies = AssetDatabase.FindAssets("t:CombatantDefinition", new[] { "Assets/ClockworkWastelandDemo/Data/Combatants" })
+                .Select(AssetDatabase.GUIDToAssetPath)
+                .Select(AssetDatabase.LoadAssetAtPath<CombatantDefinition>)
+                .Where(enemy => enemy != null && !enemy.isHero)
+                .OrderBy(enemy => enemy.characterId)
+                .ToArray();
+
+            if (assetEnemies.Length > 0)
+            {
+                return assetEnemies;
+            }
+#endif
+            return DemoBattleBootstrap.CreateDefaultEnemies();
         }
 
         private void ClearEnemyUnits()

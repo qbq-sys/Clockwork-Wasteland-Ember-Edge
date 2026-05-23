@@ -895,6 +895,8 @@ namespace ClockworkWasteland.EditorTools
 
             try
             {
+                RemoveMissingScriptsRecursively(prefabRoot);
+
                 var view = prefabRoot.GetComponent<CombatantView>() ?? prefabRoot.AddComponent<CombatantView>();
                 var visualRoot = EnsureChild(prefabRoot.transform, "VisualRoot");
                 var bodySpriteTransform = EnsureChild(visualRoot, "BodySprite");
@@ -933,6 +935,7 @@ namespace ClockworkWasteland.EditorTools
                 }
 
                 var colliderTransform = EnsureChild(prefabRoot.transform, "Collider");
+                RemoveMissingScriptsRecursively(colliderTransform.gameObject);
                 var clickCollider = colliderTransform.GetComponent<BoxCollider2D>() ?? colliderTransform.gameObject.AddComponent<BoxCollider2D>();
                 if (colliderTransform.GetComponent<CombatantClickProxy>() == null)
                 {
@@ -955,6 +958,20 @@ namespace ClockworkWasteland.EditorTools
             }
 
             return AssetDatabase.LoadAssetAtPath<CombatantView>(prefabPath);
+        }
+
+        private static void RemoveMissingScriptsRecursively(GameObject root)
+        {
+            if (root == null)
+            {
+                return;
+            }
+
+            GameObjectUtility.RemoveMonoBehavioursWithMissingScript(root);
+            foreach (Transform child in root.transform)
+            {
+                RemoveMissingScriptsRecursively(child.gameObject);
+            }
         }
 
         private static SpriteRenderer EnsureSpriteRenderer(Transform transform, int defaultSortingOrder)

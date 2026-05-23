@@ -64,9 +64,11 @@ namespace ClockworkWasteland.EditorTools
         private CombatRowPreference createPreferredRow = CombatRowPreference.Flexible;
         private CombatSpecialization createSpecialization = CombatSpecialization.None;
         private HeroGrowthData createGrowthData;
+        private UnityEngine.Object createIdleSourceAsset;
         private Sprite createAttackSprite;
         private Sprite createHitSprite;
 
+        private UnityEngine.Object editIdleSourceAsset;
         private Sprite editAttackSprite;
         private Sprite editHitSprite;
 
@@ -210,12 +212,18 @@ namespace ClockworkWasteland.EditorTools
                 EditorGUILayout.LabelField("替换美术资源", EditorStyles.boldLabel);
                 EditorGUILayout.HelpBox("Idle 序列帧会更新头像、战斗立绘和预制体预览。攻击图/受击图会复制到角色专属特效目录，作为默认 Overlay。", MessageType.None);
 
+                editIdleSourceAsset = EditorGUILayout.ObjectField("待机整图/图集", editIdleSourceAsset, typeof(UnityEngine.Object), false);
                 DrawSpriteList("待机帧", editIdleFrames, allowCollectSelection: true);
                 editAttackSprite = (Sprite)EditorGUILayout.ObjectField("默认攻击图", editAttackSprite, typeof(Sprite), false);
                 editHitSprite = (Sprite)EditorGUILayout.ObjectField("默认受击图", editHitSprite, typeof(Sprite), false);
 
                 using (new EditorGUILayout.HorizontalScope())
                 {
+                    if (GUILayout.Button("从待机整图导入切片", GUILayout.Width(220f)))
+                    {
+                        ReplaceSpriteListFromAsset(editIdleFrames, editIdleSourceAsset);
+                    }
+
                     if (GUILayout.Button("从当前选择收集图片", GUILayout.Width(220f)))
                     {
                         ReplaceSpriteListFromSelection(editIdleFrames);
@@ -262,6 +270,7 @@ namespace ClockworkWasteland.EditorTools
             EditorGUILayout.Space(6f);
             DrawSkillList();
             EditorGUILayout.Space(6f);
+            createIdleSourceAsset = EditorGUILayout.ObjectField("待机整图/图集", createIdleSourceAsset, typeof(UnityEngine.Object), false);
             DrawSpriteList("待机帧", createIdleFrames, allowCollectSelection: true);
 
             createAttackSprite = (Sprite)EditorGUILayout.ObjectField("默认攻击图", createAttackSprite, typeof(Sprite), false);
@@ -269,6 +278,11 @@ namespace ClockworkWasteland.EditorTools
 
             using (new EditorGUILayout.HorizontalScope())
             {
+                if (GUILayout.Button("从待机整图导入切片", GUILayout.Width(220f)))
+                {
+                    ReplaceSpriteListFromAsset(createIdleFrames, createIdleSourceAsset);
+                }
+
                 if (GUILayout.Button("从当前选择收集待机帧", GUILayout.Width(220f)))
                 {
                     ReplaceSpriteListFromSelection(createIdleFrames);
@@ -1230,6 +1244,35 @@ namespace ClockworkWasteland.EditorTools
             }
 
             target.AddRange(selectedSprites.OrderBy(sprite => sprite.name));
+        }
+
+        private static void ReplaceSpriteListFromAsset(List<Sprite> target, UnityEngine.Object sourceAsset)
+        {
+            target.Clear();
+            if (sourceAsset == null)
+            {
+                return;
+            }
+
+            var assetPath = AssetDatabase.GetAssetPath(sourceAsset);
+            if (string.IsNullOrWhiteSpace(assetPath))
+            {
+                return;
+            }
+
+            var sprites = AssetDatabase.LoadAllAssetsAtPath(assetPath)
+                .OfType<Sprite>()
+                .OrderByDescending(sprite => sprite.rect.y)
+                .ThenBy(sprite => sprite.rect.x)
+                .ThenBy(sprite => sprite.name)
+                .ToArray();
+
+            if (sprites.Length == 0 && sourceAsset is Sprite singleSprite)
+            {
+                sprites = new[] { singleSprite };
+            }
+
+            target.AddRange(sprites);
         }
 
         private static void AddSelectedSkills(List<SkillData> target)

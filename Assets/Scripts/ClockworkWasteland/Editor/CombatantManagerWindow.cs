@@ -15,6 +15,7 @@ namespace ClockworkWasteland.EditorTools
         private const string SkillsPath = Root + "/Data/Skills";
         private const string GrowthsPath = Root + "/Data/Growth";
         private const string UnitPrefabsPath = Root + "/Prefabs/CombatUnits";
+        private const string CharacterArtRoot = "Assets/Art/Characters";
         private const string CharacterSpecificVfxRoot = "Assets/Art/VFX/Combat/CharacterSpecific";
 
         private readonly List<Sprite> createIdleFrames = new List<Sprite>();
@@ -238,7 +239,7 @@ namespace ClockworkWasteland.EditorTools
         {
             createScroll = EditorGUILayout.BeginScrollView(createScroll);
             EditorGUILayout.LabelField("创建新单位", EditorStyles.boldLabel);
-            EditorGUILayout.HelpBox("拖入切好的待机帧，以及默认攻击图/受击图。工具会自动创建 CombatantDefinition、战斗预制体和角色专属特效资源。", MessageType.None);
+            EditorGUILayout.HelpBox("待机帧、默认攻击图、默认受击图可以从任意目录直接拖入。工具会自动复制到角色规范目录、重命名，并创建 CombatantDefinition、战斗预制体和角色专属特效资源。", MessageType.None);
 
             createDisplayName = EditorGUILayout.TextField("显示名称", createDisplayName);
             createCharacterId = EditorGUILayout.TextField("角色 ID", createCharacterId);
@@ -539,7 +540,7 @@ namespace ClockworkWasteland.EditorTools
                 return;
             }
 
-            var idleFrames = createIdleFrames.Where(sprite => sprite != null).ToArray();
+            var idleFrames = PrepareManagedIdleFrames(characterId, createIdleFrames.Where(sprite => sprite != null).ToArray());
             if (idleFrames.Length == 0)
             {
                 EditorUtility.DisplayDialog("创建单位", "至少需要一张待机帧图片。", "确定");
@@ -572,7 +573,9 @@ namespace ClockworkWasteland.EditorTools
             combatant.currentExperience = Mathf.Max(0, combatant.currentExperience);
             combatant.currentHealth = -1;
 
-            CopyDefaultCharacterSpecificVfx(characterId, createAttackSprite, createHitSprite);
+            var managedAttackSprite = PrepareManagedOverlaySprite(characterId, createAttackSprite, "Attack", "attack");
+            var managedHitSprite = PrepareManagedOverlaySprite(characterId, createHitSprite, "Hit", "hit");
+            CopyDefaultCharacterSpecificVfx(characterId, managedAttackSprite, managedHitSprite);
             combatant.unitPrefabPath = GetUnitPrefabPath(combatant);
             combatant.unitPrefab = CreateOrUpdateCombatUnitPrefab(combatant);
 
@@ -591,7 +594,7 @@ namespace ClockworkWasteland.EditorTools
                 return;
             }
 
-            var idleFrames = editIdleFrames.Where(sprite => sprite != null).ToArray();
+            var idleFrames = PrepareManagedIdleFrames(combatant.characterId, editIdleFrames.Where(sprite => sprite != null).ToArray());
             if (idleFrames.Length > 0)
             {
                 combatant.idleAnimationFrames = idleFrames;
@@ -599,7 +602,9 @@ namespace ClockworkWasteland.EditorTools
                 combatant.portrait = idleFrames[0];
             }
 
-            CopyDefaultCharacterSpecificVfx(combatant.characterId, editAttackSprite, editHitSprite);
+            var managedAttackSprite = PrepareManagedOverlaySprite(combatant.characterId, editAttackSprite, "Attack", "attack");
+            var managedHitSprite = PrepareManagedOverlaySprite(combatant.characterId, editHitSprite, "Hit", "hit");
+            CopyDefaultCharacterSpecificVfx(combatant.characterId, managedAttackSprite, managedHitSprite);
             combatant.unitPrefabPath = GetUnitPrefabPath(combatant);
             combatant.unitPrefab = CreateOrUpdateCombatUnitPrefab(combatant);
             EditorUtility.SetDirty(combatant);
@@ -698,6 +703,87 @@ namespace ClockworkWasteland.EditorTools
             }
         }
 
+        private static Sprite[] PrepareManagedIdleFrames(string characterId, Sprite[] sourceSprites)
+        {
+            if (string.IsNullOrWhiteSpace(characterId) || sourceSprites == null || sourceSprites.Length == 0)
+            {
+                return Array.Empty<Sprite>();
+            }
+
+            var idleFolder = $"{GetCharacterArtFolder(characterId)}/Idle";
+            EnsureFolderPath(idleFolder);
+            var distinctSourcePaths = sourceSprites
+                .Where(sprite => sprite != null)
+                .Select(AssetDatabase.GetAssetPath)
+                .Where(path => !string.IsNullOrWhiteSpace(path))
+                .Distinct()
+                .ToArray();
+
+            if (distinctSourcePaths.Length == 1)
+            {
+                var extension = Path.GetExtension(distinctSourcePaths[0]);
+                var targetPath = $"{idleFolder}/{SanitizeId(characterId)}_idle_sheet{extension}";
+                CopyAssetToManagedPath(distinctSourcePaths[0], targetPath);
+                return AssetDatabase.LoadAllAssetsAtPath(targetPath)
+                    .OfType<Sprite>()
+                    .OrderByDescending(sprite => sprite.rect.y)
+                    .ThenBy(sprite => sprite.rect.x)
+                    .ThenBy(sprite => sprite.name)
+                    .ToArray();
+            }
+
+            var orderedSources = sourceSprites
+                .Where(sprite => sprite != null)
+                .OrderBy(sprite => sprite.name)
+                .ToArray();
+            var managedSprites = new List<Sprite>(orderedSources.Length);
+            for (var i = 0; i < orderedSources.Length; i++)
+            {
+                var sourcePath = AssetDatabase.GetAssetPath(orderedSources[i]);
+                if (string.IsNullOrWhiteSpace(sourcePath))
+                {
+                    continue;
+                }
+
+                var extension = Path.GetExtension(sourcePath);
+                var targetPath = $"{idleFolder}/{SanitizeId(characterId)}_idle_{i + 1:000}{extension}";
+                CopyAssetToManagedPath(sourcePath, targetPath);
+                var copiedSprite = AssetDatabase.LoadAssetAtPath<Sprite>(targetPath);
+                if (copiedSprite != null)
+                {
+                    managedSprites.Add(copiedSprite);
+                }
+            }
+
+            return managedSprites.ToArray();
+        }
+
+        private static Sprite PrepareManagedOverlaySprite(string characterId, Sprite sprite, string categoryFolder, string canonicalName)
+        {
+            if (string.IsNullOrWhiteSpace(characterId) || sprite == null)
+            {
+                return null;
+            }
+
+            var sourcePath = AssetDatabase.GetAssetPath(sprite);
+            if (string.IsNullOrWhiteSpace(sourcePath))
+            {
+                return null;
+            }
+
+            var targetFolder = $"{GetCharacterArtFolder(characterId)}/{categoryFolder}";
+            EnsureFolderPath(targetFolder);
+            var extension = Path.GetExtension(sourcePath);
+            var targetPath = $"{targetFolder}/{SanitizeId(characterId)}_{canonicalName}{extension}";
+            CopyAssetToManagedPath(sourcePath, targetPath);
+            return AssetDatabase.LoadAssetAtPath<Sprite>(targetPath);
+        }
+
+        private static string GetCharacterArtFolder(string characterId)
+        {
+            return $"{CharacterArtRoot}/{SanitizeId(characterId)}";
+        }
+
         private static void CopySpriteAsset(Sprite sprite, string targetPath)
         {
             var sourcePath = AssetDatabase.GetAssetPath(sprite);
@@ -706,6 +792,17 @@ namespace ClockworkWasteland.EditorTools
                 return;
             }
 
+            CopyAssetToManagedPath(sourcePath, targetPath);
+        }
+
+        private static void CopyAssetToManagedPath(string sourcePath, string targetPath)
+        {
+            if (string.IsNullOrWhiteSpace(sourcePath) || string.IsNullOrWhiteSpace(targetPath))
+            {
+                return;
+            }
+
+            EnsureFolderPath(Path.GetDirectoryName(targetPath)?.Replace('\\', '/') ?? "Assets");
             if (AssetDatabase.LoadAssetAtPath<UnityEngine.Object>(targetPath) != null)
             {
                 AssetDatabase.DeleteAsset(targetPath);
@@ -1116,7 +1213,23 @@ namespace ClockworkWasteland.EditorTools
         private static void ReplaceSpriteListFromSelection(List<Sprite> target)
         {
             target.Clear();
-            target.AddRange(Selection.objects.OfType<Sprite>().OrderBy(sprite => sprite.name));
+            var selectedSprites = Selection.objects.OfType<Sprite>().ToArray();
+            var distinctPaths = selectedSprites
+                .Select(AssetDatabase.GetAssetPath)
+                .Where(path => !string.IsNullOrWhiteSpace(path))
+                .Distinct()
+                .ToArray();
+
+            if (distinctPaths.Length == 1)
+            {
+                target.AddRange(selectedSprites
+                    .OrderByDescending(sprite => sprite.rect.y)
+                    .ThenBy(sprite => sprite.rect.x)
+                    .ThenBy(sprite => sprite.name));
+                return;
+            }
+
+            target.AddRange(selectedSprites.OrderBy(sprite => sprite.name));
         }
 
         private static void AddSelectedSkills(List<SkillData> target)

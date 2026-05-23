@@ -206,6 +206,11 @@ namespace ClockworkWasteland.EditorTools
                     {
                         RunEditorAction("重建预制体", () => RebuildCombatantPrefab(selectedCombatant));
                     }
+
+                    if (GUILayout.Button("删除单位", GUILayout.Width(120f)))
+                    {
+                        RunEditorAction("删除单位", () => DeleteCombatant(selectedCombatant));
+                    }
                 }
 
                 EditorGUILayout.Space(6f);
@@ -644,6 +649,47 @@ namespace ClockworkWasteland.EditorTools
             SelectCombatant(combatant);
         }
 
+        private void DeleteCombatant(CombatantDefinition combatant)
+        {
+            if (combatant == null)
+            {
+                return;
+            }
+
+            var displayName = string.IsNullOrWhiteSpace(combatant.displayName) ? combatant.characterId : combatant.displayName;
+            var choice = EditorUtility.DisplayDialogComplex(
+                "删除单位",
+                $"将删除单位“{displayName}”的定义、战斗预制体、角色美术目录和默认特效目录。\n此操作不可撤销。",
+                "删除",
+                "取消",
+                "仅删除定义");
+
+            if (choice == 1)
+            {
+                return;
+            }
+
+            var definitionPath = AssetDatabase.GetAssetPath(combatant);
+            var prefabPath = GetUnitPrefabPath(combatant);
+            var characterArtFolder = GetCharacterArtFolder(combatant.characterId);
+            var vfxFolder = GetCharacterSpecificVfxFolder(combatant.characterId);
+
+            SelectCombatant(null);
+
+            if (choice == 0)
+            {
+                DeleteAssetIfExists(prefabPath);
+                DeleteAssetIfExists(characterArtFolder);
+                DeleteAssetIfExists(vfxFolder);
+            }
+
+            DeleteAssetIfExists(definitionPath);
+
+            AssetDatabase.SaveAssets();
+            AssetDatabase.Refresh();
+            RefreshCombatants();
+        }
+
         private static CombatantDefinition LoadOrCreateCombatant(string characterId, string displayName)
         {
             var existing = FindCombatantById(characterId);
@@ -823,6 +869,19 @@ namespace ClockworkWasteland.EditorTools
             }
 
             AssetDatabase.CopyAsset(sourcePath, targetPath);
+        }
+
+        private static void DeleteAssetIfExists(string assetPath)
+        {
+            if (string.IsNullOrWhiteSpace(assetPath))
+            {
+                return;
+            }
+
+            if (AssetDatabase.LoadAssetAtPath<UnityEngine.Object>(assetPath) != null || AssetDatabase.IsValidFolder(assetPath))
+            {
+                AssetDatabase.DeleteAsset(assetPath);
+            }
         }
 
         private static CombatantView CreateOrUpdateCombatUnitPrefab(CombatantDefinition combatant)

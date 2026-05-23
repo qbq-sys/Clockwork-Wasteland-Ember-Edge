@@ -3257,9 +3257,15 @@ namespace ClockworkWasteland.Combat
 
         private CombatantDefinition[] SelectRandomEnemyEncounter()
         {
-            var pool = enemyParty != null && enemyParty.Length > 0
-                ? enemyParty.Where(enemy => enemy != null).ToArray()
-                : LoadEnemyPool();
+            var sceneEnemies = enemyParty == null
+                ? Enumerable.Empty<CombatantDefinition>()
+                : enemyParty.Where(enemy => enemy != null);
+            var pool = sceneEnemies
+                .Concat(LoadEnemyPool())
+                .Where(enemy => enemy != null)
+                .GroupBy(enemy => string.IsNullOrWhiteSpace(enemy.characterId) ? enemy.name : enemy.characterId)
+                .Select(group => group.First())
+                .ToArray();
 
             if (pool.Length == 0)
             {

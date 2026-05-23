@@ -138,6 +138,14 @@ namespace ClockworkWasteland.Combat
             popupInstance.Show(message, buttonLabel, onContinue);
         }
 
+        public void ShowChoicePopup(string message, string leftLabel, Action onLeft, string rightLabel, Action onRight)
+        {
+            popupInstance = GetOrCreatePopup();
+            popupInstance.gameObject.SetActive(true);
+            popupInstance.transform.SetAsLastSibling();
+            popupInstance.ShowChoice(message, leftLabel, onLeft, rightLabel, onRight);
+        }
+
         public BattleHudUI GetBattleHud()
         {
             return GetOrCreateScreen(battleHudPrefab, BattleHudPrefabPath);
@@ -717,6 +725,36 @@ namespace ClockworkWasteland.Combat
             {
                 gameObject.SetActive(false);
                 onContinue?.Invoke();
+            }, true);
+        }
+
+        public void ShowChoice(string message, string leftLabel, Action onLeft, string rightLabel, Action onRight)
+        {
+            var popupStyle = CombatUIImageStyle.Capture(popupBg);
+            BuildLayout();
+            var root = PrepareRoot();
+            var overlay = CombatUIScreenUtility.CreatePanel("PopupOverlay", root, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero, new Color(0f, 0f, 0f, 0.62f));
+            overlay.offsetMin = Vector2.zero;
+            overlay.offsetMax = Vector2.zero;
+            popupBg = CombatUIScreenUtility.CreatePanel("ChoicePanel", overlay, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, 18f), new Vector2(760f, 360f), new Color(0.035f, 0.026f, 0.024f, 0.96f)).GetComponent<Image>();
+            popupStyle.ApplyTo(popupBg);
+
+            var text = CombatUIScreenUtility.CreateText("ChoiceText", popupBg.rectTransform, new Vector2(0f, 0.5f), new Vector2(1f, 1f), new Vector2(0f, -30f), new Vector2(-56f, 208f), 24, TextAnchor.UpperLeft);
+            text.rectTransform.offsetMin = new Vector2(32f, 90f);
+            text.rectTransform.offsetMax = new Vector2(-32f, -28f);
+            text.text = message;
+            CombatUIScreenUtility.SetTextStyle(text, new Color(0.96f, 0.82f, 0.48f), false);
+
+            CombatUIScreenUtility.CreateButton(popupBg.rectTransform, leftLabel, new Vector2(210f, -300f), () =>
+            {
+                gameObject.SetActive(false);
+                onLeft?.Invoke();
+            }, true);
+
+            CombatUIScreenUtility.CreateButton(popupBg.rectTransform, rightLabel, new Vector2(550f, -300f), () =>
+            {
+                gameObject.SetActive(false);
+                onRight?.Invoke();
             }, true);
         }
     }

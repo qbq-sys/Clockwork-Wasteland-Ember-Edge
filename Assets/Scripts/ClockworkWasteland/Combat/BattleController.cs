@@ -120,6 +120,7 @@ namespace ClockworkWasteland.Combat
         public int level;
         public int experience;
         public int health;
+        public int specialization;
     }
 
     public sealed class BattleController : MonoBehaviour
@@ -647,6 +648,9 @@ namespace ClockworkWasteland.Combat
                 hero.currentLevel = Mathf.Max(1, state.level);
                 hero.currentExperience = Mathf.Max(0, state.experience);
                 hero.currentHealth = Mathf.Clamp(state.health, 0, hero.MaxHealthWithGrowth);
+                hero.specialization = System.Enum.IsDefined(typeof(CombatSpecialization), state.specialization)
+                    ? (CombatSpecialization)state.specialization
+                    : CombatSpecialization.None;
             }
         }
 
@@ -806,7 +810,8 @@ namespace ClockworkWasteland.Combat
                         unlocked = hero.isUnlocked,
                         level = hero.Level,
                         experience = hero.Experience,
-                        health = hero.CurrentHealth
+                        health = hero.CurrentHealth,
+                        specialization = (int)hero.specialization
                     })
                     .ToList()
             };
@@ -959,6 +964,8 @@ namespace ClockworkWasteland.Combat
             {
                 yield return null;
             }
+
+            yield return StartCoroutine(ResolvePendingSpecializationChoices(rewardResults));
         }
 
         private IEnumerator RunRestNode()
@@ -1079,6 +1086,91 @@ namespace ClockworkWasteland.Combat
             RefreshViews();
             SaveGameState();
             return results;
+        }
+
+        private IEnumerator ResolvePendingSpecializationChoices(IReadOnlyList<BattleRewardResult> rewardResults)
+        {
+            if (rewardResults == null || rewardResults.Count == 0)
+            {
+                yield break;
+            }
+
+            foreach (var result in rewardResults)
+            {
+                var hero = result.Hero;
+                if (hero == null || result.LevelsGained <= 0 || hero.specialization != CombatSpecialization.None || hero.Level < 2)
+                {
+                    continue;
+                }
+
+                if (!TryGetSpecializationChoices(hero.archetype, out var left, out var right))
+                {
+                    continue;
+                }
+
+                var resolved = false;
+                var selected = CombatSpecialization.None;
+                var message =
+                    $"{hero.displayName} 升到了 {hero.Level} 级，请选择专精分支。\n\n" +
+                    $"{GetSpecializationChoiceBlock(left)}\n\n" +
+                    $"{GetSpecializationChoiceBlock(right)}";
+
+                ui.ShowChoicePrompt(
+                    message,
+                    CombatantDefinition.GetSpecializationDisplayName(left),
+                    () =>
+                    {
+                        selected = left;
+                        resolved = true;
+                    },
+                    CombatantDefinition.GetSpecializationDisplayName(right),
+                    () =>
+                    {
+                        selected = right;
+                        resolved = true;
+                    });
+
+                while (!resolved)
+                {
+                    yield return null;
+                }
+
+                hero.specialization = selected;
+                ui.AddLog($"{hero.displayName} 选择了专精：{hero.SpecializationDisplayName}。");
+                SaveGameState();
+            }
+        }
+
+        private static bool TryGetSpecializationChoices(CombatArchetype archetype, out CombatSpecialization left, out CombatSpecialization right)
+        {
+            switch (archetype)
+            {
+                case CombatArchetype.Bulwark:
+                    left = CombatSpecialization.Bastion;
+                    right = CombatSpecialization.Sentinel;
+                    return true;
+                case CombatArchetype.Executioner:
+                    left = CombatSpecialization.Slayer;
+                    right = CombatSpecialization.Breaker;
+                    return true;
+                case CombatArchetype.Artificer:
+                    left = CombatSpecialization.Bombardier;
+                    right = CombatSpecialization.Controller;
+                    return true;
+                case CombatArchetype.Physician:
+                    left = CombatSpecialization.Surgeon;
+                    right = CombatSpecialization.Stimulator;
+                    return true;
+                default:
+                    left = CombatSpecialization.None;
+                    right = CombatSpecialization.None;
+                    return false;
+            }
+        }
+
+        private static string GetSpecializationChoiceBlock(CombatSpecialization specialization)
+        {
+            return $"{CombatantDefinition.GetSpecializationDisplayName(specialization)}：{CombatantDefinition.GetSpecializationSummary(specialization)}";
         }
 
         private IEnumerator BattleLoop()

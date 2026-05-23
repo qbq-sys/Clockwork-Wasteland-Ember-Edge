@@ -190,7 +190,7 @@ namespace ClockworkWasteland.Combat
             }
         }
 
-        private static string GetSpecializationDisplayName(CombatSpecialization value)
+        public static string GetSpecializationDisplayName(CombatSpecialization value)
         {
             switch (value)
             {
@@ -206,7 +206,7 @@ namespace ClockworkWasteland.Combat
             }
         }
 
-        private static string GetSpecializationSummary(CombatSpecialization value)
+        public static string GetSpecializationSummary(CombatSpecialization value)
         {
             switch (value)
             {

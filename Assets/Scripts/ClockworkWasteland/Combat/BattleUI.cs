@@ -396,6 +396,32 @@ namespace ClockworkWasteland.Combat
             }, true, null);
         }
 
+        public void ShowChoicePrompt(string message, string leftLabel, Action onLeft, string rightLabel, Action onRight)
+        {
+            EnsureRuntimePrefabUi();
+            if (runtimeUiManager != null)
+            {
+                runtimeUiManager.ShowChoicePopup(message, leftLabel, onLeft, rightLabel, onRight);
+                return;
+            }
+
+            EnsureOverlay();
+            overlayPanel.gameObject.SetActive(true);
+            overlayText.text = message;
+            var buttonParent = overlayPanel.Find("MessagePanel") as RectTransform ?? overlayPanel;
+            ClearRuntimeButtons(buttonParent);
+            CreateButton(buttonParent, leftLabel, new Vector2(190f, -166f), () =>
+            {
+                HideOverlay();
+                onLeft?.Invoke();
+            }, true, null);
+            CreateButton(buttonParent, rightLabel, new Vector2(430f, -166f), () =>
+            {
+                HideOverlay();
+                onRight?.Invoke();
+            }, true, null);
+        }
+
         public void ShowEndScreen(string message)
         {
             EnsureOverlay();

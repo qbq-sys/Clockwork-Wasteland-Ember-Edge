@@ -204,7 +204,7 @@ namespace ClockworkWasteland.EditorTools
 
                     if (GUILayout.Button("重建预制体", GUILayout.Width(120f)))
                     {
-                        RebuildCombatantPrefab(selectedCombatant);
+                        RunEditorAction("重建预制体", () => RebuildCombatantPrefab(selectedCombatant));
                     }
                 }
 
@@ -231,7 +231,7 @@ namespace ClockworkWasteland.EditorTools
 
                     if (GUILayout.Button("应用到当前单位", GUILayout.Width(220f)))
                     {
-                        ApplyVisualsToExistingCombatant(selectedCombatant);
+                        RunEditorAction("应用单位美术", () => ApplyVisualsToExistingCombatant(selectedCombatant));
                     }
                 }
 
@@ -297,7 +297,7 @@ namespace ClockworkWasteland.EditorTools
             EditorGUILayout.Space(10f);
             if (GUILayout.Button("创建 / 更新单位", GUILayout.Height(34f)))
             {
-                CreateOrUpdateCombatant();
+                RunEditorAction("创建 / 更新单位", CreateOrUpdateCombatant);
             }
 
             EditorGUILayout.EndScrollView();
@@ -839,14 +839,12 @@ namespace ClockworkWasteland.EditorTools
                 var view = prefabRoot.GetComponent<CombatantView>() ?? prefabRoot.AddComponent<CombatantView>();
                 var visualRoot = EnsureChild(prefabRoot.transform, "VisualRoot");
                 var bodySpriteTransform = EnsureChild(visualRoot, "BodySprite");
-                var bodyRenderer = bodySpriteTransform.GetComponent<SpriteRenderer>() ?? bodySpriteTransform.gameObject.AddComponent<SpriteRenderer>();
-                bodyRenderer.sortingOrder = bodyRenderer.sortingOrder == 0 ? 2 : bodyRenderer.sortingOrder;
+                var bodyRenderer = EnsureSpriteRenderer(bodySpriteTransform, 2);
                 bodyRenderer.sprite = combatant.idleAnimationFrames != null && combatant.idleAnimationFrames.Length > 0 ? combatant.idleAnimationFrames[0] : combatant.battleSprite;
                 bodyRenderer.color = combatant.tint;
 
                 var actionOverlayTransform = EnsureChild(visualRoot, "ActionOverlay");
-                var actionOverlay = actionOverlayTransform.GetComponent<SpriteRenderer>() ?? actionOverlayTransform.gameObject.AddComponent<SpriteRenderer>();
-                actionOverlay.sortingOrder = actionOverlay.sortingOrder == 0 ? 80 : actionOverlay.sortingOrder;
+                var actionOverlay = EnsureSpriteRenderer(actionOverlayTransform, 80);
                 actionOverlay.enabled = false;
                 if (!prefabExists || actionOverlayTransform.localPosition == Vector3.zero)
                 {
@@ -858,8 +856,7 @@ namespace ClockworkWasteland.EditorTools
                 }
 
                 var hitOverlayTransform = EnsureChild(visualRoot, "HitOverlay");
-                var hitOverlay = hitOverlayTransform.GetComponent<SpriteRenderer>() ?? hitOverlayTransform.gameObject.AddComponent<SpriteRenderer>();
-                hitOverlay.sortingOrder = hitOverlay.sortingOrder == 0 ? 81 : hitOverlay.sortingOrder;
+                var hitOverlay = EnsureSpriteRenderer(hitOverlayTransform, 81);
                 hitOverlay.enabled = false;
                 if (!prefabExists || hitOverlayTransform.localPosition == Vector3.zero)
                 {
@@ -899,6 +896,45 @@ namespace ClockworkWasteland.EditorTools
             }
 
             return AssetDatabase.LoadAssetAtPath<CombatantView>(prefabPath);
+        }
+
+        private static SpriteRenderer EnsureSpriteRenderer(Transform transform, int defaultSortingOrder)
+        {
+            if (transform == null)
+            {
+                throw new InvalidOperationException("SpriteRenderer 目标节点不存在。");
+            }
+
+            if (!transform.TryGetComponent<SpriteRenderer>(out var renderer) || renderer == null)
+            {
+                renderer = transform.gameObject.AddComponent<SpriteRenderer>();
+            }
+
+            if (renderer == null)
+            {
+                throw new InvalidOperationException($"无法在节点 {transform.name} 上创建 SpriteRenderer。");
+            }
+
+            if (renderer.sortingOrder == 0)
+            {
+                renderer.sortingOrder = defaultSortingOrder;
+            }
+
+            return renderer;
+        }
+
+        private static void RunEditorAction(string title, Action action)
+        {
+            try
+            {
+                action?.Invoke();
+            }
+            catch (Exception ex)
+            {
+                Debug.LogException(ex);
+                EditorUtility.DisplayDialog(title, $"执行失败：{ex.Message}", "确定");
+                GUIUtility.ExitGUI();
+            }
         }
 
         private static Transform EnsureChild(Transform parent, string childName)

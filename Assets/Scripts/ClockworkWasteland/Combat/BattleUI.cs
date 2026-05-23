@@ -215,6 +215,7 @@ namespace ClockworkWasteland.Combat
                 $"资源消耗：{skill.manaCost}    冷却：{skill.cooldown}\n" +
                 $"\u65bd\u6cd5\u7ad9\u4f4d\uff1a{casterRequirement}\n" +
                 $"\u76ee\u6807\u7ad9\u4f4d\uff1a{BuildTargetRequirement(skill)}\n" +
+                $"{BuildTacticalHint(skill)}" +
                 $"{skill.description}";
 
             if (skillDescriptionUI != null && source != null)
@@ -241,6 +242,51 @@ namespace ClockworkWasteland.Combat
             if (skillDescriptionPanel != null)
             {
                 skillDescriptionPanel.gameObject.SetActive(false);
+            }
+        }
+
+        private static string BuildTacticalHint(SkillData skill)
+        {
+            if (skill == null)
+            {
+                return string.Empty;
+            }
+
+            switch (skill.skillId)
+            {
+                case "hero_01_iron_cut":
+                    return "\u6218\u672f\u63d0\u793a\uff1a\u524d\u6392\u5bf9\u649e\u65f6\u4f1a\u989d\u5916\u56de\u8d44\u6e90\u3002\n";
+                case "hero_01_ember_rend":
+                    return "\u6218\u672f\u63d0\u793a\uff1a\u5bf9\u5df2\u707c\u70e7\u76ee\u6807\u4f24\u5bb3\u66f4\u9ad8\u3002\n";
+                case "hero_02_iron_cut":
+                    return "\u6218\u672f\u63d0\u793a\uff1a\u53d7\u4f24\u65f6\u53ef\u7528\u6765\u8fd1\u8eab\u81ea\u7a33\u3002\n";
+                case "hero_02_field_stitch":
+                    return "\u6218\u672f\u63d0\u793a\uff1a\u62a2\u6551\u534a\u8840\u4ee5\u4e0b\u53cb\u519b\u6536\u76ca\u66f4\u9ad8\u3002\n";
+                case "hero_03_scrap_volley":
+                    return "\u6218\u672f\u63d0\u793a\uff1a\u547d\u4e2d\u591a\u4eba\u65f6\u53ef\u56de\u8d44\u6e90\uff0c\u66f4\u504f\u7a33\u5b9a\u538b\u5236\u3002\n";
+                case "hero_04_iron_cut":
+                    return "\u6218\u672f\u63d0\u793a\uff1a\u66f4\u9002\u5408\u5148\u538b\u5065\u5eb7\u76ee\u6807\uff0c\u4e3a\u540e\u7eed\u5904\u51b3\u94fa\u8def\u3002\n";
+                case "hero_04_guard_break":
+                case "hero_07_guard_break":
+                    return "\u6218\u672f\u63d0\u793a\uff1a\u6253\u524d\u6392\u76ee\u6807\u65f6\u6536\u76ca\u66f4\u9ad8\u3002\n";
+                case "hero_05_gear_sting":
+                    return "\u6218\u672f\u63d0\u793a\uff1a\u4ece\u540e\u6392\u70b9\u6740\u654c\u65b9\u540e\u6392\u65f6\u4f1a\u56de\u8d44\u6e90\u3002\n";
+                case "hero_05_iron_cut":
+                    return "\u6218\u672f\u63d0\u793a\uff1a\u66f4\u9002\u5408\u6536\u5272\u534a\u8840\u4ee5\u4e0b\u76ee\u6807\u3002\n";
+                case "hero_06_field_stitch":
+                    return "\u6218\u672f\u63d0\u793a\uff1a\u6cbb\u7597\u540e\u4f1a\u7f29\u77ed\u76ee\u6807\u4e00\u4e2a\u6280\u80fd\u51b7\u5374\u3002\n";
+                case "hero_06_steam_purge":
+                    return "\u6218\u672f\u63d0\u793a\uff1a\u53ef\u51c0\u5316\u8d1f\u9762\u72b6\u6001\uff0c\u5904\u7406\u707c\u70e7\u548c\u7729\u6655\u65f6\u6cbb\u7597\u66f4\u5f3a\u3002\n";
+                case "hero_06_stun_chain":
+                    return "\u6218\u672f\u63d0\u793a\uff1a\u538b\u5236\u654c\u65b9\u540e\u6392\u65f6\u4f1a\u989d\u5916\u56de\u8d44\u6e90\u3002\n";
+                case "hero_07_iron_cut":
+                    return "\u6218\u672f\u63d0\u793a\uff1a\u524d\u6392\u4f7f\u7528\u53ef\u5c0f\u5e45\u56de\u590d\u81ea\u8eab\u751f\u547d\u3002\n";
+                case "hero_08_scrap_volley":
+                    return "\u6218\u672f\u63d0\u793a\uff1a\u5bf9\u540e\u6392\u66f4\u5f3a\uff0c\u4f46\u547d\u4e2d\u591a\u4eba\u4f1a\u627f\u53d7\u66f4\u9ad8\u53cd\u9707\u3002\n";
+                case "hero_08_ember_rend":
+                    return "\u6218\u672f\u63d0\u793a\uff1a\u538b\u4e2d\u654c\u65b9\u540e\u6392\u4f1a\u56de\u8d44\u6e90\uff0c\u5bf9\u5df2\u707c\u70e7\u76ee\u6807\u589e\u4f24\u3002\n";
+                default:
+                    return string.Empty;
             }
         }
 

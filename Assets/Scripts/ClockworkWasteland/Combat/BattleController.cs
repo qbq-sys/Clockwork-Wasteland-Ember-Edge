@@ -1599,6 +1599,30 @@ namespace ClockworkWasteland.Combat
                     break;
             }
 
+            switch (skill.skillId)
+            {
+                case "hero_03_scrap_volley":
+                    score += enemyTargets.Length >= 3 ? 10f : -4f;
+                    break;
+                case "hero_04_guard_break":
+                case "hero_07_guard_break":
+                    score += enemyTargets.Any(target => target.IsFrontline) ? 10f : -3f;
+                    break;
+                case "hero_05_gear_sting":
+                case "hero_08_ember_rend":
+                    score += enemyTargets.Any(target => target.IsBackline) ? 12f : -4f;
+                    break;
+                case "hero_06_field_stitch":
+                    score += injuredAllies.Any(unit => unit.HasCooldowns) ? 10f : 0f;
+                    break;
+                case "hero_06_steam_purge":
+                    score += injuredAllies.Any(unit => unit.HasStatus("\u707c\u70e7") || unit.HasStatus("\u7729\u6655")) ? 14f : 0f;
+                    break;
+                case "hero_06_stun_chain":
+                    score += enemyTargets.Any(target => target.IsBackline) ? 10f : 0f;
+                    break;
+            }
+
             return score;
         }
 

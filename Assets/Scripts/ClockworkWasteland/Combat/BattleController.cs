@@ -1388,8 +1388,11 @@ namespace ClockworkWasteland.Combat
                     target.AddOrRefreshBuff(skill.applyBuff);
                     ui.AddLog($"{target.DisplayName} \u83b7\u5f97\u72b6\u6001\uff1a{skill.applyBuff.buffName}\u3002");
                 }
+
+                ApplySkillSpecificPostEffect(actor, skill, target);
             }
 
+            ApplySkillSpecificActionRisk(actor, skill, targets);
             ApplyArchetypeActionResource(actor, skill, targets);
 
             yield return StartCoroutine(MoveAttackFocusLunge(lungeState, false));
@@ -1948,6 +1951,7 @@ namespace ClockworkWasteland.Combat
 
             amount = ApplyPassiveToDamage(actor, target, amount);
             amount = ApplyArchetypeToDamage(actor, skill, target, amount);
+            amount = ApplySkillSpecificDamageModifier(actor, skill, target, amount);
 
             var critical = Random.value < 0.1f;
             if (critical)
@@ -2093,6 +2097,108 @@ namespace ClockworkWasteland.Combat
             }
 
             return Mathf.Max(1, amount);
+        }
+
+        private int ApplySkillSpecificDamageModifier(BattleUnit actor, SkillData skill, BattleUnit target, int amount)
+        {
+            if (actor == null || skill == null || target == null || amount <= 0)
+            {
+                return amount;
+            }
+
+            switch (skill.skillId)
+            {
+                case "hero_01_ember_rend":
+                case "hero_08_ember_rend":
+                    if (target.HasStatus("\u707c\u70e7"))
+                    {
+                        amount = Mathf.RoundToInt(amount * 1.25f);
+                    }
+                    break;
+                case "hero_04_guard_break":
+                case "hero_07_guard_break":
+                    if (target.IsFrontline)
+                    {
+                        amount = Mathf.RoundToInt(amount * 1.2f);
+                    }
+                    break;
+                case "hero_05_gear_sting":
+                    if (target.IsBackline)
+                    {
+                        amount = Mathf.RoundToInt(amount * 1.3f);
+                    }
+                    break;
+            }
+
+            return Mathf.Max(1, amount);
+        }
+
+        private void ApplySkillSpecificPostEffect(BattleUnit actor, SkillData skill, BattleUnit target)
+        {
+            if (actor == null || skill == null || target == null || !target.IsAlive)
+            {
+                return;
+            }
+
+            if (skill.skillId == "hero_06_steam_purge")
+            {
+                var removed = target.ClearNegativeStatuses();
+                if (removed > 0)
+                {
+                    ui.AddLog($"{target.DisplayName} \u7684\u8d1f\u9762\u72b6\u6001\u88ab\u84b8\u6c7d\u51c0\u5316\u6e05\u9664\u4e86\u3002");
+                    if (views.TryGetValue(target, out var targetView))
+                    {
+                        targetView.ShowFloatingText("\u51c0\u5316", new Color(0.58f, 0.94f, 0.95f), 0.9f);
+                    }
+                }
+            }
+        }
+
+        private void ApplySkillSpecificActionRisk(BattleUnit actor, SkillData skill, BattleUnit[] targets)
+        {
+            if (actor == null || skill == null || targets == null || targets.Length == 0 || !actor.IsAlive)
+            {
+                return;
+            }
+
+            var livingTargets = targets.Count(target => target != null && target.IsAlive);
+            if (livingTargets < 3)
+            {
+                return;
+            }
+
+            var recoilDamage = 0;
+            switch (skill.skillId)
+            {
+                case "hero_03_scrap_volley":
+                    recoilDamage = 2;
+                    break;
+                case "hero_08_scrap_volley":
+                    recoilDamage = 4;
+                    break;
+            }
+
+            if (recoilDamage <= 0)
+            {
+                return;
+            }
+
+            ApplyRawDamage(actor, recoilDamage, null);
+            ui.AddLog($"{actor.DisplayName} \u627f\u53d7\u4e86\u9f50\u5c04\u53cd\u9707\u7684 {recoilDamage} \u70b9\u4f24\u5bb3\u3002");
+            if (views.TryGetValue(actor, out var actorView))
+            {
+                actorView.ShowFloatingText($"-{recoilDamage}", new Color(1f, 0.68f, 0.22f), 0.95f);
+            }
+
+            if (!actor.IsAlive)
+            {
+                if (views.TryGetValue(actor, out var deadActorView))
+                {
+                    StartCoroutine(deadActorView.PlayDeathCue());
+                }
+
+                HandleDefeatedUnit(actor, skill);
+            }
         }
 
         private void ApplyPassiveOnTurnStart(BattleUnit unit)

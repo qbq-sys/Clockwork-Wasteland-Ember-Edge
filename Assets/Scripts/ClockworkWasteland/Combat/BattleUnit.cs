@@ -140,6 +140,18 @@ namespace ClockworkWasteland.Combat
             return IsHero && Definition.passive == passive;
         }
 
+        public bool HasStatus(string displayName)
+        {
+            return !string.IsNullOrWhiteSpace(displayName) &&
+                   statuses.Any(status => status.DisplayName == displayName && status.TurnsRemaining > 0);
+        }
+
+        public int ClearNegativeStatuses()
+        {
+            var removed = statuses.RemoveAll(status => status.TickDamage > 0 || status.Stun);
+            return removed;
+        }
+
         private void StartCooldown(SkillData skill)
         {
             if (skill != null && skill.cooldown > 0)

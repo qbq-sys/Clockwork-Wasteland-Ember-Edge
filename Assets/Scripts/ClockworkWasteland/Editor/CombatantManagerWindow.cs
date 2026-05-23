@@ -37,8 +37,8 @@ namespace ClockworkWasteland.EditorTools
         private int tabIndex;
         private string skillSearch = string.Empty;
         private string createSkillId = "new_skill";
-        private string createSkillName = "New Skill";
-        private string createSkillDescription = "A combat action.";
+        private string createSkillName = "新技能";
+        private string createSkillDescription = "一个战斗动作。";
         private SkillDataType createSkillType = SkillDataType.伤害;
         private SkillDataTargetType createSkillTargetType = SkillDataTargetType.单敌;
         private int createSkillBaseValue = 8;
@@ -47,7 +47,7 @@ namespace ClockworkWasteland.EditorTools
         private int createSkillCooldown;
 
         private string createCharacterId = "new_unit";
-        private string createDisplayName = "New Unit";
+        private string createDisplayName = "新单位";
         private bool createIsHero = true;
         private bool createStartUnlocked = true;
         private int createRecruitPrice = 500;
@@ -72,7 +72,7 @@ namespace ClockworkWasteland.EditorTools
         [MenuItem("Clockwork Wasteland/Tools/Combat Content Manager")]
         public static void Open()
         {
-            var window = GetWindow<CombatantManagerWindow>("Combat Content Manager");
+            var window = GetWindow<CombatantManagerWindow>("战斗内容管理器");
             window.minSize = new Vector2(1180f, 700f);
             window.Show();
         }
@@ -115,9 +115,9 @@ namespace ClockworkWasteland.EditorTools
         {
             using (new EditorGUILayout.HorizontalScope(EditorStyles.toolbar))
             {
-                tabIndex = GUILayout.Toolbar(tabIndex, new[] { "Units", "Create Unit", "Skills", "Passives" }, EditorStyles.toolbarButton, GUILayout.Width(360f));
+                tabIndex = GUILayout.Toolbar(tabIndex, new[] { "单位", "创建单位", "技能", "被动" }, EditorStyles.toolbarButton, GUILayout.Width(360f));
                 GUILayout.FlexibleSpace();
-                if (GUILayout.Button("Refresh", EditorStyles.toolbarButton, GUILayout.Width(90f)))
+                if (GUILayout.Button("刷新", EditorStyles.toolbarButton, GUILayout.Width(90f)))
                 {
                     RefreshCombatants();
                     RefreshSkills();
@@ -138,8 +138,8 @@ namespace ClockworkWasteland.EditorTools
         {
             using (new EditorGUILayout.VerticalScope(GUILayout.Width(320f)))
             {
-                EditorGUILayout.LabelField("Combatants", EditorStyles.boldLabel);
-                EditorGUILayout.HelpBox("Select an existing unit to inspect its definition, ping its prefab, rebuild its combat prefab, or replace visuals.", MessageType.None);
+                EditorGUILayout.LabelField("单位列表", EditorStyles.boldLabel);
+                EditorGUILayout.HelpBox("选择一个已有单位，查看定义、定位预制体、重建战斗预制体，或替换立绘与攻击/受击资源。", MessageType.None);
 
                 listScroll = EditorGUILayout.BeginScrollView(listScroll, "box");
                 foreach (var combatant in combatants)
@@ -157,7 +157,7 @@ namespace ClockworkWasteland.EditorTools
                             SelectCombatant(combatant);
                         }
 
-                        GUILayout.Label(combatant.isHero ? "Hero" : "Enemy", GUILayout.Width(48f));
+                        GUILayout.Label(combatant.isHero ? "英雄" : "敌人", GUILayout.Width(48f));
                     }
                 }
 
@@ -171,25 +171,25 @@ namespace ClockworkWasteland.EditorTools
             {
                 if (selectedCombatant == null)
                 {
-                    EditorGUILayout.LabelField("Details", EditorStyles.boldLabel);
-                    EditorGUILayout.HelpBox("Choose a unit on the left.", MessageType.Info);
+                    EditorGUILayout.LabelField("详情", EditorStyles.boldLabel);
+                    EditorGUILayout.HelpBox("请先在左侧选择一个单位。", MessageType.Info);
                     return;
                 }
 
                 EditorGUILayout.LabelField(selectedCombatant.displayName, EditorStyles.boldLabel);
-                EditorGUILayout.LabelField("Character ID", selectedCombatant.characterId);
-                EditorGUILayout.LabelField("Prefab Path", GetUnitPrefabPath(selectedCombatant));
-                EditorGUILayout.LabelField("VFX Folder", GetCharacterSpecificVfxFolder(selectedCombatant.characterId));
+                EditorGUILayout.LabelField("角色 ID", selectedCombatant.characterId);
+                EditorGUILayout.LabelField("预制体路径", GetUnitPrefabPath(selectedCombatant));
+                EditorGUILayout.LabelField("特效资源目录", GetCharacterSpecificVfxFolder(selectedCombatant.characterId));
 
                 using (new EditorGUILayout.HorizontalScope())
                 {
-                    if (GUILayout.Button("Ping Definition", GUILayout.Width(120f)))
+                    if (GUILayout.Button("定位定义", GUILayout.Width(120f)))
                     {
                         EditorGUIUtility.PingObject(selectedCombatant);
                         Selection.activeObject = selectedCombatant;
                     }
 
-                    if (GUILayout.Button("Ping Prefab", GUILayout.Width(120f)))
+                    if (GUILayout.Button("定位预制体", GUILayout.Width(120f)))
                     {
                         var prefab = AssetDatabase.LoadAssetAtPath<CombatantView>(GetUnitPrefabPath(selectedCombatant));
                         if (prefab != null)
@@ -199,28 +199,28 @@ namespace ClockworkWasteland.EditorTools
                         }
                     }
 
-                    if (GUILayout.Button("Rebuild Prefab", GUILayout.Width(120f)))
+                    if (GUILayout.Button("重建预制体", GUILayout.Width(120f)))
                     {
                         RebuildCombatantPrefab(selectedCombatant);
                     }
                 }
 
                 EditorGUILayout.Space(6f);
-                EditorGUILayout.LabelField("Replace Visuals", EditorStyles.boldLabel);
-                EditorGUILayout.HelpBox("Idle frames update portrait/battle sprite and prefab preview. Attack/Hit sprites are copied to the character-specific VFX folder as default overlays.", MessageType.None);
+                EditorGUILayout.LabelField("替换美术资源", EditorStyles.boldLabel);
+                EditorGUILayout.HelpBox("Idle 序列帧会更新头像、战斗立绘和预制体预览。攻击图/受击图会复制到角色专属特效目录，作为默认 Overlay。", MessageType.None);
 
-                DrawSpriteList("Idle Frames", editIdleFrames, allowCollectSelection: true);
-                editAttackSprite = (Sprite)EditorGUILayout.ObjectField("Default Attack Sprite", editAttackSprite, typeof(Sprite), false);
-                editHitSprite = (Sprite)EditorGUILayout.ObjectField("Default Hit Sprite", editHitSprite, typeof(Sprite), false);
+                DrawSpriteList("待机帧", editIdleFrames, allowCollectSelection: true);
+                editAttackSprite = (Sprite)EditorGUILayout.ObjectField("默认攻击图", editAttackSprite, typeof(Sprite), false);
+                editHitSprite = (Sprite)EditorGUILayout.ObjectField("默认受击图", editHitSprite, typeof(Sprite), false);
 
                 using (new EditorGUILayout.HorizontalScope())
                 {
-                    if (GUILayout.Button("Collect Sprites From Selection", GUILayout.Width(220f)))
+                    if (GUILayout.Button("从当前选择收集图片", GUILayout.Width(220f)))
                     {
                         ReplaceSpriteListFromSelection(editIdleFrames);
                     }
 
-                    if (GUILayout.Button("Apply Visuals To Selected Unit", GUILayout.Width(220f)))
+                    if (GUILayout.Button("应用到当前单位", GUILayout.Width(220f)))
                     {
                         ApplyVisualsToExistingCombatant(selectedCombatant);
                     }
@@ -237,50 +237,50 @@ namespace ClockworkWasteland.EditorTools
         private void DrawCreateUnitTab()
         {
             createScroll = EditorGUILayout.BeginScrollView(createScroll);
-            EditorGUILayout.LabelField("Create New Unit", EditorStyles.boldLabel);
-            EditorGUILayout.HelpBox("Drag in cut idle frames plus default attack/hit sprites. The tool will create a CombatantDefinition, combat prefab, and character-specific VFX assets.", MessageType.None);
+            EditorGUILayout.LabelField("创建新单位", EditorStyles.boldLabel);
+            EditorGUILayout.HelpBox("拖入切好的待机帧，以及默认攻击图/受击图。工具会自动创建 CombatantDefinition、战斗预制体和角色专属特效资源。", MessageType.None);
 
-            createDisplayName = EditorGUILayout.TextField("Display Name", createDisplayName);
-            createCharacterId = EditorGUILayout.TextField("Character ID", createCharacterId);
-            createIsHero = EditorGUILayout.Toggle("Is Hero", createIsHero);
-            createStartUnlocked = EditorGUILayout.Toggle("Start Unlocked", createStartUnlocked);
-            createRecruitPrice = EditorGUILayout.IntField("Recruit Price", createRecruitPrice);
-            createMaxHealth = EditorGUILayout.IntField("Max Health", createMaxHealth);
-            createSpeed = EditorGUILayout.IntField("Speed", createSpeed);
-            createAttack = EditorGUILayout.IntField("Attack", createAttack);
-            createDefense = EditorGUILayout.IntField("Defense", createDefense);
-            createCorpseHealth = EditorGUILayout.IntField("Corpse Health", createCorpseHealth);
-            createOccupiedSlotCount = EditorGUILayout.IntField("Occupied Slot Count", createOccupiedSlotCount);
-            createVisualScale = EditorGUILayout.FloatField("Visual Scale", createVisualScale);
-            createTint = EditorGUILayout.ColorField("Tint", createTint);
-            createArchetype = (CombatArchetype)EditorGUILayout.EnumPopup("Archetype", createArchetype);
-            createPreferredRow = (CombatRowPreference)EditorGUILayout.EnumPopup("Preferred Row", createPreferredRow);
-            createSpecialization = (CombatSpecialization)EditorGUILayout.EnumPopup("Specialization", createSpecialization);
-            createGrowthData = (HeroGrowthData)EditorGUILayout.ObjectField("Growth Data", createGrowthData, typeof(HeroGrowthData), false);
+            createDisplayName = EditorGUILayout.TextField("显示名称", createDisplayName);
+            createCharacterId = EditorGUILayout.TextField("角色 ID", createCharacterId);
+            createIsHero = EditorGUILayout.Toggle("是否英雄", createIsHero);
+            createStartUnlocked = EditorGUILayout.Toggle("初始解锁", createStartUnlocked);
+            createRecruitPrice = EditorGUILayout.IntField("招募价格", createRecruitPrice);
+            createMaxHealth = EditorGUILayout.IntField("最大生命", createMaxHealth);
+            createSpeed = EditorGUILayout.IntField("速度", createSpeed);
+            createAttack = EditorGUILayout.IntField("攻击", createAttack);
+            createDefense = EditorGUILayout.IntField("防御", createDefense);
+            createCorpseHealth = EditorGUILayout.IntField("尸体生命", createCorpseHealth);
+            createOccupiedSlotCount = EditorGUILayout.IntField("占位格数", createOccupiedSlotCount);
+            createVisualScale = EditorGUILayout.FloatField("显示缩放", createVisualScale);
+            createTint = EditorGUILayout.ColorField("染色", createTint);
+            createArchetype = (CombatArchetype)EditorGUILayout.EnumPopup("职业原型", createArchetype);
+            createPreferredRow = (CombatRowPreference)EditorGUILayout.EnumPopup("偏好站位", createPreferredRow);
+            createSpecialization = (CombatSpecialization)EditorGUILayout.EnumPopup("专精分支", createSpecialization);
+            createGrowthData = (HeroGrowthData)EditorGUILayout.ObjectField("成长数据", createGrowthData, typeof(HeroGrowthData), false);
 
             EditorGUILayout.Space(6f);
             DrawSkillList();
             EditorGUILayout.Space(6f);
-            DrawSpriteList("Idle Frames", createIdleFrames, allowCollectSelection: true);
+            DrawSpriteList("待机帧", createIdleFrames, allowCollectSelection: true);
 
-            createAttackSprite = (Sprite)EditorGUILayout.ObjectField("Default Attack Sprite", createAttackSprite, typeof(Sprite), false);
-            createHitSprite = (Sprite)EditorGUILayout.ObjectField("Default Hit Sprite", createHitSprite, typeof(Sprite), false);
+            createAttackSprite = (Sprite)EditorGUILayout.ObjectField("默认攻击图", createAttackSprite, typeof(Sprite), false);
+            createHitSprite = (Sprite)EditorGUILayout.ObjectField("默认受击图", createHitSprite, typeof(Sprite), false);
 
             using (new EditorGUILayout.HorizontalScope())
             {
-                if (GUILayout.Button("Collect Idle Frames From Selection", GUILayout.Width(220f)))
+                if (GUILayout.Button("从当前选择收集待机帧", GUILayout.Width(220f)))
                 {
                     ReplaceSpriteListFromSelection(createIdleFrames);
                 }
 
-                if (GUILayout.Button("Add Selected Skills", GUILayout.Width(180f)))
+                if (GUILayout.Button("添加当前选中技能", GUILayout.Width(180f)))
                 {
                     AddSelectedSkills(createSkills);
                 }
             }
 
             EditorGUILayout.Space(10f);
-            if (GUILayout.Button("Create / Update Unit", GUILayout.Height(34f)))
+            if (GUILayout.Button("创建 / 更新单位", GUILayout.Height(34f)))
             {
                 CreateOrUpdateCombatant();
             }
@@ -310,18 +310,18 @@ namespace ClockworkWasteland.EditorTools
         {
             using (new EditorGUILayout.VerticalScope(GUILayout.Width(340f)))
             {
-                EditorGUILayout.LabelField("Skills", EditorStyles.boldLabel);
-                EditorGUILayout.HelpBox("Create new skills, inspect existing assets, and see which units currently use them.", MessageType.None);
-                skillSearch = EditorGUILayout.TextField("Search", skillSearch);
+                EditorGUILayout.LabelField("技能列表", EditorStyles.boldLabel);
+                EditorGUILayout.HelpBox("创建新技能、查看已有技能资产，并追踪当前哪些单位正在使用这些技能。", MessageType.None);
+                skillSearch = EditorGUILayout.TextField("搜索", skillSearch);
 
                 using (new EditorGUILayout.HorizontalScope())
                 {
-                    if (GUILayout.Button("Create Skill", GUILayout.Width(140f)))
+                    if (GUILayout.Button("创建技能", GUILayout.Width(140f)))
                     {
                         CreateSkillAssetFromDraft();
                     }
 
-                    if (GUILayout.Button("Duplicate Selected", GUILayout.Width(160f)))
+                    if (GUILayout.Button("复制当前技能", GUILayout.Width(160f)))
                     {
                         DuplicateSelectedSkill();
                     }
@@ -345,16 +345,16 @@ namespace ClockworkWasteland.EditorTools
                 EditorGUILayout.EndScrollView();
 
                 EditorGUILayout.Space(6f);
-                EditorGUILayout.LabelField("New Skill Draft", EditorStyles.boldLabel);
-                createSkillId = EditorGUILayout.TextField("Skill ID", createSkillId);
-                createSkillName = EditorGUILayout.TextField("Display Name", createSkillName);
-                createSkillDescription = EditorGUILayout.TextField("Description", createSkillDescription);
-                createSkillType = (SkillDataType)EditorGUILayout.EnumPopup("Type", createSkillType);
-                createSkillTargetType = (SkillDataTargetType)EditorGUILayout.EnumPopup("Target", createSkillTargetType);
-                createSkillBaseValue = EditorGUILayout.IntField("Base Value", createSkillBaseValue);
-                createSkillPowerMultiplier = EditorGUILayout.FloatField("Power Multiplier", createSkillPowerMultiplier);
-                createSkillManaCost = EditorGUILayout.IntField("Mana Cost", createSkillManaCost);
-                createSkillCooldown = EditorGUILayout.IntField("Cooldown", createSkillCooldown);
+                EditorGUILayout.LabelField("新技能草稿", EditorStyles.boldLabel);
+                createSkillId = EditorGUILayout.TextField("技能 ID", createSkillId);
+                createSkillName = EditorGUILayout.TextField("显示名称", createSkillName);
+                createSkillDescription = EditorGUILayout.TextField("描述", createSkillDescription);
+                createSkillType = (SkillDataType)EditorGUILayout.EnumPopup("类型", createSkillType);
+                createSkillTargetType = (SkillDataTargetType)EditorGUILayout.EnumPopup("目标类型", createSkillTargetType);
+                createSkillBaseValue = EditorGUILayout.IntField("基础数值", createSkillBaseValue);
+                createSkillPowerMultiplier = EditorGUILayout.FloatField("倍率", createSkillPowerMultiplier);
+                createSkillManaCost = EditorGUILayout.IntField("消耗资源", createSkillManaCost);
+                createSkillCooldown = EditorGUILayout.IntField("冷却回合", createSkillCooldown);
             }
         }
 
@@ -364,31 +364,31 @@ namespace ClockworkWasteland.EditorTools
             {
                 if (selectedSkill == null)
                 {
-                    EditorGUILayout.LabelField("Skill Details", EditorStyles.boldLabel);
-                    EditorGUILayout.HelpBox("Choose a skill on the left.", MessageType.Info);
+                    EditorGUILayout.LabelField("技能详情", EditorStyles.boldLabel);
+                    EditorGUILayout.HelpBox("请先在左侧选择一个技能。", MessageType.Info);
                     return;
                 }
 
                 EditorGUILayout.LabelField(selectedSkill.skillName, EditorStyles.boldLabel);
-                EditorGUILayout.LabelField("Skill ID", selectedSkill.skillId);
-                EditorGUILayout.LabelField("Asset Path", AssetDatabase.GetAssetPath(selectedSkill));
+                EditorGUILayout.LabelField("技能 ID", selectedSkill.skillId);
+                EditorGUILayout.LabelField("资源路径", AssetDatabase.GetAssetPath(selectedSkill));
 
                 using (new EditorGUILayout.HorizontalScope())
                 {
-                    if (GUILayout.Button("Ping Skill", GUILayout.Width(120f)))
+                    if (GUILayout.Button("定位技能", GUILayout.Width(120f)))
                     {
                         EditorGUIUtility.PingObject(selectedSkill);
                         Selection.activeObject = selectedSkill;
                     }
 
-                    if (GUILayout.Button("Assign To Selected Unit", GUILayout.Width(180f)))
+                    if (GUILayout.Button("挂到当前单位", GUILayout.Width(180f)))
                     {
                         AssignSelectedSkillToSelectedCombatant();
                     }
                 }
 
                 EditorGUILayout.Space(6f);
-                EditorGUILayout.LabelField("Used By", EditorStyles.boldLabel);
+                EditorGUILayout.LabelField("当前使用者", EditorStyles.boldLabel);
                 foreach (var combatant in GetCombatantsUsingSkill(selectedSkill))
                 {
                     if (GUILayout.Button($"{combatant.displayName}  [{combatant.characterId}]", GUILayout.Width(280f)))
@@ -400,7 +400,7 @@ namespace ClockworkWasteland.EditorTools
 
                 if (!GetCombatantsUsingSkill(selectedSkill).Any())
                 {
-                    EditorGUILayout.HelpBox("No unit is currently using this skill.", MessageType.None);
+                    EditorGUILayout.HelpBox("当前没有单位使用这个技能。", MessageType.None);
                 }
 
                 EditorGUILayout.Space(8f);
@@ -415,8 +415,8 @@ namespace ClockworkWasteland.EditorTools
         {
             using (new EditorGUILayout.VerticalScope(GUILayout.Width(320f)))
             {
-                EditorGUILayout.LabelField("Passives", EditorStyles.boldLabel);
-                EditorGUILayout.HelpBox("Inspect current passive rules and see which heroes are using them.", MessageType.None);
+                EditorGUILayout.LabelField("被动列表", EditorStyles.boldLabel);
+                EditorGUILayout.HelpBox("查看当前被动规则，并追踪哪些英雄挂载了这些被动。", MessageType.None);
                 passiveListScroll = EditorGUILayout.BeginScrollView(passiveListScroll, "box");
 
                 foreach (HeroPassive passive in Enum.GetValues(typeof(HeroPassive)))
@@ -446,7 +446,7 @@ namespace ClockworkWasteland.EditorTools
                 EditorGUILayout.LabelField(GetPassiveDisplayName(selectedPassive), EditorStyles.boldLabel);
                 EditorGUILayout.HelpBox(GetPassiveRuleSummary(selectedPassive), MessageType.None);
 
-                EditorGUILayout.LabelField("Assigned Heroes", EditorStyles.boldLabel);
+                EditorGUILayout.LabelField("已挂载英雄", EditorStyles.boldLabel);
                 passiveDetailsScroll = EditorGUILayout.BeginScrollView(passiveDetailsScroll);
                 var users = combatants.Where(combatant => combatant != null && combatant.isHero && combatant.passive == selectedPassive).ToArray();
                 foreach (var combatant in users)
@@ -460,11 +460,11 @@ namespace ClockworkWasteland.EditorTools
 
                 if (users.Length == 0)
                 {
-                    EditorGUILayout.HelpBox("No hero is currently assigned to this passive.", MessageType.None);
+                    EditorGUILayout.HelpBox("当前没有英雄挂载这个被动。", MessageType.None);
                 }
 
                 EditorGUILayout.Space(10f);
-                EditorGUILayout.LabelField("Notes", EditorStyles.boldLabel);
+                EditorGUILayout.LabelField("设计备注", EditorStyles.boldLabel);
                 EditorGUILayout.HelpBox(GetPassiveDesignNote(selectedPassive), MessageType.None);
                 EditorGUILayout.EndScrollView();
             }
@@ -472,7 +472,7 @@ namespace ClockworkWasteland.EditorTools
 
         private void DrawSkillList()
         {
-            EditorGUILayout.LabelField("Skills", EditorStyles.boldLabel);
+            EditorGUILayout.LabelField("技能槽", EditorStyles.boldLabel);
             for (var i = 0; i < createSkills.Count; i++)
             {
                 using (new EditorGUILayout.HorizontalScope())
@@ -486,7 +486,7 @@ namespace ClockworkWasteland.EditorTools
                 }
             }
 
-            if (GUILayout.Button("Add Skill Slot", GUILayout.Width(120f)))
+            if (GUILayout.Button("添加技能槽", GUILayout.Width(120f)))
             {
                 createSkills.Add(null);
             }
@@ -510,12 +510,12 @@ namespace ClockworkWasteland.EditorTools
 
             using (new EditorGUILayout.HorizontalScope())
             {
-                if (GUILayout.Button("Add Sprite Slot", GUILayout.Width(120f)))
+                if (GUILayout.Button("添加图片槽", GUILayout.Width(120f)))
                 {
                     sprites.Add(null);
                 }
 
-                if (allowCollectSelection && GUILayout.Button("Replace From Selection", GUILayout.Width(160f)))
+                if (allowCollectSelection && GUILayout.Button("从当前选择替换", GUILayout.Width(160f)))
                 {
                     ReplaceSpriteListFromSelection(sprites);
                 }
@@ -529,20 +529,20 @@ namespace ClockworkWasteland.EditorTools
             var characterId = SanitizeId(createCharacterId);
             if (string.IsNullOrWhiteSpace(characterId))
             {
-                EditorUtility.DisplayDialog("Create Unit", "Character ID is required.", "OK");
+                EditorUtility.DisplayDialog("创建单位", "角色 ID 不能为空。", "确定");
                 return;
             }
 
             if (string.IsNullOrWhiteSpace(createDisplayName))
             {
-                EditorUtility.DisplayDialog("Create Unit", "Display Name is required.", "OK");
+                EditorUtility.DisplayDialog("创建单位", "显示名称不能为空。", "确定");
                 return;
             }
 
             var idleFrames = createIdleFrames.Where(sprite => sprite != null).ToArray();
             if (idleFrames.Length == 0)
             {
-                EditorUtility.DisplayDialog("Create Unit", "At least one idle frame is required.", "OK");
+                EditorUtility.DisplayDialog("创建单位", "至少需要一张待机帧图片。", "确定");
                 return;
             }
 
@@ -581,7 +581,7 @@ namespace ClockworkWasteland.EditorTools
             AssetDatabase.Refresh();
             RefreshCombatants();
             SelectCombatant(combatant);
-            EditorUtility.DisplayDialog("Create Unit", $"Created/updated {combatant.displayName}.", "OK");
+            EditorUtility.DisplayDialog("创建单位", $"已创建/更新：{combatant.displayName}", "确定");
         }
 
         private void ApplyVisualsToExistingCombatant(CombatantDefinition combatant)
@@ -960,7 +960,7 @@ namespace ClockworkWasteland.EditorTools
             var sanitizedId = SanitizeId(createSkillId);
             if (string.IsNullOrWhiteSpace(sanitizedId))
             {
-                EditorUtility.DisplayDialog("Create Skill", "Skill ID is required.", "OK");
+                EditorUtility.DisplayDialog("创建技能", "技能 ID 不能为空。", "确定");
                 return;
             }
 
@@ -1002,7 +1002,7 @@ namespace ClockworkWasteland.EditorTools
             var duplicatedPath = AssetDatabase.GenerateUniqueAssetPath($"{SkillsPath}/{ToAssetName(selectedSkill.skillName)}_Copy.asset");
             if (!AssetDatabase.CopyAsset(path, duplicatedPath))
             {
-                EditorUtility.DisplayDialog("Duplicate Skill", "Failed to duplicate skill asset.", "OK");
+                EditorUtility.DisplayDialog("复制技能", "复制技能资源失败。", "确定");
                 return;
             }
 

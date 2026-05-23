@@ -1372,7 +1372,7 @@ namespace ClockworkWasteland.Combat
                 }
                 else
                 {
-                    var amount = CalculateHealingAmount(actor, skill);
+                    var amount = CalculateHealingAmount(actor, skill, target);
                     target.Heal(amount);
                     CombatAudio.Instance.PlayHeal();
                     ui.AddLog($"{actor.DisplayName} \u4f7f\u7528 {skill.skillName}\uff0c{target.DisplayName} \u6062\u590d {amount} \u70b9\u751f\u547d\u3002");
@@ -1392,6 +1392,7 @@ namespace ClockworkWasteland.Combat
                 ApplySkillSpecificPostEffect(actor, skill, target);
             }
 
+            ApplySkillSpecificActionReward(actor, skill, targets);
             ApplySkillSpecificActionRisk(actor, skill, targets);
             ApplyArchetypeActionResource(actor, skill, targets);
 
@@ -2128,6 +2129,12 @@ namespace ClockworkWasteland.Combat
                         amount = Mathf.RoundToInt(amount * 1.3f);
                     }
                     break;
+                case "hero_08_scrap_volley":
+                    if (target.IsBackline)
+                    {
+                        amount = Mathf.RoundToInt(amount * 1.15f);
+                    }
+                    break;
             }
 
             return Mathf.Max(1, amount);
@@ -2140,16 +2147,57 @@ namespace ClockworkWasteland.Combat
                 return;
             }
 
-            if (skill.skillId == "hero_06_steam_purge")
+            switch (skill.skillId)
             {
-                var removed = target.ClearNegativeStatuses();
-                if (removed > 0)
-                {
-                    ui.AddLog($"{target.DisplayName} \u7684\u8d1f\u9762\u72b6\u6001\u88ab\u84b8\u6c7d\u51c0\u5316\u6e05\u9664\u4e86\u3002");
-                    if (views.TryGetValue(target, out var targetView))
+                case "hero_06_field_stitch":
+                    var cooledSkill = target.ReduceRandomCooldown(1);
+                    if (cooledSkill != null)
                     {
-                        targetView.ShowFloatingText("\u51c0\u5316", new Color(0.58f, 0.94f, 0.95f), 0.9f);
+                        ui.AddLog($"{target.DisplayName} \u7684 {cooledSkill.skillName} \u51b7\u5374\u7f29\u77ed\u4e86 1 \u56de\u5408\u3002");
+                        if (views.TryGetValue(target, out var fieldStitchTargetView))
+                        {
+                            fieldStitchTargetView.ShowFloatingText("\u51b7\u5374-1", new Color(0.76f, 0.9f, 1f), 0.85f);
+                        }
                     }
+                    break;
+                case "hero_06_steam_purge":
+                    var removed = target.ClearNegativeStatuses();
+                    if (removed > 0)
+                    {
+                        ui.AddLog($"{target.DisplayName} \u7684\u8d1f\u9762\u72b6\u6001\u88ab\u84b8\u6c7d\u51c0\u5316\u6e05\u9664\u4e86\u3002");
+                        if (views.TryGetValue(target, out var purgeTargetView))
+                        {
+                            purgeTargetView.ShowFloatingText("\u51c0\u5316", new Color(0.58f, 0.94f, 0.95f), 0.9f);
+                        }
+                    }
+                    break;
+                case "hero_06_stun_chain":
+                    if (target.IsBackline)
+                    {
+                        var gained = actor.GainResource(1);
+                        if (gained > 0)
+                        {
+                            ui.AddLog($"{actor.DisplayName} \u7528\u9707\u8361\u9501\u94fe\u538b\u5236\u540e\u6392\uff0c\u989d\u5916\u83b7\u5f97\u4e86 {gained} \u70b9\u8d44\u6e90\u3002");
+                        }
+                    }
+                    break;
+            }
+        }
+
+        private void ApplySkillSpecificActionReward(BattleUnit actor, SkillData skill, BattleUnit[] targets)
+        {
+            if (actor == null || skill == null || targets == null || targets.Length == 0 || !actor.IsAlive)
+            {
+                return;
+            }
+
+            var livingTargets = targets.Count(target => target != null && target.IsAlive);
+            if (skill.skillId == "hero_03_scrap_volley" && livingTargets >= 3)
+            {
+                var gained = actor.GainResource(1);
+                if (gained > 0)
+                {
+                    ui.AddLog($"{actor.DisplayName} \u7684\u9f50\u5c04\u547d\u4e2d\u591a\u540d\u76ee\u6807\uff0c\u56de\u6536\u4e86 {gained} \u70b9\u8d44\u6e90\u3002");
                 }
             }
         }
@@ -2341,12 +2389,39 @@ namespace ClockworkWasteland.Combat
             return false;
         }
 
-        private int CalculateHealingAmount(BattleUnit actor, SkillData skill)
+        private int CalculateHealingAmount(BattleUnit actor, SkillData skill, BattleUnit target)
         {
             var amount = Mathf.Max(1, Mathf.RoundToInt((skill.baseValue + actor.Attack * 0.5f) * skill.powerMultiplier));
             if (actor != null && actor.Archetype == CombatArchetype.Physician)
             {
                 amount = Mathf.RoundToInt(amount * 1.25f);
+            }
+
+            amount = ApplySkillSpecificHealingModifier(actor, skill, target, amount);
+            return Mathf.Max(1, amount);
+        }
+
+        private int ApplySkillSpecificHealingModifier(BattleUnit actor, SkillData skill, BattleUnit target, int amount)
+        {
+            if (actor == null || skill == null || target == null || amount <= 0)
+            {
+                return amount;
+            }
+
+            switch (skill.skillId)
+            {
+                case "hero_02_field_stitch":
+                    if (target.HealthRatio <= 0.5f)
+                    {
+                        amount = Mathf.RoundToInt(amount * 1.25f);
+                    }
+                    break;
+                case "hero_06_steam_purge":
+                    if (target.HasStatus("\u707c\u70e7") || target.HasStatus("\u7729\u6655"))
+                    {
+                        amount = Mathf.RoundToInt(amount * 1.15f);
+                    }
+                    break;
             }
 
             return Mathf.Max(1, amount);

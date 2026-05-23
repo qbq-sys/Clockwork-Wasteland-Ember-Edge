@@ -447,11 +447,24 @@ namespace ClockworkWasteland.Combat
         private void CreateClickCollider()
         {
             var colliderTransform = transform.Find("Collider") ?? transform;
-            var collider = colliderTransform.GetComponent<BoxCollider2D>() ?? colliderTransform.gameObject.AddComponent<BoxCollider2D>();
+            if (!colliderTransform.TryGetComponent<BoxCollider2D>(out var collider) || collider == null)
+            {
+                collider = colliderTransform.gameObject.AddComponent<BoxCollider2D>();
+            }
+
+            if (collider == null)
+            {
+                throw new MissingComponentException($"Failed to add BoxCollider2D on {colliderTransform.name}.");
+            }
+
             var bounds = spriteRenderer.sprite != null ? spriteRenderer.sprite.bounds : new Bounds(Vector3.zero, Vector3.one);
             collider.offset = bounds.center;
             collider.size = bounds.size;
-            var proxy = colliderTransform.GetComponent<CombatantClickProxy>() ?? colliderTransform.gameObject.AddComponent<CombatantClickProxy>();
+            if (!colliderTransform.TryGetComponent<CombatantClickProxy>(out var proxy) || proxy == null)
+            {
+                proxy = colliderTransform.gameObject.AddComponent<CombatantClickProxy>();
+            }
+
             proxy.Bind(this);
         }
 

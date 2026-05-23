@@ -454,11 +454,11 @@ namespace ClockworkWasteland.Combat
             CreateButton(panel, "\u9000\u51fa", new Vector2(380f, -402f), () => onQuit?.Invoke(), true, null);
         }
 
-        public void ShowSettingsScreen(Action onBack)
+        public void ShowSettingsScreen(Action onBack, Action onSaveGame)
         {
             if (runtimeUiManager != null)
             {
-                runtimeUiManager.ShowSettings(onBack);
+                runtimeUiManager.ShowSettings(onBack, onSaveGame);
                 return;
             }
 
@@ -597,10 +597,16 @@ namespace ClockworkWasteland.Combat
             CreateButton(rootPanel, "\u5f00\u59cb\u6218\u6597", new Vector2(590f, -708f), onStartBattle.Invoke, selectedHeroes.Count > 0, null);
         }
 
-        public void ShowLobby(int currentGold, Action onOpenTavern, Action onOpenAdventure, Action onOpenHeroCodex, Action onOpenSettings, Action onQuit)
+        public void ShowLobby(int currentGold, bool showContinue, Action onStartNewGame, Action onContinueGame, Action onOpenTavern, Action onOpenAdventure, Action onOpenHeroCodex, Action onOpenSettings, Action onQuit)
         {
             EnsureRuntimePrefabUi();
-            runtimeUiManager?.ShowLobby(currentGold, onOpenTavern, onOpenAdventure, onOpenHeroCodex, onOpenSettings, onQuit);
+            runtimeUiManager?.ShowLobby(currentGold, showContinue, onStartNewGame, onContinueGame, onOpenTavern, onOpenAdventure, onOpenHeroCodex, onOpenSettings, onQuit);
+        }
+
+        public void ShowSaveSlots(string title, IReadOnlyList<SaveSlotSummary> slots, bool allowEmptySelection, Action<int> onSelect, Action onBack)
+        {
+            EnsureRuntimePrefabUi();
+            runtimeUiManager?.ShowSaveSlots(title, slots, allowEmptySelection, onSelect, onBack);
         }
 
         public void ShowAdventureMap(IReadOnlyList<AdventureMapOption> maps, Action<AdventureMapOption> onSelect, Action onBack)

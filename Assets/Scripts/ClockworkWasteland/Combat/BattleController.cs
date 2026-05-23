@@ -105,10 +105,27 @@ namespace ClockworkWasteland.Combat
         public int Difficulty { get; }
     }
 
+    public readonly struct SaveSlotSummary
+    {
+        public SaveSlotSummary(int slotIndex, bool hasSave, string title, string detail)
+        {
+            SlotIndex = slotIndex;
+            HasSave = hasSave;
+            Title = title;
+            Detail = detail;
+        }
+
+        public int SlotIndex { get; }
+        public bool HasSave { get; }
+        public string Title { get; }
+        public string Detail { get; }
+    }
+
     [System.Serializable]
     public sealed class GameSaveData
     {
         public int gold;
+        public string savedAt;
         public List<HeroSaveData> heroes = new List<HeroSaveData>();
     }
 
@@ -135,7 +152,9 @@ namespace ClockworkWasteland.Combat
         private const float ReferenceFormationVisualScale = 0.8f;
         private const int AttackFocusActorSortingOrder = 120;
         private const int AttackFocusTargetSortingOrder = 121;
-        private const string SaveKey = "ClockworkWasteland.Save.v1";
+        private const int SaveSlotCount = 3;
+        private const string LegacySaveKey = "ClockworkWasteland.Save.v1";
+        private const string SaveSlotKeyPrefix = "ClockworkWasteland.SaveSlot.v2.";
         private const float MinCombatOverlayDuration = 0.56f;
         private const float BulletTimeDuration = 0.62f;
         private const float BulletTimeMinScale = 0.08f;
@@ -198,6 +217,7 @@ namespace ClockworkWasteland.Combat
         private readonly HashSet<BattleUnit> ironWillUsedThisBattle = new HashSet<BattleUnit>();
         private AdventureMapOption selectedAdventureMap;
         private Material runtimeFocusBlurMaterial;
+        private int activeSaveSlotIndex = -1;
 
         public void Configure(CombatantDefinition[] heroesToUse, CombatantDefinition[] enemiesToUse, BattleUI uiPrefabToUse = null, CombatantView unitPrefabToUse = null, CombatNameplate nameplatePrefabToUse = null)
         {
@@ -321,14 +341,29 @@ namespace ClockworkWasteland.Combat
         private void ShowLobby()
         {
             PrepareNonCombatScreen("\u5927\u5385");
-            ui.ShowLobby(gold, ShowTavern, ShowAdventureMap, ShowHeroCodex, ShowSettings, QuitGame);
+            ui.ShowLobby(gold, HasAnySaveSlots(), StartNewGame, ShowContinueGameSlots, ShowTavern, ShowAdventureMap, ShowHeroCodex, ShowSettings, QuitGame);
         }
 
         private void StartNewGame()
         {
-            ResetGameState();
-            SaveGameState();
-            ShowLobby();
+            var emptySlot = FindFirstEmptySaveSlot();
+            if (emptySlot >= 0)
+            {
+                CreateNewGameInSlot(emptySlot);
+                ShowLobby();
+                return;
+            }
+
+            ui.ShowChoicePrompt(
+                "\u4e09\u4e2a\u5b58\u6863\u4f4d\u90fd\u5df2\u6709\u5b58\u6863\u3002\u7ee7\u7eed\u65b0\u6e38\u620f\u5c06\u8986\u76d6 1 \u53f7\u5b58\u6863\u3002",
+                "\u53d6\u6d88",
+                ShowLobby,
+                "\u8986\u76d6\u5f00\u59cb",
+                () =>
+                {
+                    CreateNewGameInSlot(0);
+                    ShowLobby();
+                });
         }
 
         private void ResetGameState()
@@ -343,14 +378,13 @@ namespace ClockworkWasteland.Combat
             SyncSelectedHeroDefinitions(fillToMax: true);
             currentBattleNumber = 0;
             CommitSelectedPartyToHeroParty();
-            ui.SetGold(gold);
-            RefreshTavernOffers();
+            RebuildDerivedGameState();
         }
 
         private void ShowSettings()
         {
             PrepareNonCombatScreen("\u8bbe\u7f6e", false);
-            ui.ShowSettingsScreen(ShowLobby);
+            ui.ShowSettingsScreen(ShowLobby, ShowManualSaveSlots);
         }
 
         private void QuitGame()
@@ -597,30 +631,17 @@ namespace ClockworkWasteland.Combat
         {
             totalHeroPool = BuildHeroPool();
             NormalizeHeroPool(totalHeroPool);
+            MigrateLegacySaveIfNeeded();
 
-            if (PlayerPrefs.HasKey(SaveKey))
+            var startupSlot = FindFirstOccupiedSaveSlot();
+            if (startupSlot >= 0)
             {
-                try
-                {
-                    var save = JsonUtility.FromJson<GameSaveData>(PlayerPrefs.GetString(SaveKey));
-                    ApplySaveData(save);
-                }
-                catch (System.Exception exception)
-                {
-                    Debug.LogWarning($"Failed to load combat save data. Starting a new state. {exception.Message}");
-                    gold = InitialGold;
-                }
-            }
-            else
-            {
-                gold = InitialGold;
+                LoadGameFromSlot(startupSlot);
+                return;
             }
 
-            availableHeroPool = GetUnlockedHeroPool();
-            SyncSelectedHeroDefinitions(fillToMax: true);
-            CommitSelectedPartyToHeroParty();
-            RefreshTavernOffers();
-            ui.SetGold(gold);
+            activeSaveSlotIndex = -1;
+            ResetGameState();
         }
 
         private void ApplySaveData(GameSaveData save)
@@ -799,9 +820,16 @@ namespace ClockworkWasteland.Combat
                 return;
             }
 
+            var slotIndex = ResolveActiveSaveSlotIndex();
+            if (slotIndex < 0)
+            {
+                return;
+            }
+
             var save = new GameSaveData
             {
                 gold = Mathf.Max(0, gold),
+                savedAt = System.DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"),
                 heroes = totalHeroPool
                     .Where(hero => hero != null && hero.isHero)
                     .Select(hero => new HeroSaveData
@@ -816,8 +844,196 @@ namespace ClockworkWasteland.Combat
                     .ToList()
             };
 
-            PlayerPrefs.SetString(SaveKey, JsonUtility.ToJson(save));
+            PlayerPrefs.SetString(GetSaveKey(slotIndex), JsonUtility.ToJson(save));
             PlayerPrefs.Save();
+        }
+
+        private void ShowContinueGameSlots()
+        {
+            PrepareNonCombatScreen("\u7ee7\u7eed\u6e38\u620f");
+            ui.ShowSaveSlots("\u9009\u62e9\u8981\u7ee7\u7eed\u7684\u5b58\u6863", GetSaveSlotSummaries(), false, LoadSelectedSaveSlot, ShowLobby);
+        }
+
+        private void ShowManualSaveSlots()
+        {
+            PrepareNonCombatScreen("\u4fdd\u5b58\u6e38\u620f", false);
+            ui.ShowSaveSlots("\u9009\u62e9\u8981\u8986\u76d6\u7684\u5b58\u6863", GetSaveSlotSummaries(), true, ConfirmSaveToSlot, ShowSettings);
+        }
+
+        private void LoadSelectedSaveSlot(int slotIndex)
+        {
+            if (!TryReadSaveSlot(slotIndex, out _))
+            {
+                ui.ShowContinuePrompt("\u8be5\u5b58\u6863\u4f4d\u4e3a\u7a7a\u3002", "\u8fd4\u56de", ShowContinueGameSlots);
+                return;
+            }
+
+            LoadGameFromSlot(slotIndex);
+            ShowLobby();
+        }
+
+        private void ConfirmSaveToSlot(int slotIndex)
+        {
+            var summary = GetSaveSlotSummary(slotIndex);
+            if (!summary.HasSave)
+            {
+                SaveToSlotAndReturn(slotIndex);
+                return;
+            }
+
+            ui.ShowChoicePrompt(
+                $"\u786e\u5b9a\u8986\u76d6{summary.Title}\u5417\uff1f\n{summary.Detail}",
+                "\u53d6\u6d88",
+                ShowManualSaveSlots,
+                "\u786e\u8ba4\u8986\u76d6",
+                () => SaveToSlotAndReturn(slotIndex));
+        }
+
+        private void SaveToSlotAndReturn(int slotIndex)
+        {
+            activeSaveSlotIndex = Mathf.Clamp(slotIndex, 0, SaveSlotCount - 1);
+            SaveGameState();
+            ShowSettings();
+        }
+
+        private void CreateNewGameInSlot(int slotIndex)
+        {
+            activeSaveSlotIndex = Mathf.Clamp(slotIndex, 0, SaveSlotCount - 1);
+            ResetGameState();
+            SaveGameState();
+        }
+
+        private void LoadGameFromSlot(int slotIndex)
+        {
+            totalHeroPool = BuildHeroPool();
+            NormalizeHeroPool(totalHeroPool);
+
+            if (TryReadSaveSlot(slotIndex, out var save))
+            {
+                ApplySaveData(save);
+            }
+            else
+            {
+                gold = InitialGold;
+            }
+
+            activeSaveSlotIndex = Mathf.Clamp(slotIndex, 0, SaveSlotCount - 1);
+            RebuildDerivedGameState();
+        }
+
+        private void RebuildDerivedGameState()
+        {
+            availableHeroPool = GetUnlockedHeroPool();
+            SyncSelectedHeroDefinitions(fillToMax: true);
+            CommitSelectedPartyToHeroParty();
+            RefreshTavernOffers();
+            ui.SetGold(gold);
+        }
+
+        private bool HasAnySaveSlots()
+        {
+            return FindFirstOccupiedSaveSlot() >= 0;
+        }
+
+        private int FindFirstOccupiedSaveSlot()
+        {
+            for (var i = 0; i < SaveSlotCount; i++)
+            {
+                if (PlayerPrefs.HasKey(GetSaveKey(i)))
+                {
+                    return i;
+                }
+            }
+
+            return -1;
+        }
+
+        private int FindFirstEmptySaveSlot()
+        {
+            for (var i = 0; i < SaveSlotCount; i++)
+            {
+                if (!PlayerPrefs.HasKey(GetSaveKey(i)))
+                {
+                    return i;
+                }
+            }
+
+            return -1;
+        }
+
+        private int ResolveActiveSaveSlotIndex()
+        {
+            if (activeSaveSlotIndex >= 0 && activeSaveSlotIndex < SaveSlotCount)
+            {
+                return activeSaveSlotIndex;
+            }
+
+            var emptySlot = FindFirstEmptySaveSlot();
+            activeSaveSlotIndex = emptySlot >= 0 ? emptySlot : 0;
+            return activeSaveSlotIndex;
+        }
+
+        private SaveSlotSummary[] GetSaveSlotSummaries()
+        {
+            return Enumerable.Range(0, SaveSlotCount)
+                .Select(GetSaveSlotSummary)
+                .ToArray();
+        }
+
+        private SaveSlotSummary GetSaveSlotSummary(int slotIndex)
+        {
+            var title = $"\u5b58\u6863 {slotIndex + 1}";
+            if (!TryReadSaveSlot(slotIndex, out var save))
+            {
+                return new SaveSlotSummary(slotIndex, false, title, "\u7a7a");
+            }
+
+            var unlockedCount = save.heroes != null ? save.heroes.Count(hero => hero != null && hero.unlocked) : 0;
+            var detail = $"\u91d1\u5e01 {Mathf.Max(0, save.gold)}  \u5df2\u89e3\u9501\u82f1\u96c4 {unlockedCount}";
+            if (!string.IsNullOrWhiteSpace(save.savedAt))
+            {
+                detail = $"{detail}\n\u4fdd\u5b58\u65f6\u95f4 {save.savedAt}";
+            }
+
+            return new SaveSlotSummary(slotIndex, true, title, detail);
+        }
+
+        private bool TryReadSaveSlot(int slotIndex, out GameSaveData save)
+        {
+            save = null;
+            var key = GetSaveKey(slotIndex);
+            if (!PlayerPrefs.HasKey(key))
+            {
+                return false;
+            }
+
+            try
+            {
+                save = JsonUtility.FromJson<GameSaveData>(PlayerPrefs.GetString(key));
+                return save != null;
+            }
+            catch (System.Exception exception)
+            {
+                Debug.LogWarning($"Failed to read save slot {slotIndex + 1}. {exception.Message}");
+                return false;
+            }
+        }
+
+        private void MigrateLegacySaveIfNeeded()
+        {
+            if (!PlayerPrefs.HasKey(LegacySaveKey) || HasAnySaveSlots())
+            {
+                return;
+            }
+
+            PlayerPrefs.SetString(GetSaveKey(0), PlayerPrefs.GetString(LegacySaveKey));
+            PlayerPrefs.DeleteKey(LegacySaveKey);
+            PlayerPrefs.Save();
+        }
+
+        private static string GetSaveKey(int slotIndex)
+        {
+            return $"{SaveSlotKeyPrefix}{slotIndex}";
         }
 
         private static InventoryItemData[] LoadShopItems()

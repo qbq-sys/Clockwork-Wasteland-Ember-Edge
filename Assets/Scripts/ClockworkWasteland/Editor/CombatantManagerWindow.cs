@@ -936,10 +936,10 @@ namespace ClockworkWasteland.EditorTools
 
                 var colliderTransform = EnsureChild(prefabRoot.transform, "Collider");
                 RemoveMissingScriptsRecursively(colliderTransform.gameObject);
-                var clickCollider = colliderTransform.GetComponent<BoxCollider2D>() ?? colliderTransform.gameObject.AddComponent<BoxCollider2D>();
-                if (colliderTransform.GetComponent<CombatantClickProxy>() == null)
+                var clickCollider = EnsureBoxCollider2D(colliderTransform);
+                if (!colliderTransform.TryGetComponent<CombatantClickProxy>(out var clickProxy) || clickProxy == null)
                 {
-                    colliderTransform.gameObject.AddComponent<CombatantClickProxy>();
+                    clickProxy = colliderTransform.gameObject.AddComponent<CombatantClickProxy>();
                 }
 
                 BindCombatantViewReferences(view, visualRoot, bodyRenderer, actionOverlay, hitOverlay, nameplatePosition, clickCollider);
@@ -997,6 +997,32 @@ namespace ClockworkWasteland.EditorTools
             }
 
             return renderer;
+        }
+
+        private static BoxCollider2D EnsureBoxCollider2D(Transform transform)
+        {
+            if (transform == null)
+            {
+                throw new InvalidOperationException("Collider 目标节点不存在。");
+            }
+
+            if (!transform.TryGetComponent<Collider2D>(out var existingCollider) || existingCollider == null)
+            {
+                existingCollider = transform.gameObject.AddComponent<BoxCollider2D>();
+            }
+
+            if (existingCollider is BoxCollider2D boxCollider)
+            {
+                return boxCollider;
+            }
+
+            var upgradedCollider = transform.gameObject.AddComponent<BoxCollider2D>();
+            if (upgradedCollider == null)
+            {
+                throw new InvalidOperationException($"无法在节点 {transform.name} 上创建 BoxCollider2D。");
+            }
+
+            return upgradedCollider;
         }
 
         private static void RunEditorAction(string title, Action action)

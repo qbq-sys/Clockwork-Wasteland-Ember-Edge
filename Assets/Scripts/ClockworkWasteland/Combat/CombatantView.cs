@@ -2,12 +2,14 @@ using UnityEngine;
 using UnityEngine.UI;
 using System.Collections;
 using System;
+using System.Collections.Generic;
 
 namespace ClockworkWasteland.Combat
 {
     public sealed class CombatantView : MonoBehaviour
     {
         private const float DefaultNameplatePositionY = -1.726f;
+        private const float DefaultVisualRootY = -1.4f;
 
         [Header("Prefab Hooks")]
         [SerializeField] private Transform visualRoot;
@@ -15,6 +17,15 @@ namespace ClockworkWasteland.Combat
         [SerializeField] private SpriteRenderer overlayRenderer;
         [SerializeField] private SpriteRenderer hitOverlayRenderer;
         [SerializeField] private Transform nameplatePosition;
+
+        [Header("Floating Text")]
+        [SerializeField] private Vector3 floatingTextBaseOffset = new Vector3(0f, 1.2f, -0.6f);
+        [SerializeField] private float floatingTextBaseScale = 1f;
+        [SerializeField] private float floatingTextBurstWindow = 0.18f;
+        [SerializeField] private float floatingTextQueueDelay = 0.08f;
+        [SerializeField] private float floatingTextHorizontalSpacing = 0.18f;
+        [SerializeField] private float floatingTextVerticalSpacing = 0.26f;
+        [SerializeField] private float floatingTextAdditionalLiftPerText = 0.05f;
 
         private CombatNameplate nameplate;
         private BattleUnit unit;
@@ -27,13 +38,25 @@ namespace ClockworkWasteland.Combat
         private int baseSortingOrder;
         private int overlayBaseSortingOrder;
         private int hitOverlayBaseSortingOrder;
-        private bool hasFeetAlignment;
-        private float lastFeetWorldY;
+        private readonly List<ICombatantViewFeature> features = new List<ICombatantViewFeature>();
+        private float floatingTextBurstWindowEnd;
+        private int floatingTextBurstCount;
 
         public BattleUnit Unit => unit;
         public float FormationSpacingScale => Mathf.Max(0.8f, GetVisualScale().x / 0.8f);
 
-        public void Initialize(BattleUnit battleUnit, Sprite fallbackSprite, float scaleMultiplier, Action<BattleUnit> onClicked, CombatNameplate nameplatePrefab)
+        public void ConfigureFloatingText(Vector3 baseOffset, float baseScale, float burstWindow, float queueDelay, float horizontalSpacing, float verticalSpacing, float additionalLiftPerText)
+        {
+            floatingTextBaseOffset = baseOffset;
+            floatingTextBaseScale = Mathf.Max(0.1f, baseScale);
+            floatingTextBurstWindow = Mathf.Max(0.01f, burstWindow);
+            floatingTextQueueDelay = Mathf.Max(0f, queueDelay);
+            floatingTextHorizontalSpacing = Mathf.Max(0f, horizontalSpacing);
+            floatingTextVerticalSpacing = Mathf.Max(0f, verticalSpacing);
+            floatingTextAdditionalLiftPerText = Mathf.Max(0f, additionalLiftPerText);
+        }
+
+        public void Initialize(BattleUnit battleUnit, Sprite fallbackSprite, Action<BattleUnit> onClicked, CombatNameplate nameplatePrefab)
         {
             unit = battleUnit;
             clicked = onClicked;
@@ -58,12 +81,21 @@ namespace ClockworkWasteland.Combat
             EnsureOverlayRenderer();
             EnsureHitOverlayRenderer();
             EnsureNameplatePosition();
+            ApplyDefaultVisualRootOffset();
 
-            var scale = Mathf.Max(0.1f, battleUnit.Definition.visualScale * scaleMultiplier);
-            SetVisualScale(new Vector3(scale, scale, 1f));
+            // Runtime must respect the prefab-authored VisualRoot scale.
+            var authoredScale = GetVisualScale();
+            if (Mathf.Approximately(authoredScale.x, 0f) ||
+                Mathf.Approximately(authoredScale.y, 0f) ||
+                Mathf.Approximately(authoredScale.z, 0f))
+            {
+                SetVisualScale(Vector3.one);
+            }
+            NormalizeVisualBaselineIfNeeded();
             baseLocalScale = GetVisualScale();
             baseVisualLocalPosition = visualRoot != null ? visualRoot.localPosition : Vector3.zero;
             spriteRenderer.flipX = battleUnit.IsHero;
+            CacheFeatures();
 
             AttachNameplate(nameplatePrefab);
             CreateClickCollider();
@@ -79,6 +111,7 @@ namespace ClockworkWasteland.Combat
 
             spriteRenderer.color = unit.IsCorpse ? new Color(0.32f, 0.3f, 0.28f, 0.78f) : unit.Definition.tint;
             nameplate?.Refresh(unit);
+            RefreshFeatures();
             gameObject.SetActive(unit.IsAlive);
         }
 
@@ -162,9 +195,6 @@ namespace ClockworkWasteland.Combat
                 return;
             }
 
-            hasFeetAlignment = true;
-            lastFeetWorldY = worldY;
-
             if (visualRoot != null)
             {
                 visualRoot.localPosition = baseVisualLocalPosition;
@@ -190,19 +220,19 @@ namespace ClockworkWasteland.Combat
             var start = transform.position;
             var target = new Vector3(worldX, start.y, start.z);
             var elapsed = 0f;
-            AlignFeetTo(feetY);
+            ResetVisualOffset();
 
             while (elapsed < duration)
             {
                 elapsed += Time.deltaTime;
                 var t = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(elapsed / duration));
                 transform.position = Vector3.Lerp(start, target, t);
-                AlignFeetTo(feetY);
+                ResetVisualOffset();
                 yield return null;
             }
 
             transform.position = target;
-            AlignFeetTo(feetY);
+            ResetVisualOffset();
         }
 
         public IEnumerator PlayAttackCue()
@@ -264,10 +294,27 @@ namespace ClockworkWasteland.Combat
 
         public void ShowFloatingText(string text, Color color, float sizeMultiplier)
         {
+            if (Time.time > floatingTextBurstWindowEnd)
+            {
+                floatingTextBurstCount = 0;
+            }
+
+            var burstIndex = floatingTextBurstCount++;
+            floatingTextBurstWindowEnd = Time.time + Mathf.Max(0.01f, floatingTextBurstWindow);
+            var column = burstIndex % 2 == 0 ? -1f : 1f;
+            var row = burstIndex / 2;
+            var horizontalOffset = burstIndex == 0 ? 0f : column * floatingTextHorizontalSpacing;
+            var verticalOffset = row * floatingTextVerticalSpacing + burstIndex * floatingTextAdditionalLiftPerText;
+
             var textObject = new GameObject("FloatingText");
-            textObject.transform.position = transform.position + new Vector3(0f, 1.2f, -0.6f);
-            textObject.transform.localScale = Vector3.one * Mathf.Max(0.2f, sizeMultiplier);
-            textObject.AddComponent<FloatingCombatText>().Initialize(text, color, UnityEngine.Random.Range(0.5f, 0.8f), 0.65f);
+            textObject.transform.position = transform.position + floatingTextBaseOffset + new Vector3(horizontalOffset, verticalOffset, 0f);
+            textObject.transform.localScale = Vector3.one * Mathf.Max(0.2f, sizeMultiplier * floatingTextBaseScale);
+            var floatingText = textObject.AddComponent<FloatingCombatText>();
+            floatingText.Initialize(text, color, UnityEngine.Random.Range(0.5f, 0.8f), 0.65f);
+            if (burstIndex > 0)
+            {
+                floatingText.SetStartDelay(burstIndex * Mathf.Max(0f, floatingTextQueueDelay));
+            }
         }
 
         public Sprite CurrentSprite => spriteRenderer != null ? spriteRenderer.sprite : null;
@@ -307,6 +354,39 @@ namespace ClockworkWasteland.Combat
                 var body = visualRoot.Find("BodySprite");
                 spriteRenderer = body != null ? body.GetComponent<SpriteRenderer>() : visualRoot.GetComponent<SpriteRenderer>();
             }
+        }
+
+        private void CacheFeatures()
+        {
+            features.Clear();
+            var behaviours = GetComponentsInChildren<MonoBehaviour>(true);
+            foreach (var behaviour in behaviours)
+            {
+                if (behaviour is ICombatantViewFeature feature)
+                {
+                    features.Add(feature);
+                    feature.Bind(this, unit);
+                }
+            }
+        }
+
+        private void RefreshFeatures()
+        {
+            foreach (var feature in features)
+            {
+                feature?.Refresh(unit);
+            }
+        }
+
+        private void ApplyDefaultVisualRootOffset()
+        {
+            if (visualRoot == null || visualRoot == transform)
+            {
+                return;
+            }
+
+            var localPosition = visualRoot.localPosition;
+            visualRoot.localPosition = new Vector3(localPosition.x, DefaultVisualRootY, localPosition.z);
         }
 
         private void EnsureOverlayRenderer()
@@ -486,9 +566,14 @@ namespace ClockworkWasteland.Combat
                 throw new MissingComponentException($"Failed to add BoxCollider2D on {colliderTransform.name}.");
             }
 
-            var bounds = spriteRenderer.sprite != null ? spriteRenderer.sprite.bounds : new Bounds(Vector3.zero, Vector3.one);
-            collider.offset = bounds.center;
-            collider.size = bounds.size;
+            var worldBounds = spriteRenderer != null ? spriteRenderer.bounds : new Bounds(transform.position, Vector3.one);
+            var localCenter = colliderTransform.InverseTransformPoint(worldBounds.center);
+            var lossyScale = colliderTransform.lossyScale;
+            var size = worldBounds.size;
+            collider.offset = new Vector2(localCenter.x, localCenter.y);
+            collider.size = new Vector2(
+                size.x / Mathf.Max(0.0001f, Mathf.Abs(lossyScale.x)),
+                size.y / Mathf.Max(0.0001f, Mathf.Abs(lossyScale.y)));
             if (!colliderTransform.TryGetComponent<CombatantClickProxy>(out var proxy) || proxy == null)
             {
                 proxy = colliderTransform.gameObject.AddComponent<CombatantClickProxy>();
@@ -523,9 +608,37 @@ namespace ClockworkWasteland.Combat
         private void SetVisualScale(Vector3 scale)
         {
             (visualRoot != null ? visualRoot : transform).localScale = scale;
-            if (hasFeetAlignment)
+        }
+
+        private void NormalizeVisualBaselineIfNeeded()
+        {
+            if (spriteRenderer == null || spriteRenderer.sprite == null)
             {
-                AlignFeetTo(lastFeetWorldY);
+                return;
+            }
+
+            var bodyTransform = spriteRenderer.transform;
+            var spriteBounds = spriteRenderer.sprite.bounds;
+            var desiredY = -spriteBounds.min.y * bodyTransform.localScale.y;
+            var currentPosition = bodyTransform.localPosition;
+            var deltaY = desiredY - currentPosition.y;
+            if (Mathf.Abs(deltaY) <= 0.0001f)
+            {
+                return;
+            }
+
+            bodyTransform.localPosition = new Vector3(currentPosition.x, desiredY, currentPosition.z);
+
+            if (overlayRenderer != null)
+            {
+                var overlayPosition = overlayRenderer.transform.localPosition;
+                overlayRenderer.transform.localPosition = new Vector3(overlayPosition.x, overlayPosition.y + deltaY, overlayPosition.z);
+            }
+
+            if (hitOverlayRenderer != null)
+            {
+                var hitPosition = hitOverlayRenderer.transform.localPosition;
+                hitOverlayRenderer.transform.localPosition = new Vector3(hitPosition.x, hitPosition.y + deltaY, hitPosition.z);
             }
         }
 

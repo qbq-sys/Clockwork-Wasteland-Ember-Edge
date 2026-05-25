@@ -1,0 +1,34 @@
+%YAML 1.1
+%TAG !u! tag:yousandi.cn,2023:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b8bfb20e525850f48a31396eb1a44be5, type: 3}
+  m_Name: "\u5B88\u671B\u6A2A\u626B"
+  m_EditorClassIdentifier: 
+  skillId: hero_05_watcher_sweep
+  skillName: "\u5B88\u671B\u6A2A\u626B"
+  description: "\u6A2A\u626B\u654C\u65B9\u524D\u6392\u4E24\u540D\u76EE\u6807\uFF0C\u538B\u4F4F\u5BF9\u65B9\u9635\u7EBF\u3002"
+  icon: {fileID: 0}
+  skillType: 0
+  baseValue: 5
+  powerMultiplier: 0.95
+  targetType: 2
+  casterAllowedPositions: 0100000002000000
+  targetAllowedPositions: 0100000002000000
+  manaCost: 1
+  cooldown: 1
+  applyBuff: {fileID: 0}
+  applyBuffDuration: 1
+  attackSprite: {fileID: 0}
+  hitSprite: {fileID: 0}
+  skillSfx: {fileID: 8300000, guid: 6f430bd81e9d47647a83ea61bf3e8ad9, type: 3}
+  overlayDuration: 0.22
+  isSwapSkill: 0
+  isPassSkill: 0

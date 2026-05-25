@@ -14,7 +14,10 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   buffId: stun
   buffName: "\u7729\u6655"
-  description: "\u76ee\u6807\u4e0b\u4e00\u6b21\u884c\u52a8\u65f6\u8df3\u8fc7\u56de\u5408\u3002"
+  description: "\u65E0\u6CD5\u884C\u52A8\u3002"
   duration: 1
   stun: 1
   tickDamage: 0
+  nameTextColor: {r: 1, g: 0.92, b: 0.3, a: 1}
+  damageTextColor: {r: 1, g: 0.92, b: 0.3, a: 1}
+  icon: {fileID: 21300000, guid: 2ced4882cc63bdd47ba07f3c1f161aa3, type: 3}

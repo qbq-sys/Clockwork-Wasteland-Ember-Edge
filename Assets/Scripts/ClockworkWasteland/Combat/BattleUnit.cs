@@ -27,8 +27,9 @@ namespace ClockworkWasteland.Combat
         public int MaxResource => DefaultResourceCap;
         public int ActionPoints { get; private set; } = 1;
         public bool IsCorpse { get; private set; }
+        public bool IsDowned { get; private set; }
         public bool IsHero => Definition.isHero;
-        public bool IsAlive => Health > 0;
+        public bool IsAlive => Health > 0 && !IsDowned;
         public bool CanAct => IsAlive && !IsCorpse && !IsStunned;
         public IReadOnlyList<StatusInstance> Statuses => statuses;
         public CombatArchetype Archetype => Definition.archetype;
@@ -38,7 +39,7 @@ namespace ClockworkWasteland.Combat
         public bool IsFrontline => CurrentPosition >= 1 && CurrentPosition <= 2;
         public bool IsBackline => CurrentPosition >= 3;
 
-        public string DisplayName => IsCorpse ? $"{Definition.displayName}\u7684\u5c38\u4f53" : Definition.displayName;
+        public string DisplayName => IsCorpse ? $"{Definition.displayName}\u7684\u5c38\u4f53" : IsDowned ? $"{Definition.displayName}\uFF08\u6FD2\u5371\uFF09" : Definition.displayName;
         public int Level => Definition.Level;
         public int MaxHealth => IsCorpse ? System.Math.Max(1, Definition.corpseHealth) : Definition.MaxHealthWithGrowth;
         public int Speed => IsCorpse ? 0 : Definition.SpeedWithArchetype;
@@ -164,8 +165,22 @@ namespace ClockworkWasteland.Combat
         public void ConvertToCorpse()
         {
             IsCorpse = true;
+            IsDowned = false;
             statuses.Clear();
             Health = MaxHealth;
+        }
+
+        public void EnterDownedState()
+        {
+            if (!IsHero || IsCorpse || IsDowned)
+            {
+                return;
+            }
+
+            IsDowned = true;
+            Health = 0;
+            statuses.Clear();
+            SyncHealthToDefinition();
         }
 
         private void SyncHealthToDefinition()
@@ -190,15 +205,19 @@ namespace ClockworkWasteland.Combat
             }
 
             statuses.RemoveAll(status => status.DisplayName == buff.buffName);
-            statuses.Add(new StatusInstance(buff.buffName, duration, buff.tickDamage, buff.stun));
+            statuses.Add(new StatusInstance(buff.buffName, duration, buff.tickDamage, buff.stun, buff));
         }
 
-        public int TickStatuses()
+        public IReadOnlyList<StatusTickResult> TickStatuses()
         {
-            var totalDamage = statuses.Where(status => status.TickDamage > 0).Sum(status => status.TickDamage);
-            if (totalDamage > 0)
+            var results = new List<StatusTickResult>();
+            foreach (var status in statuses)
             {
-                TakeDamage(totalDamage);
+                if (status.TurnsRemaining > 0 && status.TickDamage > 0)
+                {
+                    TakeDamage(status.TickDamage);
+                    results.Add(new StatusTickResult(status, status.TickDamage));
+                }
             }
 
             foreach (var status in statuses)
@@ -206,8 +225,8 @@ namespace ClockworkWasteland.Combat
                 status.AdvanceTurn();
             }
 
-            statuses.RemoveAll(status => status.TurnsRemaining <= 0);
-            return totalDamage;
+            statuses.RemoveAll(status => status.TurnsRemaining < 0);
+            return results;
         }
     }
 }

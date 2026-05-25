@@ -16,6 +16,7 @@ namespace ClockworkWasteland.EditorTools
         private const string BuffsPath = "Assets/Resources/Buffs";
         private const string GrowthsPath = Root + "/Data/Growth";
         private const string UnitPrefabsPath = Root + "/Prefabs/CombatUnits";
+        private const float VisualRootY = -1.4f;
         private const float NameplatePositionY = -1.726f;
         private const string CharacterArtRoot = "Assets/Art/Characters";
         private const string CharacterSpecificVfxRoot = "Assets/Art/VFX/Combat/CharacterSpecific";
@@ -59,6 +60,9 @@ namespace ClockworkWasteland.EditorTools
         private string createBuffDescription = "Buff效果描述";
         private bool createBuffStun;
         private int createBuffTickDamage;
+        private Color createBuffNameColor = Color.white;
+        private Color createBuffDamageColor = new Color(1f, 0.3f, 0.3f, 1f);
+        private Sprite createBuffIcon;
 
         private string createCharacterId = "new_unit";
         private string createDisplayName = "新单位";
@@ -95,8 +99,16 @@ namespace ClockworkWasteland.EditorTools
             window.Show();
         }
 
+        [MenuItem("Clockwork Wasteland/Tools/Normalize Combat Unit Prefabs")]
+        public static void NormalizeCombatUnitPrefabs()
+        {
+            RefreshCombatantPrefabsOnDisk();
+            EditorUtility.DisplayDialog("Combat Unit Prefabs Normalized", "Rebuilt combat unit prefabs with a foot-based baseline.", "OK");
+        }
+
         private void OnEnable()
         {
+            EnsureCommonBuffAssets();
             RefreshCombatants();
             RefreshSkills();
             RefreshBuffs();
@@ -587,6 +599,9 @@ namespace ClockworkWasteland.EditorTools
                 createBuffDescription = EditorGUILayout.TextField("描述", createBuffDescription);
                 createBuffTickDamage = Mathf.Max(0, EditorGUILayout.IntField("每回合伤害", createBuffTickDamage));
                 createBuffStun = EditorGUILayout.Toggle("眩晕", createBuffStun);
+                createBuffNameColor = EditorGUILayout.ColorField("名称颜色", createBuffNameColor);
+                createBuffDamageColor = EditorGUILayout.ColorField("飘字颜色", createBuffDamageColor);
+                createBuffIcon = (Sprite)EditorGUILayout.ObjectField("Buff Icon", createBuffIcon, typeof(Sprite), false);
             }
         }
 
@@ -673,6 +688,9 @@ namespace ClockworkWasteland.EditorTools
             buff.description = EditorGUILayout.TextField("描述", buff.description ?? string.Empty);
             buff.tickDamage = Mathf.Max(0, EditorGUILayout.IntField("每回合伤害", buff.tickDamage));
             buff.stun = EditorGUILayout.Toggle("眩晕", buff.stun);
+            buff.nameTextColor = EditorGUILayout.ColorField("名称颜色", buff.nameTextColor);
+            buff.damageTextColor = EditorGUILayout.ColorField("飘字颜色", buff.damageTextColor);
+            buff.icon = (Sprite)EditorGUILayout.ObjectField("Buff Icon", buff.icon, typeof(Sprite), false);
 
             if (EditorGUI.EndChangeCheck())
             {
@@ -1120,10 +1138,12 @@ namespace ClockworkWasteland.EditorTools
 
                 var view = prefabRoot.GetComponent<CombatantView>() ?? prefabRoot.AddComponent<CombatantView>();
                 var visualRoot = EnsureChild(prefabRoot.transform, "VisualRoot");
+                visualRoot.localPosition = new Vector3(visualRoot.localPosition.x, VisualRootY, visualRoot.localPosition.z);
                 var bodySpriteTransform = EnsureChild(visualRoot, "BodySprite");
                 var bodyRenderer = EnsureSpriteRenderer(bodySpriteTransform, 2);
                 bodyRenderer.sprite = combatant.idleAnimationFrames != null && combatant.idleAnimationFrames.Length > 0 ? combatant.idleAnimationFrames[0] : combatant.battleSprite;
                 bodyRenderer.color = combatant.tint;
+                var bodyOffsetDeltaY = NormalizeBodySpriteBaseline(bodySpriteTransform, bodyRenderer.sprite);
 
                 var actionOverlayTransform = visualRoot.Find("ActionOverlay");
                 var actionOverlayWasMissing = actionOverlayTransform == null;
@@ -1132,7 +1152,11 @@ namespace ClockworkWasteland.EditorTools
                 actionOverlay.enabled = false;
                 if (!prefabExists || actionOverlayWasMissing)
                 {
-                    actionOverlayTransform.localPosition = GetDefaultOverlayPosition(combatant);
+                    actionOverlayTransform.localPosition = GetDefaultOverlayPosition(combatant, bodySpriteTransform.localPosition.y);
+                }
+                else if (Mathf.Abs(bodyOffsetDeltaY) > 0.0001f)
+                {
+                    actionOverlayTransform.localPosition += new Vector3(0f, bodyOffsetDeltaY, 0f);
                 }
                 if (!prefabExists || actionOverlayWasMissing)
                 {
@@ -1147,6 +1171,10 @@ namespace ClockworkWasteland.EditorTools
                 if (!prefabExists || hitOverlayWasMissing)
                 {
                     hitOverlayTransform.localPosition = actionOverlayTransform.localPosition;
+                }
+                else if (Mathf.Abs(bodyOffsetDeltaY) > 0.0001f)
+                {
+                    hitOverlayTransform.localPosition += new Vector3(0f, bodyOffsetDeltaY, 0f);
                 }
                 if (!prefabExists || hitOverlayWasMissing)
                 {
@@ -1165,6 +1193,7 @@ namespace ClockworkWasteland.EditorTools
                 }
 
                 BindCombatantViewReferences(view, visualRoot, bodyRenderer, actionOverlay, hitOverlay, nameplatePosition, clickCollider);
+                CombatUnitFeaturePatchRegistry.ApplyAll(prefabRoot, combatant);
                 PrefabUtility.SaveAsPrefabAsset(prefabRoot, prefabPath);
             }
             finally
@@ -1180,6 +1209,28 @@ namespace ClockworkWasteland.EditorTools
             }
 
             return AssetDatabase.LoadAssetAtPath<CombatantView>(prefabPath);
+        }
+
+        private static void RefreshCombatantPrefabsOnDisk()
+        {
+            EnsureFolderPath(CombatantsPath);
+            var guids = AssetDatabase.FindAssets("t:CombatantDefinition", new[] { CombatantsPath });
+            foreach (var guid in guids)
+            {
+                var assetPath = AssetDatabase.GUIDToAssetPath(guid);
+                var combatant = AssetDatabase.LoadAssetAtPath<CombatantDefinition>(assetPath);
+                if (combatant == null)
+                {
+                    continue;
+                }
+
+                combatant.unitPrefabPath = GetUnitPrefabPath(combatant);
+                combatant.unitPrefab = CreateOrUpdateCombatUnitPrefab(combatant);
+                EditorUtility.SetDirty(combatant);
+            }
+
+            AssetDatabase.SaveAssets();
+            AssetDatabase.Refresh();
         }
 
         private static void RemoveMissingScriptsRecursively(GameObject root)
@@ -1743,6 +1794,38 @@ namespace ClockworkWasteland.EditorTools
                    skill.skillId.IndexOf(skillSearch, StringComparison.OrdinalIgnoreCase) >= 0;
         }
 
+        private static void EnsureCommonBuffAssets()
+        {
+            EnsureFolderPath(BuffsPath);
+            CreateOrUpdateCommonBuff("bleed", "流血", "回合开始时受到流血伤害。", false, 3, new Color(0.95f, 0.22f, 0.22f), new Color(1f, 0.2f, 0.2f));
+            CreateOrUpdateCommonBuff("poison", "中毒", "回合开始时受到中毒伤害。", false, 2, new Color(0.3f, 0.9f, 0.35f), new Color(0.28f, 0.95f, 0.38f));
+            CreateOrUpdateCommonBuff("burn", "灼烧", "回合开始时受到灼烧伤害。", false, 4, new Color(1f, 0.55f, 0.18f), new Color(1f, 0.45f, 0.12f));
+            CreateOrUpdateCommonBuff("shock", "感电", "回合开始时受到感电伤害。", false, 2, new Color(0.45f, 0.95f, 1f), new Color(0.35f, 0.9f, 1f));
+            CreateOrUpdateCommonBuff("corrode", "腐蚀", "回合开始时受到腐蚀伤害。", false, 3, new Color(0.7f, 1f, 0.25f), new Color(0.8f, 1f, 0.3f));
+            CreateOrUpdateCommonBuff("stun", "眩晕", "无法行动。", true, 0, new Color(1f, 0.92f, 0.3f), new Color(1f, 0.92f, 0.3f));
+            AssetDatabase.SaveAssets();
+        }
+
+        private static void CreateOrUpdateCommonBuff(string buffId, string buffName, string description, bool stun, int tickDamage, Color nameColor, Color damageColor)
+        {
+            var assetPath = $"{BuffsPath}/{ToAssetName(buffName)}.asset";
+            var buff = AssetDatabase.LoadAssetAtPath<BuffData>(assetPath);
+            if (buff == null)
+            {
+                buff = ScriptableObject.CreateInstance<BuffData>();
+                AssetDatabase.CreateAsset(buff, assetPath);
+            }
+
+            buff.buffId = buffId;
+            buff.buffName = buffName;
+            buff.description = description;
+            buff.stun = stun;
+            buff.tickDamage = tickDamage;
+            buff.nameTextColor = nameColor;
+            buff.damageTextColor = damageColor;
+            EditorUtility.SetDirty(buff);
+        }
+
         private bool DoesBuffMatchSearch(BuffData buff)
         {
             if (buff == null || string.IsNullOrWhiteSpace(buffSearch))
@@ -1787,6 +1870,9 @@ namespace ClockworkWasteland.EditorTools
             buff.description = createBuffDescription ?? string.Empty;
             buff.tickDamage = Mathf.Max(0, createBuffTickDamage);
             buff.stun = createBuffStun;
+            buff.nameTextColor = createBuffNameColor;
+            buff.damageTextColor = createBuffDamageColor;
+            buff.icon = createBuffIcon;
             EditorUtility.SetDirty(buff);
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
@@ -1924,61 +2010,17 @@ namespace ClockworkWasteland.EditorTools
 
         private static string GetPassiveDisplayName(HeroPassive passive)
         {
-            return passive switch
-            {
-                HeroPassive.Berserker => "狂战士",
-                HeroPassive.Executioner => "处决者",
-                HeroPassive.ChainReaction => "连锁反应",
-                HeroPassive.Backstab => "背刺",
-                HeroPassive.GlassCannon => "玻璃大炮",
-                HeroPassive.IronWill => "铁意志",
-                HeroPassive.Regenerator => "再生",
-                HeroPassive.ThornArmor => "荆棘护甲",
-                HeroPassive.Bodyguard => "保镖",
-                HeroPassive.Fortress => "堡垒",
-                HeroPassive.Tactician => "战术家",
-                HeroPassive.Scavenger => "回收者",
-                HeroPassive.Vanguard => "先锋",
-                HeroPassive.Reaper => "收割者",
-                HeroPassive.Inspirer => "鼓舞者",
-                _ => "无"
-            };
+            return HeroProgressionDescriptions.GetPassiveDisplayName(passive);
         }
 
         private static string GetPassiveRuleSummary(HeroPassive passive)
         {
-            return passive switch
-            {
-                HeroPassive.Berserker => "血量低于 50% 时攻击提升。",
-                HeroPassive.Executioner => "攻击残血目标时伤害显著提升。",
-                HeroPassive.ChainReaction => "击杀后对另一敌人造成溅射伤害。",
-                HeroPassive.Backstab => "从后排压前排时伤害提高。",
-                HeroPassive.GlassCannon => "高攻击，低防御。",
-                HeroPassive.IronWill => "每场战斗首次致死时保留 1 点生命。",
-                HeroPassive.Regenerator => "回合开始时恢复生命。",
-                HeroPassive.ThornArmor => "受击时反弹部分伤害。",
-                HeroPassive.Bodyguard => "相邻队友受击时分担伤害。",
-                HeroPassive.Fortress => "位于前排时防御更高。",
-                HeroPassive.Tactician => "回合开始时帮助队友转冷。",
-                HeroPassive.Scavenger => "击杀敌人时自我恢复。",
-                HeroPassive.Vanguard => "位于前排时为全队提供攻击光环。",
-                HeroPassive.Reaper => "敌人死亡越多，自身伤害越高。",
-                HeroPassive.Inspirer => "回合开始时恢复全队生命。",
-                _ => "未定义。"
-            };
+            return HeroProgressionDescriptions.GetPassiveDescription(passive);
         }
 
         private static string GetPassiveDesignNote(HeroPassive passive)
         {
-            return passive switch
-            {
-                HeroPassive.Executioner => "适合和 Slayer / Breaker 类专精配合，强化收尾节奏。",
-                HeroPassive.Backstab => "适合与后排点杀技能组合，形成高机动爆发。",
-                HeroPassive.Bodyguard => "更适合 Bulwark 的护卫路线，强化队友保护。",
-                HeroPassive.Tactician => "更适合 Stimulator 路线，围绕冷却和资源支援。",
-                HeroPassive.ChainReaction => "更适合 Bombardier 路线，强化 AOE 和击杀扩散。",
-                _ => "当前仍是 enum 规则；后续如需更深成长，可以升级成 PassiveData 资产。"
-            };
+            return HeroProgressionDescriptions.GetPassiveDesignNote(passive);
         }
 
         private static void ReplaceSpriteListFromSelection(List<Sprite> target)
@@ -2231,6 +2273,12 @@ namespace ClockworkWasteland.EditorTools
             };
         }
 
+        private static Vector3 GetDefaultOverlayPosition(CombatantDefinition combatant, float bodyBaselineY)
+        {
+            var basePosition = GetDefaultOverlayPosition(combatant);
+            return new Vector3(basePosition.x, basePosition.y + bodyBaselineY, basePosition.z);
+        }
+
         private static Vector3 GetDefaultOverlayScale(CombatantDefinition combatant)
         {
             return combatant.characterId switch
@@ -2241,6 +2289,20 @@ namespace ClockworkWasteland.EditorTools
                 "enemy_03" => new Vector3(1.12f, 1.12f, 1f),
                 _ => Vector3.one
             };
+        }
+
+        private static float NormalizeBodySpriteBaseline(Transform bodySpriteTransform, Sprite sprite)
+        {
+            if (bodySpriteTransform == null || sprite == null)
+            {
+                return 0f;
+            }
+
+            var localPosition = bodySpriteTransform.localPosition;
+            var desiredY = -sprite.bounds.min.y * bodySpriteTransform.localScale.y;
+            var deltaY = desiredY - localPosition.y;
+            bodySpriteTransform.localPosition = new Vector3(localPosition.x, desiredY, localPosition.z);
+            return deltaY;
         }
     }
 }

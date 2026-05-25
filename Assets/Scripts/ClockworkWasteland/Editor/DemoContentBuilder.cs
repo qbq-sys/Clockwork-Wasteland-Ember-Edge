@@ -19,27 +19,28 @@ namespace ClockworkWasteland.EditorTools
         private const string CombatantsPath = Root + "/Data/Combatants";
         private const string PrefabsPath = Root + "/Prefabs";
         private const string UnitPrefabsPath = PrefabsPath + "/CombatUnits";
-        private const string BattleUIPrefabPath = PrefabsPath + "/BattleUI.prefab";
+        private const string BattleHudControllerPrefabPath = PrefabsPath + "/BattleHudController.prefab";
         private const string CombatUnitPrefabPath = PrefabsPath + "/CombatUnit.prefab";
         private const string CombatNameplatePrefabPath = PrefabsPath + "/CombatNameplate.prefab";
         private const string ScenePath = "Assets/Scenes/CombatDemo.unity";
+        private const float VisualRootY = -1.4f;
         private const float NameplatePositionY = -1.726f;
 
-        private static BattleUI CreateBattleUIPrefab()
+        private static BattleHudController CreateBattleHudControllerPrefab()
         {
             EnsureFolder("Assets", "ClockworkWastelandDemo");
             EnsureFolder(Root, "Prefabs");
 
-            var prefabRoot = new GameObject("BattleUI", typeof(RectTransform));
-            var ui = prefabRoot.AddComponent<BattleUI>();
-            ui.BuildDefaultLayout();
+            var prefabRoot = new GameObject("BattleHudController", typeof(RectTransform));
+            var ui = prefabRoot.AddComponent<BattleHudController>();
+            ui.RebuildLegacyLayoutFromCode();
 
-            var prefab = PrefabUtility.SaveAsPrefabAsset(prefabRoot, BattleUIPrefabPath);
+            var prefab = PrefabUtility.SaveAsPrefabAsset(prefabRoot, BattleHudControllerPrefabPath);
             Object.DestroyImmediate(prefabRoot);
 
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
-            return AssetDatabase.LoadAssetAtPath<BattleUI>(BattleUIPrefabPath);
+            return AssetDatabase.LoadAssetAtPath<BattleHudController>(BattleHudControllerPrefabPath);
         }
 
         [MenuItem("Clockwork Wasteland/Build/Create Combat Unit Prefabs")]
@@ -181,7 +182,7 @@ namespace ClockworkWasteland.EditorTools
                 }
 
                 combatant.unitPrefabPath = GetUnitPrefabPath(combatant);
-                combatant.unitPrefab = CreateCombatUnitPrefab(combatant.unitPrefabPath, GetUnitPrefabName(combatant), GetDefaultOverlayPosition(combatant), GetDefaultOverlayScale(combatant));
+                combatant.unitPrefab = CreateCombatUnitPrefab(combatant, combatant.unitPrefabPath, GetUnitPrefabName(combatant), GetDefaultOverlayScale(combatant));
                 EditorUtility.SetDirty(combatant);
             }
 
@@ -191,33 +192,55 @@ namespace ClockworkWasteland.EditorTools
 
         private static CombatantView CreateCombatUnitPrefab()
         {
-            return CreateCombatUnitPrefab(CombatUnitPrefabPath, "CombatUnit", new Vector3(0f, 0f, -0.6f), Vector3.one);
+            return CreateCombatUnitPrefab(null, CombatUnitPrefabPath, "CombatUnit", Vector3.one);
         }
 
-        private static CombatantView CreateCombatUnitPrefab(string prefabPath, string prefabName, Vector3 overlayPosition, Vector3 overlayScale)
+        private static CombatantView CreateCombatUnitPrefab(CombatantDefinition combatant, string prefabPath, string prefabName, Vector3 overlayScale)
         {
-            var root = new GameObject(prefabName, typeof(SpriteRenderer), typeof(BoxCollider2D), typeof(CombatantView));
-            var spriteRenderer = root.GetComponent<SpriteRenderer>();
+            var root = new GameObject(prefabName, typeof(CombatantView));
+            var visualRoot = new GameObject("VisualRoot");
+            visualRoot.transform.SetParent(root.transform, false);
+            visualRoot.transform.localPosition = new Vector3(0f, VisualRootY, 0f);
+
+            var bodySprite = new GameObject("BodySprite", typeof(SpriteRenderer));
+            bodySprite.transform.SetParent(visualRoot.transform, false);
+            var spriteRenderer = bodySprite.GetComponent<SpriteRenderer>();
             spriteRenderer.sortingOrder = 2;
+            spriteRenderer.sprite = combatant != null && combatant.idleAnimationFrames != null && combatant.idleAnimationFrames.Length > 0
+                ? combatant.idleAnimationFrames[0]
+                : combatant != null ? combatant.battleSprite : null;
+            if (combatant != null)
+            {
+                spriteRenderer.color = combatant.tint;
+                NormalizeBodySpriteBaseline(bodySprite.transform, spriteRenderer.sprite);
+            }
+
+            var overlayPosition = combatant != null
+                ? GetDefaultOverlayPosition(combatant, bodySprite.transform.localPosition.y)
+                : new Vector3(0f, 0f, -0.6f);
 
             var overlay = new GameObject("ActionOverlay", typeof(SpriteRenderer));
-            overlay.transform.SetParent(root.transform, false);
+            overlay.transform.SetParent(visualRoot.transform, false);
             overlay.transform.localPosition = overlayPosition;
             overlay.transform.localScale = overlayScale;
             overlay.GetComponent<SpriteRenderer>().sortingOrder = 80;
             overlay.GetComponent<SpriteRenderer>().enabled = false;
 
             var hitOverlay = new GameObject("HitOverlay", typeof(SpriteRenderer));
-            hitOverlay.transform.SetParent(root.transform, false);
+            hitOverlay.transform.SetParent(visualRoot.transform, false);
             hitOverlay.transform.localPosition = overlayPosition;
             hitOverlay.transform.localScale = overlayScale;
             hitOverlay.GetComponent<SpriteRenderer>().sortingOrder = 81;
             hitOverlay.GetComponent<SpriteRenderer>().enabled = false;
 
+            var collider = new GameObject("Collider", typeof(BoxCollider2D), typeof(CombatantClickProxy));
+            collider.transform.SetParent(root.transform, false);
+
             var nameplatePosition = new GameObject("NameplatePosition");
             nameplatePosition.transform.SetParent(root.transform, false);
             nameplatePosition.transform.localPosition = new Vector3(0f, NameplatePositionY, 0f);
 
+            CombatUnitFeaturePatchRegistry.ApplyAll(root, combatant);
             var prefab = PrefabUtility.SaveAsPrefabAsset(root, prefabPath);
             Object.DestroyImmediate(root);
             return AssetDatabase.LoadAssetAtPath<CombatantView>(prefabPath);
@@ -266,21 +289,21 @@ namespace ClockworkWasteland.EditorTools
 
             foreach (var combatant in heroes.Concat(enemies))
             {
-                combatant.unitPrefab = CreateCombatUnitPrefab(GetUnitPrefabPath(combatant), GetUnitPrefabName(combatant), GetDefaultOverlayPosition(combatant), GetDefaultOverlayScale(combatant));
+                combatant.unitPrefab = CreateCombatUnitPrefab(combatant, GetUnitPrefabPath(combatant), GetUnitPrefabName(combatant), GetDefaultOverlayScale(combatant));
                 combatant.unitPrefabPath = GetUnitPrefabPath(combatant);
                 EditorUtility.SetDirty(combatant);
             }
 
-            var uiPrefab = AssetDatabase.LoadAssetAtPath<BattleUI>(BattleUIPrefabPath);
+            var uiPrefab = AssetDatabase.LoadAssetAtPath<BattleHudController>(BattleHudControllerPrefabPath);
             if (uiPrefab == null)
             {
-                uiPrefab = CreateBattleUIPrefab();
+                uiPrefab = CreateBattleHudControllerPrefab();
             }
 
             CreateScene(heroes, enemies, uiPrefab);
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
-            EditorUtility.DisplayDialog("Combat Demo Created", "Created demo data, BattleUI prefab, and Assets/Scenes/CombatDemo.unity.", "OK");
+            EditorUtility.DisplayDialog("Combat Demo Created", "Created demo data, Battle HUD controller prefab, and Assets/Scenes/CombatDemo.unity.", "OK");
         }
 
         private static SkillData CreateSkill(string skillId, string displayName, string description, SkillDataType skillType, SkillDataTargetType targetType, int baseValue, float powerMultiplier, BuffData applyBuff = null, int[] casterPositions = null, int[] targetPositions = null)
@@ -322,6 +345,8 @@ namespace ClockworkWasteland.EditorTools
             buff.description = description;
             buff.stun = stun;
             buff.tickDamage = tickDamage;
+            buff.nameTextColor = GetDefaultBuffColor(buffId, displayName, stun);
+            buff.damageTextColor = buff.nameTextColor;
             EditorUtility.SetDirty(buff);
             return buff;
         }
@@ -392,7 +417,7 @@ namespace ClockworkWasteland.EditorTools
             return growth;
         }
 
-        private static void CreateScene(CombatantDefinition[] heroes, CombatantDefinition[] enemies, BattleUI uiPrefab)
+        private static void CreateScene(CombatantDefinition[] heroes, CombatantDefinition[] enemies, BattleHudController uiPrefab)
         {
             var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
 
@@ -455,6 +480,26 @@ namespace ClockworkWasteland.EditorTools
             };
         }
 
+        private static Vector3 GetDefaultOverlayPosition(CombatantDefinition combatant, float bodyBaselineY)
+        {
+            var basePosition = GetDefaultOverlayPosition(combatant);
+            return new Vector3(basePosition.x, basePosition.y + bodyBaselineY, basePosition.z);
+        }
+
+        private static float NormalizeBodySpriteBaseline(Transform bodySpriteTransform, Sprite sprite)
+        {
+            if (bodySpriteTransform == null || sprite == null)
+            {
+                return 0f;
+            }
+
+            var desiredY = -sprite.bounds.min.y * bodySpriteTransform.localScale.y;
+            var currentPosition = bodySpriteTransform.localPosition;
+            var deltaY = desiredY - currentPosition.y;
+            bodySpriteTransform.localPosition = new Vector3(currentPosition.x, desiredY, currentPosition.z);
+            return deltaY;
+        }
+
         private static Vector3 GetDefaultOverlayScale(CombatantDefinition combatant)
         {
             return combatant.characterId switch
@@ -464,6 +509,27 @@ namespace ClockworkWasteland.EditorTools
                 "enemy_03" => new Vector3(1.12f, 1.12f, 1f),
                 _ => Vector3.one
             };
+        }
+
+        private static Color GetDefaultBuffColor(string buffId, string displayName, bool stun)
+        {
+            var key = $"{buffId} {displayName}".ToLowerInvariant();
+            if (stun || key.Contains("眩晕") || key.Contains("stun"))
+            {
+                return new Color(1f, 0.92f, 0.3f);
+            }
+
+            if (key.Contains("burn") || key.Contains("灼"))
+            {
+                return new Color(1f, 0.55f, 0.18f);
+            }
+
+            if (key.Contains("poison") || key.Contains("毒"))
+            {
+                return new Color(0.3f, 0.9f, 0.35f);
+            }
+
+            return new Color(0.95f, 0.22f, 0.22f);
         }
     }
 }

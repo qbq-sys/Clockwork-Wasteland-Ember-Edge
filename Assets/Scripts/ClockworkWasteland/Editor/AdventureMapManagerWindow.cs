@@ -802,7 +802,7 @@ namespace ClockworkWasteland.Editor
         [InitializeOnLoadMethod]
         private static void InitializeOnLoad()
         {
-            EnsureAdventureMapAssets();
+            EditorApplication.delayCall += SafeEnsureAdventureMapAssets;
         }
 
         public static AdventureMapCatalog EnsureAdventureMapAssets()
@@ -815,6 +815,29 @@ namespace ClockworkWasteland.Editor
             var catalog = AssetDatabase.LoadAssetAtPath<AdventureMapCatalog>(CatalogAssetPath);
             if (catalog == null)
             {
+                if (File.Exists(CatalogAssetPath))
+                {
+                    var existingAsset = AssetDatabase.LoadMainAssetAtPath(CatalogAssetPath);
+                    if (existingAsset == null || !(existingAsset is AdventureMapCatalog))
+                    {
+                        AssetDatabase.DeleteAsset(CatalogAssetPath);
+                        AssetDatabase.SaveAssets();
+                        AssetDatabase.Refresh();
+                    }
+                }
+
+                if (File.Exists(CatalogAssetPath))
+                {
+                    File.Delete(CatalogAssetPath);
+                    var metaPath = CatalogAssetPath + ".meta";
+                    if (File.Exists(metaPath))
+                    {
+                        File.Delete(metaPath);
+                    }
+
+                    AssetDatabase.Refresh();
+                }
+
                 var createdCatalog = ScriptableObject.CreateInstance<AdventureMapCatalog>();
                 AssetDatabase.CreateAsset(createdCatalog, CatalogAssetPath);
                 AssetDatabase.SaveAssets();
@@ -846,6 +869,18 @@ namespace ClockworkWasteland.Editor
             }
             AssetDatabase.SaveAssets();
             return catalog;
+        }
+
+        private static void SafeEnsureAdventureMapAssets()
+        {
+            try
+            {
+                EnsureAdventureMapAssets();
+            }
+            catch (System.Exception exception)
+            {
+                Debug.LogWarning($"Adventure map asset initialization skipped: {exception.Message}");
+            }
         }
 
         public static AdventureMapCatalog LoadAdventureMapCatalog()

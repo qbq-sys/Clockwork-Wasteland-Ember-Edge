@@ -2,6 +2,12 @@
 
 namespace ClockworkWasteland.Combat
 {
+    public enum HeroRecoveryState
+    {
+        Ready,
+        Wounded
+    }
+
     public readonly struct HeroProgressionResult
     {
         public HeroProgressionResult(int experienceGained, int levelsGained, int levelBefore, int levelAfter, int healthRestoredFromGrowth)
@@ -63,6 +69,8 @@ namespace ClockworkWasteland.Combat
         [Min(1)] public int currentLevel = 1;
         [Min(0)] public int currentExperience;
         public int currentHealth = -1;
+        public HeroRecoveryState recoveryState = HeroRecoveryState.Ready;
+        [Min(0)] public int recoveryBattlesRemaining;
 
         [Header("Actions")]
         public SkillData[] skills;
@@ -87,12 +95,15 @@ namespace ClockworkWasteland.Combat
         public int SpeedWithArchetype => Mathf.Max(0, speed + ArchetypeSpeedBonus + SpecializationSpeedBonus);
         public int CurrentHealth => isHero ? Mathf.Clamp(currentHealth < 0 ? MaxHealthWithGrowth : currentHealth, 0, MaxHealthWithGrowth) : MaxHealthWithGrowth;
         public bool IsDead => isHero && CurrentHealth <= 0;
+        public bool IsRecovering => isHero && recoveryState != HeroRecoveryState.Ready;
+        public bool CanDeploy => isHero && isUnlocked && !IsDead && !IsRecovering;
         public string ArchetypeDisplayName => GetArchetypeDisplayName(archetype);
         public string PreferredRowDisplayName => GetPreferredRowDisplayName(preferredRow);
         public string ArchetypeSummary => GetArchetypeSummary(archetype);
         public string SpecializationDisplayName => GetSpecializationDisplayName(specialization);
         public string SpecializationSummary => GetSpecializationSummary(specialization);
         public string PassiveDisplayName => GetPassiveDisplayName(passive);
+        public string RecoveryDisplayName => GetRecoveryDisplayName(recoveryState, recoveryBattlesRemaining);
 
         public bool PrefersFrontRows => preferredRow == CombatRowPreference.Front;
         public bool PrefersBackRows => preferredRow == CombatRowPreference.Back;
@@ -112,9 +123,16 @@ namespace ClockworkWasteland.Combat
             currentLevel = Mathf.Max(1, currentLevel);
             currentExperience = Mathf.Max(0, currentExperience);
             specialization = NormalizeSpecialization(archetype, specialization);
+            recoveryBattlesRemaining = Mathf.Max(0, recoveryBattlesRemaining);
+            if (recoveryState == HeroRecoveryState.Ready)
+            {
+                recoveryBattlesRemaining = 0;
+            }
             if (!isHero)
             {
                 currentHealth = -1;
+                recoveryState = HeroRecoveryState.Ready;
+                recoveryBattlesRemaining = 0;
             }
         }
 
@@ -363,6 +381,56 @@ namespace ClockworkWasteland.Combat
             }
         }
 
+        public void MarkWounded(int recoveryBattleCount, float stabilizedHealthPercent = 0.01f)
+        {
+            if (!isHero)
+            {
+                return;
+            }
+
+            recoveryState = HeroRecoveryState.Wounded;
+            recoveryBattlesRemaining = Mathf.Max(1, recoveryBattleCount);
+            currentHealth = Mathf.Clamp(
+                Mathf.CeilToInt(MaxHealthWithGrowth * Mathf.Clamp(stabilizedHealthPercent, 0.01f, 1f)),
+                1,
+                MaxHealthWithGrowth);
+        }
+
+        public bool AdvanceRecovery(int completedBattles = 1)
+        {
+            if (!isHero || recoveryState == HeroRecoveryState.Ready || completedBattles <= 0)
+            {
+                return false;
+            }
+
+            recoveryBattlesRemaining = Mathf.Max(0, recoveryBattlesRemaining - completedBattles);
+            if (recoveryBattlesRemaining > 0)
+            {
+                return false;
+            }
+
+            recoveryState = HeroRecoveryState.Ready;
+            recoveryBattlesRemaining = 0;
+            currentHealth = Mathf.Clamp(currentHealth, 1, MaxHealthWithGrowth);
+            return true;
+        }
+
+        public int RecoverImmediately(float healthPercent)
+        {
+            if (!isHero || recoveryState == HeroRecoveryState.Ready)
+            {
+                return 0;
+            }
+
+            recoveryState = HeroRecoveryState.Ready;
+            recoveryBattlesRemaining = 0;
+            currentHealth = Mathf.Clamp(
+                Mathf.CeilToInt(MaxHealthWithGrowth * Mathf.Clamp(healthPercent, 0.01f, 1f)),
+                1,
+                MaxHealthWithGrowth);
+            return currentHealth;
+        }
+
         public int HealOutsideBattle(int amount)
         {
             if (!isHero || amount <= 0 || IsDead)
@@ -382,6 +450,8 @@ namespace ClockworkWasteland.Combat
                 return 0;
             }
 
+            recoveryState = HeroRecoveryState.Ready;
+            recoveryBattlesRemaining = 0;
             currentHealth = Mathf.Clamp(Mathf.CeilToInt(MaxHealthWithGrowth * Mathf.Clamp01(healthPercent)), 1, MaxHealthWithGrowth);
             return currentHealth;
         }
@@ -414,6 +484,18 @@ namespace ClockworkWasteland.Combat
             }
 
             return new HeroProgressionResult(amount, levelsGained, levelBefore, Level, Mathf.Max(0, CurrentHealth - healthBefore));
+        }
+
+        private static string GetRecoveryDisplayName(HeroRecoveryState state, int battlesRemaining)
+        {
+            switch (state)
+            {
+                case HeroRecoveryState.Wounded:
+                    return battlesRemaining > 0 ? $"重伤休养（剩余 {battlesRemaining} 战）" : "重伤休养";
+                case HeroRecoveryState.Ready:
+                default:
+                    return "可出战";
+            }
         }
     }
 

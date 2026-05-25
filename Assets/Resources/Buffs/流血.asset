@@ -12,9 +12,12 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2aca887d0d6585943a8ecd67642e94a7, type: 3}
   m_Name: "\u6D41\u8840"
   m_EditorClassIdentifier: 
-  buffId: blood
+  buffId: bleed
   buffName: "\u6D41\u8840"
-  description: "\u6BCF\u56DE\u5408\u6D41\u8840\u56FA\u5B9A\u4F24\u5BB3"
+  description: "\u56DE\u5408\u5F00\u59CB\u65F6\u53D7\u5230\u6D41\u8840\u4F24\u5BB3\u3002"
   duration: 1
   stun: 0
   tickDamage: 3
+  nameTextColor: {r: 0.95, g: 0.22, b: 0.22, a: 1}
+  damageTextColor: {r: 1, g: 0.2, b: 0.2, a: 1}
+  icon: {fileID: 21300000, guid: 22d18a67bd56d9a4ebaa274fa1769cdc, type: 3}

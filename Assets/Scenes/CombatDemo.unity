@@ -171,10 +171,17 @@ MonoBehaviour:
   heroVisualScale: 0.8
   battleBackgrounds: []
   battleBackgroundIndex: 0
+  floatingTextBaseOffset: {x: 0, y: 1.2, z: -0.6}
+  floatingTextBaseScale: 0.5
+  floatingTextBurstWindow: 0.18
+  floatingTextQueueDelay: 0.5
+  floatingTextHorizontalSpacing: 0.18
+  floatingTextVerticalSpacing: 0.26
+  floatingTextAdditionalLiftPerText: 0.05
   attackFocusBlurMaterial: {fileID: 2100000, guid: 81b5537b0f7f24b48b572ec6646707cc, type: 2}
-  attackFocusZoomRatio: 0.62
-  attackFocusCameraOffset: {x: 0, y: -1.2}
-  attackFocusScale: 1.4
+  attackFocusZoomRatio: 0.75
+  attackFocusCameraOffset: {x: 0, y: -0.2}
+  attackFocusScale: 1.2
   attackFocusBlurStrength: 101.05
   attackFocusBlurTint: {r: 0.540386, g: 0.540386, b: 0.5597484, a: 1}
   attackFocusLungeDuration: 0.09
@@ -187,9 +194,9 @@ MonoBehaviour:
   attackFocusSingleActorOffset: 1.25
   attackFocusSingleTargetOffset: 1.25
   attackFocusFriendlyAdvanceOffset: 1.15
-  attackFocusAoeActorOffset: 2.1
-  attackFocusAoeTargetOffset: 1.35
-  attackFocusAoeTargetSpacing: 1.35
+  attackFocusAoeActorOffset: 3
+  attackFocusAoeTargetOffset: 2
+  attackFocusAoeTargetSpacing: 1
 --- !u!4 &323222959
 Transform:
   m_ObjectHideFlags: 0

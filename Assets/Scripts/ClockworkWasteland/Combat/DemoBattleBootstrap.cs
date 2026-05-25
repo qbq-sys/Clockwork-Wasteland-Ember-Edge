@@ -193,6 +193,8 @@ namespace ClockworkWasteland.Combat
             buff.buffName = displayName;
             buff.stun = stun;
             buff.tickDamage = tickDamage;
+            buff.nameTextColor = stun ? new Color(1f, 0.92f, 0.3f) : new Color(0.95f, 0.22f, 0.22f);
+            buff.damageTextColor = buff.nameTextColor;
             return buff;
         }
 

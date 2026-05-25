@@ -7,11 +7,20 @@ using UnityEngine.UI;
 
 namespace ClockworkWasteland.Combat
 {
-    public sealed class BattleUI : MonoBehaviour
+    [Obsolete("Use BattleHudController for new references. BattleUI remains as a compatibility wrapper for existing assets and scenes.")]
+    public class BattleUI : MonoBehaviour
     {
         [Header("Runtime Slots")]
+        [SerializeField] private Image activePortraitImage;
+        [SerializeField] private Text activeNameText;
+        [SerializeField] private Text activeMetaText;
+        [SerializeField] private Text activeStatsText;
         [SerializeField] private RectTransform skillPanel;
+        [SerializeField] private RectTransform skillListContent;
+        [SerializeField] private Button skillButtonTemplate;
         [SerializeField] private RectTransform targetPanel;
+        [SerializeField] private Text targetNameText;
+        [SerializeField] private Text targetMetaText;
         [SerializeField] private Text roundText;
         [SerializeField] private Text turnText;
         [SerializeField] private Text logText;
@@ -35,16 +44,22 @@ namespace ClockworkWasteland.Combat
         {
             EnsureEventSystem();
             EnsureCanvas();
-            EnsureSkinSprites();
             EnsureRuntimePrefabUi();
+            SetBattleHudVisible(false);
 
             if (skillPanel == null || targetPanel == null || roundText == null || turnText == null || logText == null || infoText == null || logScrollRect == null || skillDescriptionPanel == null || skillDescriptionText == null)
             {
-                BuildDefaultLayout();
+                Debug.LogError("BattleUI failed to bind BattleHudUI / SkillDescriptionUI runtime prefabs. HUD layout generation fallback is disabled.", this);
             }
         }
 
+        [Obsolete("Legacy authoring-only layout builder. Runtime battle HUD is provided by BattleHudUI.")]
         public void BuildDefaultLayout()
+        {
+            RebuildLegacyLayoutFromCode();
+        }
+
+        public void RebuildLegacyLayoutFromCode()
         {
             EnsureCanvas();
             EnsureSkinSprites();
@@ -67,8 +82,8 @@ namespace ClockworkWasteland.Combat
             bottomBar.GetComponent<Image>().sprite = panelSprite;
             bottomBar.GetComponent<Image>().type = Image.Type.Sliced;
             bottomBar.pivot = new Vector2(0.5f, 0f);
-            bottomBar.offsetMin = new Vector2(18f, 18f);
-            bottomBar.offsetMax = new Vector2(-18f, 228f);
+            bottomBar.offsetMin = new Vector2(0f, 18f);
+            bottomBar.offsetMax = new Vector2(0f, 228f);
 
             var logFrame = CreatePanel("LogFrame", bottomBar, new Vector2(0f, 0f), new Vector2(0f, 1f), new Vector2(190f, 0f), new Vector2(360f, -28f), new Color(0.055f, 0.052f, 0.054f, 1f));
             logFrame.GetComponent<Image>().sprite = panelSprite;
@@ -129,42 +144,69 @@ namespace ClockworkWasteland.Combat
 
         private void EnsureRuntimePrefabUi()
         {
-            var root = transform as RectTransform;
-            if (root == null)
+            var battleRoot = transform as RectTransform;
+            if (battleRoot == null)
             {
                 return;
             }
 
-            runtimeUiManager = UIManager.Ensure(root);
+            var canvas = GetComponentInParent<Canvas>();
+            var canvasRoot = canvas != null ? canvas.transform as RectTransform : battleRoot;
+            runtimeUiManager = UIManager.Ensure(canvasRoot);
             battleHudUI = runtimeUiManager.GetBattleHud();
             skillDescriptionUI = runtimeUiManager.GetSkillDescription();
 
             if (battleHudUI != null)
             {
-                battleHudUI.gameObject.SetActive(true);
-                battleHudUI.transform.SetAsLastSibling();
-                battleHudUI.Build(panelSprite);
+                battleHudUI.Build();
                 skillPanel = battleHudUI.SkillPanel;
+                skillListContent = battleHudUI.SkillListContent;
+                skillButtonTemplate = battleHudUI.SkillButtonTemplate;
                 targetPanel = battleHudUI.TargetPanel;
+                activePortraitImage = battleHudUI.ActivePortraitImage;
+                activeNameText = battleHudUI.ActiveNameText;
+                activeMetaText = battleHudUI.ActiveMetaText;
+                activeStatsText = battleHudUI.ActiveStatsText;
+                targetNameText = battleHudUI.TargetNameText;
+                targetMetaText = battleHudUI.TargetMetaText;
                 roundText = battleHudUI.RoundText;
                 turnText = battleHudUI.TurnText;
                 logText = battleHudUI.LogText;
                 infoText = battleHudUI.InfoText;
                 goldText = battleHudUI.GoldText;
                 logScrollRect = battleHudUI.LogScrollRect;
+                battleHudUI.gameObject.SetActive(false);
             }
 
             if (skillDescriptionUI != null)
             {
-                skillDescriptionUI.transform.SetAsLastSibling();
-                skillDescriptionUI.Build(descriptionSprite);
+                skillDescriptionUI.Build();
                 skillDescriptionText = skillDescriptionUI.SkillDescriptionText;
                 skillDescriptionPanel = skillDescriptionUI.skillDescriptionBg != null ? skillDescriptionUI.skillDescriptionBg.rectTransform : null;
             }
         }
 
+        private void SetBattleHudVisible(bool visible)
+        {
+            if (battleHudUI != null)
+            {
+                battleHudUI.gameObject.SetActive(visible);
+            }
+
+            if (!visible)
+            {
+                HideSkillDescription();
+            }
+        }
+
+        public void HideBattleHud()
+        {
+            SetBattleHudVisible(false);
+        }
+
         public void RenderPlayerTurn(BattleUnit actor, IReadOnlyList<SkillUseState> skillStates, Action<SkillData> onSkillSelected)
         {
+            SetBattleHudVisible(true);
             SetTurn($"{actor.DisplayName} \u884c\u52a8");
             ClearRuntimeButtons(targetPanel);
             AddLog($"\u8bf7\u9009\u62e9 {actor.DisplayName} \u7684\u6280\u80fd\u3002");
@@ -173,6 +215,7 @@ namespace ClockworkWasteland.Combat
 
         public void RenderTargets(SkillData skill, IReadOnlyList<BattleUnit> targets, Action<BattleUnit> onTargetSelected)
         {
+            SetBattleHudVisible(true);
             ClearRuntimeButtons(targetPanel);
             AddLog($"\u8bf7\u70b9\u51fb\u573a\u666f\u4e2d\u7684\u76ee\u6807\u6765\u4f7f\u7528 {skill.skillName}\u3002");
             AppendInfoHint($"\n\n\u5df2\u9009\u6280\u80fd\uff1a{skill.skillName}\n\u8bf7\u70b9\u51fb\u573a\u666f\u4e2d\u7684\u53ef\u9009\u76ee\u6807\u3002");
@@ -180,6 +223,7 @@ namespace ClockworkWasteland.Combat
 
         public void RenderUnitPanel(BattleUnit selectedUnit, BattleUnit activeActor, IReadOnlyList<SkillUseState> skillStates, Action<SkillData> onSkillSelected)
         {
+            SetBattleHudVisible(true);
             ClearRuntimeButtons(skillPanel);
             ClearRuntimeButtons(targetPanel);
             RenderInfo(selectedUnit, activeActor);
@@ -195,9 +239,16 @@ namespace ClockworkWasteland.Combat
             {
                 var state = states[i];
                 var skill = state.Skill;
-                var column = i % 2;
-                var row = i / 2;
-                CreateButton(skillPanel, state.ButtonLabel, new Vector2(92f + column * 178f, -62f - row * 54f), () => onSkillSelected(skill), canUseSkills && state.CanUse, skill);
+                if (skillListContent != null && skillButtonTemplate != null)
+                {
+                    CreateSkillTemplateButton(skillListContent, skillButtonTemplate, state, () => onSkillSelected(skill), canUseSkills && state.CanUse);
+                }
+                else
+                {
+                    var column = i % 2;
+                    var row = i / 2;
+                    CreateButton(skillPanel, state.ButtonLabel, new Vector2(92f + column * 178f, -62f - row * 54f), () => onSkillSelected(skill), canUseSkills && state.CanUse, skill);
+                }
             }
         }
 
@@ -220,7 +271,8 @@ namespace ClockworkWasteland.Combat
 
             if (skillDescriptionUI != null && source != null)
             {
-                skillDescriptionUI.ShowNear(source, transform as RectTransform, description);
+                var tooltipRoot = runtimeUiManager != null ? runtimeUiManager.GetHudRoot() : transform as RectTransform;
+                skillDescriptionUI.ShowNear(source, tooltipRoot, description);
                 return;
             }
 
@@ -297,8 +349,20 @@ namespace ClockworkWasteland.Combat
                 return;
             }
 
+            RenderActiveUnitInfo(activeActor);
+
             if (selectedUnit == null)
             {
+                if (targetNameText != null)
+                {
+                    targetNameText.text = "未选中目标";
+                }
+
+                if (targetMetaText != null)
+                {
+                    targetMetaText.text = "点击战场中的单位查看详细信息";
+                }
+
                 infoText.text = "\u70b9\u51fb\u89d2\u8272\u67e5\u770b\u5c5e\u6027";
                 return;
             }
@@ -309,8 +373,17 @@ namespace ClockworkWasteland.Combat
                 ? "\u65e0"
                 : string.Join("\uff0c", selectedUnit.Statuses.Select(item => $"{item.DisplayName}({item.TurnsRemaining})"));
 
+            if (targetNameText != null)
+            {
+                targetNameText.text = selectedUnit.DisplayName;
+            }
+
+            if (targetMetaText != null)
+            {
+                targetMetaText.text = $"{side}  {selectedUnit.Definition.ArchetypeDisplayName}  {selectedUnit.Definition.SpecializationDisplayName}";
+            }
+
             infoText.text =
-                $"{selectedUnit.DisplayName}\n" +
                 $"{side}{active}\n\n" +
                 $"\u804c\u80fd\uff1a{selectedUnit.Definition.ArchetypeDisplayName}\n" +
                 $"\u5b9a\u4f4d\uff1a{selectedUnit.Definition.ArchetypeSummary}\n" +
@@ -328,6 +401,41 @@ namespace ClockworkWasteland.Combat
                 $"\u72b6\u6001\uff1a{status}";
         }
 
+        private void RenderActiveUnitInfo(BattleUnit activeActor)
+        {
+            if (activeNameText == null || activeMetaText == null || activeStatsText == null)
+            {
+                return;
+            }
+
+            if (activeActor == null)
+            {
+                activeNameText.text = "当前行动者";
+                activeMetaText.text = "等待进入战斗";
+                activeStatsText.text = "尚未进入战斗回合。";
+                if (activePortraitImage != null)
+                {
+                    activePortraitImage.sprite = null;
+                    activePortraitImage.color = new Color(0.16f, 0.16f, 0.17f, 1f);
+                }
+
+                return;
+            }
+
+            activeNameText.text = activeActor.DisplayName;
+            activeMetaText.text = $"{activeActor.Definition.ArchetypeDisplayName}  /  {activeActor.Definition.SpecializationDisplayName}  /  {activeActor.Definition.PreferredRowDisplayName}";
+            activeStatsText.text =
+                $"生命 {activeActor.Health}/{activeActor.MaxHealth}    资源 {activeActor.Resource}/{activeActor.MaxResource}\n" +
+                $"攻击 {activeActor.Attack}    防御 {activeActor.Defense}    速度 {activeActor.Speed}    站位 {activeActor.CurrentPosition}";
+
+            if (activePortraitImage != null)
+            {
+                activePortraitImage.sprite = activeActor.Definition.portrait;
+                activePortraitImage.color = activeActor.Definition.portrait != null ? Color.white : new Color(0.16f, 0.16f, 0.17f, 1f);
+                activePortraitImage.preserveAspect = true;
+            }
+        }
+
         private void AppendInfoHint(string hint)
         {
             if (infoText != null && !string.IsNullOrWhiteSpace(hint))
@@ -338,6 +446,7 @@ namespace ClockworkWasteland.Combat
 
         public void SetRound(int round)
         {
+            SetBattleHudVisible(true);
             if (roundText != null)
             {
                 roundText.text = $"\u7b2c {round} \u56de\u5408";
@@ -346,6 +455,7 @@ namespace ClockworkWasteland.Combat
 
         public void SetTurn(string text)
         {
+            SetBattleHudVisible(true);
             if (turnText != null)
             {
                 turnText.text = text;
@@ -354,6 +464,7 @@ namespace ClockworkWasteland.Combat
 
         public void SetGold(int amount)
         {
+            SetBattleHudVisible(true);
             if (goldText != null)
             {
                 goldText.text = $"\u91d1\u5e01\uff1a{Mathf.Max(0, amount)}";
@@ -362,6 +473,7 @@ namespace ClockworkWasteland.Combat
 
         public void AddLog(string message)
         {
+            SetBattleHudVisible(true);
             if (string.IsNullOrWhiteSpace(message) || logText == null)
             {
                 return;
@@ -386,6 +498,7 @@ namespace ClockworkWasteland.Combat
         {
             EnsureOverlay();
             overlayPanel.gameObject.SetActive(true);
+            overlayPanel.SetAsLastSibling();
             overlayText.text = message;
             var buttonParent = overlayPanel.Find("MessagePanel") as RectTransform ?? overlayPanel;
             ClearRuntimeButtons(buttonParent);
@@ -407,6 +520,7 @@ namespace ClockworkWasteland.Combat
 
             EnsureOverlay();
             overlayPanel.gameObject.SetActive(true);
+            overlayPanel.SetAsLastSibling();
             overlayText.text = message;
             var buttonParent = overlayPanel.Find("MessagePanel") as RectTransform ?? overlayPanel;
             ClearRuntimeButtons(buttonParent);
@@ -426,6 +540,7 @@ namespace ClockworkWasteland.Combat
         {
             EnsureOverlay();
             overlayPanel.gameObject.SetActive(true);
+            overlayPanel.SetAsLastSibling();
             overlayText.text = message;
             var buttonParent = overlayPanel.Find("MessagePanel") as RectTransform ?? overlayPanel;
             ClearRuntimeButtons(buttonParent);
@@ -434,11 +549,13 @@ namespace ClockworkWasteland.Combat
         public void ShowTitleScreen(bool showContinue, Action onStartGame, Action onContinueGame, Action onOpenSettings, Action onQuit, Action onBack)
         {
             EnsureRuntimePrefabUi();
+            SetBattleHudVisible(false);
             runtimeUiManager?.ShowStartMenu(showContinue, onStartGame, onContinueGame, onOpenSettings, onQuit, onBack);
         }
 
         public void ShowSettingsScreen(Action onBack, Action onSaveGame)
         {
+            SetBattleHudVisible(false);
             if (runtimeUiManager != null)
             {
                 runtimeUiManager.ShowSettings(onBack, onSaveGame);
@@ -447,6 +564,7 @@ namespace ClockworkWasteland.Combat
 
             EnsureOverlay();
             overlayPanel.gameObject.SetActive(true);
+            overlayPanel.SetAsLastSibling();
             ClearChildren(overlayPanel);
 
             var panel = CreatePanel("SettingsPanel", overlayPanel, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(620f, 360f), new Color(0.032f, 0.026f, 0.024f, 0.97f));
@@ -468,8 +586,10 @@ namespace ClockworkWasteland.Combat
 
         public void ShowRewardScreen(int goldGained, int totalGold, IReadOnlyList<BattleRewardResult> results, Action onContinue)
         {
+            SetBattleHudVisible(false);
             EnsureOverlay();
             overlayPanel.gameObject.SetActive(true);
+            overlayPanel.SetAsLastSibling();
             ClearChildren(overlayPanel);
 
             var panel = CreatePanel("RewardPanel", overlayPanel, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, 18f), new Vector2(720f, 470f), new Color(0.035f, 0.026f, 0.024f, 0.97f));
@@ -514,8 +634,10 @@ namespace ClockworkWasteland.Combat
             Action onOpenInventory,
             Action onOpenTavern)
         {
+            SetBattleHudVisible(false);
             EnsureOverlay();
             overlayPanel.gameObject.SetActive(true);
+            overlayPanel.SetAsLastSibling();
             ClearChildren(overlayPanel);
 
             var rootPanel = CreatePanel("TeamSelectionPanel", overlayPanel, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(1180f, 760f), new Color(0.032f, 0.026f, 0.024f, 0.97f));
@@ -580,33 +702,70 @@ namespace ClockworkWasteland.Combat
             CreateButton(rootPanel, "\u5f00\u59cb\u6218\u6597", new Vector2(590f, -708f), onStartBattle.Invoke, selectedHeroes.Count > 0, null);
         }
 
-        public void ShowLobby(int currentGold, Action onOpenTavern, Action onOpenAdventure, Action onOpenHeroCodex, Action onOpenMenu)
+        public void ShowLobby(int currentGold, Action onOpenTavern, Action onOpenAdventure, Action onOpenRecoveryWard, Action onOpenHeroCodex, Action onOpenMenu)
         {
             EnsureRuntimePrefabUi();
-            runtimeUiManager?.ShowLobby(currentGold, onOpenTavern, onOpenAdventure, onOpenHeroCodex, onOpenMenu);
+            SetBattleHudVisible(false);
+            runtimeUiManager?.ShowLobby(currentGold, onOpenTavern, onOpenAdventure, onOpenRecoveryWard, onOpenHeroCodex, onOpenMenu);
         }
 
         public void ShowSaveSlots(string title, IReadOnlyList<SaveSlotSummary> slots, bool allowEmptySelection, Action<int> onSelect, Action<int> onDelete, Action onBack)
         {
             EnsureRuntimePrefabUi();
+            SetBattleHudVisible(false);
             runtimeUiManager?.ShowSaveSlots(title, slots, allowEmptySelection, onSelect, onDelete, onBack);
+        }
+
+        public void ShowLevelUpSelection(LevelUpPresentation presentation, Action<LevelUpOptionData> onSelect)
+        {
+            EnsureRuntimePrefabUi();
+            SetBattleHudVisible(false);
+            if (runtimeUiManager != null)
+            {
+                runtimeUiManager.ShowLevelUp(presentation, onSelect);
+                return;
+            }
+
+            if (presentation.Options != null && presentation.Options.Count >= 2)
+            {
+                var left = presentation.Options[0];
+                var right = presentation.Options[1];
+                ShowChoicePrompt(
+                    $"{presentation.Title}\n\n{left.Title}\n{left.Summary}\n\n{right.Title}\n{right.Summary}",
+                    left.Title,
+                    () => onSelect?.Invoke(left),
+                    right.Title,
+                    () => onSelect?.Invoke(right));
+                return;
+            }
+
+            ShowContinuePrompt(presentation.Title, "\u786e\u5b9a", () =>
+            {
+                if (presentation.Options != null && presentation.Options.Count > 0)
+                {
+                    onSelect?.Invoke(presentation.Options[0]);
+                }
+            });
         }
 
         public void ShowAdventureMap(IReadOnlyList<AdventureMapOption> maps, Action<AdventureMapOption> onSelect, Action onBack)
         {
             EnsureRuntimePrefabUi();
+            SetBattleHudVisible(false);
             runtimeUiManager?.ShowAdventureMap(maps, onSelect, onBack);
         }
 
         public void ShowHeroCodex(IReadOnlyList<CombatantDefinition> heroPool, Action onBack)
         {
             EnsureRuntimePrefabUi();
+            SetBattleHudVisible(false);
             runtimeUiManager?.ShowHeroCodex(heroPool, onBack);
         }
 
         public void ShowTeamSelection(IReadOnlyList<CombatantDefinition> heroPool, IReadOnlyList<CombatantDefinition> selectedHeroes, Action<CombatantDefinition> onToggleHero, Action onStartBattle, Action onBack)
         {
             EnsureRuntimePrefabUi();
+            SetBattleHudVisible(false);
             if (runtimeUiManager != null)
             {
                 runtimeUiManager.ShowTeamSelection(heroPool, selectedHeroes, onToggleHero, onStartBattle, onBack);
@@ -623,8 +782,10 @@ namespace ClockworkWasteland.Combat
             Action<InventoryItemData> onBuy,
             Action onBack)
         {
+            SetBattleHudVisible(false);
             EnsureOverlay();
             overlayPanel.gameObject.SetActive(true);
+            overlayPanel.SetAsLastSibling();
             ClearChildren(overlayPanel);
 
             var panel = CreatePanel("ShopPanel", overlayPanel, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(860f, 620f), new Color(0.032f, 0.026f, 0.024f, 0.97f));
@@ -670,6 +831,7 @@ namespace ClockworkWasteland.Combat
             Action onBack)
         {
             EnsureRuntimePrefabUi();
+            SetBattleHudVisible(false);
             if (runtimeUiManager != null)
             {
                 runtimeUiManager.ShowTavern(recruitableHeroes, currentGold, onRecruit, onBack);
@@ -678,6 +840,7 @@ namespace ClockworkWasteland.Combat
 
             EnsureOverlay();
             overlayPanel.gameObject.SetActive(true);
+            overlayPanel.SetAsLastSibling();
             ClearChildren(overlayPanel);
 
             var panel = CreatePanel("TavernPanel", overlayPanel, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(980f, 660f), new Color(0.032f, 0.026f, 0.024f, 0.97f));
@@ -744,8 +907,10 @@ namespace ClockworkWasteland.Combat
             Action<InventoryItemData, CombatantDefinition> onUse,
             Action onBack)
         {
+            SetBattleHudVisible(false);
             EnsureOverlay();
             overlayPanel.gameObject.SetActive(true);
+            overlayPanel.SetAsLastSibling();
             ClearChildren(overlayPanel);
 
             var panel = CreatePanel("InventoryPanel", overlayPanel, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(980f, 690f), new Color(0.032f, 0.026f, 0.024f, 0.97f));
@@ -792,10 +957,77 @@ namespace ClockworkWasteland.Combat
             CreateButton(panel, "\u8fd4\u56de", new Vector2(490f, -632f), () => onBack?.Invoke(), true, null);
         }
 
-        public void ShowMap(int step, int totalSteps, IReadOnlyList<MapNodeOption> options, Action<MapNodeOption> onSelect)
+        public void ShowRecoveryWard(
+            IReadOnlyList<CombatantDefinition> heroes,
+            int currentGold,
+            int treatmentCost,
+            Action<CombatantDefinition> onTreat,
+            Action onBack)
         {
+            SetBattleHudVisible(false);
             EnsureOverlay();
             overlayPanel.gameObject.SetActive(true);
+            overlayPanel.SetAsLastSibling();
+            ClearChildren(overlayPanel);
+
+            var panel = CreatePanel("RecoveryWardPanel", overlayPanel, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(980f, 620f), new Color(0.032f, 0.026f, 0.024f, 0.97f));
+            panel.GetComponent<Image>().sprite = descriptionSprite;
+            panel.GetComponent<Image>().type = Image.Type.Sliced;
+
+            var title = CreateText("Title", panel, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -48f), new Vector2(-80f, 56f), 30, TextAnchor.MiddleCenter);
+            title.text = "\u4f24\u5458\u4f11\u6574";
+            SetTextStyle(title, new Color(0.96f, 0.82f, 0.48f), true);
+
+            var goldText = CreateText("Gold", panel, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -94f), new Vector2(-120f, 34f), 18, TextAnchor.MiddleCenter);
+            goldText.text = $"\u5f53\u524d\u91d1\u5e01\uff1a{currentGold}";
+            SetTextStyle(goldText, new Color(1f, 0.78f, 0.34f), true);
+
+            var heroList = (heroes ?? Array.Empty<CombatantDefinition>())
+                .Where(hero => hero != null && hero.isHero && hero.isUnlocked)
+                .OrderBy(hero => hero.IsRecovering ? 0 : 1)
+                .ThenBy(hero => hero.displayName)
+                .ToArray();
+
+            if (heroList.Length == 0)
+            {
+                var empty = CreateText("Empty", panel, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero, 18, TextAnchor.MiddleCenter);
+                empty.text = "\u6682\u65e0\u53ef\u7ba1\u7406\u7684\u82f1\u96c4\u3002";
+                SetTextStyle(empty, new Color(0.82f, 0.72f, 0.54f), false);
+            }
+            else
+            {
+                for (var i = 0; i < heroList.Length && i < 6; i++)
+                {
+                    var hero = heroList[i];
+                    var y = -160f - i * 68f;
+                    var row = CreatePanel($"RecoveryHero_{i}", panel, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, y), new Vector2(-120f, 52f), new Color(0.055f, 0.048f, 0.047f, 0.94f));
+                    row.offsetMin = new Vector2(80f, row.offsetMin.y);
+                    row.offsetMax = new Vector2(-80f, row.offsetMax.y);
+                    row.GetComponent<Image>().sprite = panelSprite;
+                    row.GetComponent<Image>().type = Image.Type.Sliced;
+
+                    var statusText = hero.IsRecovering ? hero.RecoveryDisplayName : "\u53ef\u51fa\u6218";
+                    var text = CreateText("Hero", row, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero, 16, TextAnchor.MiddleLeft);
+                    text.rectTransform.offsetMin = new Vector2(18f, 0f);
+                    text.rectTransform.offsetMax = new Vector2(-260f, 0f);
+                    text.text = $"{hero.displayName}    {statusText}    \u751f\u547d {hero.CurrentHealth}/{hero.MaxHealthWithGrowth}";
+                    SetTextStyle(text, hero.IsRecovering ? new Color(0.95f, 0.74f, 0.52f) : new Color(0.78f, 0.84f, 0.72f), false);
+
+                    var canTreat = hero.IsRecovering && currentGold >= treatmentCost;
+                    var actionLabel = hero.IsRecovering ? $"\u6025\u6551\u6062\u590d {treatmentCost}\u91d1" : "\u5df2\u7a33\u5b9a";
+                    CreateButton(row, actionLabel, new Vector2(640f, -26f), () => onTreat?.Invoke(hero), canTreat, null);
+                }
+            }
+
+            CreateButton(panel, "\u8fd4\u56de\u5927\u5385", new Vector2(490f, -572f), () => onBack?.Invoke(), true, null);
+        }
+
+        public void ShowMap(int step, int totalSteps, IReadOnlyList<MapNodeOption> options, Action<MapNodeOption> onSelect)
+        {
+            SetBattleHudVisible(false);
+            EnsureOverlay();
+            overlayPanel.gameObject.SetActive(true);
+            overlayPanel.SetAsLastSibling();
             ClearChildren(overlayPanel);
 
             var panel = CreatePanel("MapPanel", overlayPanel, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(980f, 560f), new Color(0.032f, 0.026f, 0.024f, 0.97f));
@@ -835,8 +1067,10 @@ namespace ClockworkWasteland.Combat
 
         public void ShowRestNode(IReadOnlyList<CombatantDefinition> heroes, Action<CombatantDefinition> onSelectHero)
         {
+            SetBattleHudVisible(false);
             EnsureOverlay();
             overlayPanel.gameObject.SetActive(true);
+            overlayPanel.SetAsLastSibling();
             ClearChildren(overlayPanel);
 
             var panel = CreatePanel("RestPanel", overlayPanel, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(840f, 560f), new Color(0.032f, 0.026f, 0.024f, 0.97f));
@@ -928,7 +1162,12 @@ namespace ClockworkWasteland.Combat
                 return;
             }
 
-            var root = GetComponent<RectTransform>();
+            var root = runtimeUiManager != null ? runtimeUiManager.GetOverlayRoot() : GetComponent<RectTransform>();
+            if (root == null)
+            {
+                return;
+            }
+
             if (overlayPanel == null)
             {
                 overlayPanel = CreatePanel("SequenceOverlay", root, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero, new Color(0f, 0f, 0f, 0.62f));
@@ -983,7 +1222,7 @@ namespace ClockworkWasteland.Combat
                     return hero.IsDead;
                 case InventoryItemEffectType.Heal:
                 default:
-                    return !hero.IsDead && hero.CurrentHealth < hero.MaxHealthWithGrowth;
+                    return !hero.IsDead && !hero.IsRecovering && hero.CurrentHealth < hero.MaxHealthWithGrowth;
             }
         }
 
@@ -1128,8 +1367,15 @@ namespace ClockworkWasteland.Combat
 
             var image = buttonObject.GetComponent<Image>();
             image.color = new Color(0.16f, 0.12f, 0.1f, 1f);
-            image.sprite = buttonSprite;
-            image.type = Image.Type.Sliced;
+            if (image.sprite == null)
+            {
+                EnsureSkinSprites();
+                image.sprite = buttonSprite;
+                if (image.sprite != null)
+                {
+                    image.type = Image.Type.Sliced;
+                }
+            }
 
             var button = buttonObject.GetComponent<Button>();
             button.onClick.AddListener(() =>
@@ -1187,6 +1433,126 @@ namespace ClockworkWasteland.Combat
                 }
             });
             trigger.triggers.Add(down);
+        }
+
+        private void CreateSkillTemplateButton(RectTransform parent, Button template, SkillUseState state, UnityEngine.Events.UnityAction action, bool interactable)
+        {
+            if (parent == null || template == null || state.Skill == null)
+            {
+                return;
+            }
+
+            var buttonObject = Instantiate(template.gameObject, parent, false);
+            buttonObject.name = $"RuntimeSkillButton_{state.Skill.skillId}";
+            buttonObject.SetActive(true);
+
+            var image = buttonObject.GetComponent<Image>();
+            if (image != null && image.sprite == null)
+            {
+                EnsureSkinSprites();
+                image.sprite = buttonSprite;
+                if (image.sprite != null)
+                {
+                    image.type = Image.Type.Sliced;
+                }
+            }
+
+            var button = buttonObject.GetComponent<Button>();
+            button.onClick.RemoveAllListeners();
+            button.onClick.AddListener(() =>
+            {
+                CombatAudio.Instance.PlayUiClick();
+                HideSkillDescription();
+                action?.Invoke();
+            });
+            button.interactable = interactable;
+
+            var colors = button.colors;
+            colors.normalColor = Color.white;
+            colors.highlightedColor = new Color(1f, 1f, 1f, 1f);
+            colors.pressedColor = new Color(0.92f, 0.92f, 0.92f, 1f);
+            colors.disabledColor = new Color(1f, 1f, 1f, 0.72f);
+            button.colors = colors;
+
+            var nameText = buttonObject.transform.Find("SkillNameText")?.GetComponent<Text>();
+            var metaText = buttonObject.transform.Find("SkillMetaText")?.GetComponent<Text>();
+            var hintText = buttonObject.transform.Find("SkillHintText")?.GetComponent<Text>();
+
+            if (nameText != null)
+            {
+                nameText.text = state.Skill.skillName;
+                nameText.color = interactable ? new Color(0.96f, 0.88f, 0.68f) : new Color(0.62f, 0.62f, 0.62f);
+            }
+
+            if (metaText != null)
+            {
+                metaText.text = BuildSkillMetaText(state.Skill);
+                metaText.color = interactable ? new Color(0.82f, 0.74f, 0.6f) : new Color(0.5f, 0.5f, 0.5f);
+            }
+
+            if (hintText != null)
+            {
+                hintText.text = interactable ? BuildSkillRowHint(state.Skill) : state.DisabledReason;
+                hintText.color = interactable ? new Color(0.72f, 0.66f, 0.58f) : new Color(0.78f, 0.48f, 0.42f);
+            }
+
+            var trigger = buttonObject.GetComponent<EventTrigger>();
+            if (trigger == null)
+            {
+                trigger = buttonObject.AddComponent<EventTrigger>();
+            }
+
+            trigger.triggers.Clear();
+            var rect = buttonObject.GetComponent<RectTransform>();
+
+            var enter = new EventTrigger.Entry { eventID = EventTriggerType.PointerEnter };
+            enter.callback.AddListener(_ => ShowSkillDescription(state.Skill, rect));
+            trigger.triggers.Add(enter);
+
+            var exit = new EventTrigger.Entry { eventID = EventTriggerType.PointerExit };
+            exit.callback.AddListener(_ => HideSkillDescription());
+            trigger.triggers.Add(exit);
+
+            var down = new EventTrigger.Entry { eventID = EventTriggerType.PointerDown };
+            down.callback.AddListener(_ => ShowSkillDescription(state.Skill, rect));
+            trigger.triggers.Add(down);
+        }
+
+        private static string BuildSkillMetaText(SkillData skill)
+        {
+            var targetLabel = skill.targetType switch
+            {
+                SkillDataTargetType.单敌 => "单敌",
+                SkillDataTargetType.单友 => "单友",
+                SkillDataTargetType.前排两敌 => "前排两敌",
+                SkillDataTargetType.全体敌 => "全体敌",
+                SkillDataTargetType.自己 => "自己",
+                _ => "未知"
+            };
+
+            return $"消耗 {skill.manaCost}    冷却 {skill.cooldown}    {targetLabel}";
+        }
+
+        private static string BuildSkillRowHint(SkillData skill)
+        {
+            if (skill == null)
+            {
+                return string.Empty;
+            }
+
+            if (skill.skillType == SkillDataType.治疗)
+            {
+                return "恢复 / 稳定 / 净化";
+            }
+
+            if (skill.skillType == SkillDataType.控制)
+            {
+                return "护卫 / 压制 / 站位控制";
+            }
+
+            return skill.targetType == SkillDataTargetType.前排两敌
+                ? "前排压制 / 多目标"
+                : "单体打击 / 节奏推进";
         }
 
         private void EnsureSkinSprites()
@@ -1317,7 +1683,11 @@ namespace ClockworkWasteland.Combat
                 return;
             }
 
-            foreach (Transform child in parent.Cast<Transform>().Where(child => child.name.StartsWith("RuntimeButton_", StringComparison.Ordinal)).ToArray())
+            foreach (Transform child in parent.GetComponentsInChildren<Transform>(true)
+                         .Where(child => child != parent &&
+                                         (child.name.StartsWith("RuntimeButton_", StringComparison.Ordinal) ||
+                                          child.name.StartsWith("RuntimeSkillButton_", StringComparison.Ordinal)))
+                         .ToArray())
             {
                 Destroy(child.gameObject);
             }

@@ -1,0 +1,23 @@
+%YAML 1.1
+%TAG !u! tag:yousandi.cn,2023:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2aca887d0d6585943a8ecd67642e94a7, type: 3}
+  m_Name: "\u707C\u70E7"
+  m_EditorClassIdentifier: 
+  buffId: burn
+  buffName: "\u707C\u70E7"
+  description: "\u56DE\u5408\u5F00\u59CB\u65F6\u53D7\u5230\u707C\u70E7\u4F24\u5BB3\u3002"
+  duration: 1
+  stun: 0
+  tickDamage: 4
+  nameTextColor: {r: 1, g: 0.55, b: 0.18, a: 1}
+  damageTextColor: {r: 1, g: 0.45, b: 0.12, a: 1}
+  icon: {fileID: 21300000, guid: 64a6dd690fa292247bd7e9037e797449, type: 3}

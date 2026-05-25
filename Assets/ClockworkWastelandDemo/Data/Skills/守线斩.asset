@@ -1,0 +1,34 @@
+%YAML 1.1
+%TAG !u! tag:yousandi.cn,2023:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b8bfb20e525850f48a31396eb1a44be5, type: 3}
+  m_Name: "\u5B88\u7EBF\u65A9"
+  m_EditorClassIdentifier: 
+  skillId: hero_05_hold_the_line
+  skillName: "\u5B88\u7EBF\u65A9"
+  description: "\u7A33\u4F4F\u524D\u6392\u8282\u594F\u7684\u57FA\u7840\u65A9\u51FB\u3002"
+  icon: {fileID: 0}
+  skillType: 0
+  baseValue: 8
+  powerMultiplier: 1
+  targetType: 0
+  casterAllowedPositions: 0100000002000000
+  targetAllowedPositions: 0100000002000000
+  manaCost: 0
+  cooldown: 0
+  applyBuff: {fileID: 0}
+  applyBuffDuration: 1
+  attackSprite: {fileID: 0}
+  hitSprite: {fileID: 0}
+  skillSfx: {fileID: 8300000, guid: 434b6b1cdc230a642a3b1ab1ed71daa0, type: 3}
+  overlayDuration: 0.22
+  isSwapSkill: 0
+  isPassSkill: 0

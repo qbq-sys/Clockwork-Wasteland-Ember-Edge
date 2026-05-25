@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 #if UNITY_EDITOR
 using UnityEditor;
@@ -100,7 +101,7 @@ namespace ClockworkWasteland.Combat
         {
             Data = data;
             MapId = data != null ? data.mapId : string.Empty;
-            DisplayName = data != null ? data.displayName : "未命名地图";
+            DisplayName = data != null ? data.displayName : "δ������ͼ";
             Description = data != null ? data.description : string.Empty;
             PreviewSprite = data != null ? data.backgroundSprite : null;
             BackgroundOffset = data != null ? data.backgroundOffset : Vector2.zero;
@@ -156,10 +157,19 @@ namespace ClockworkWasteland.Combat
         public int experience;
         public int health;
         public int specialization;
+        public int recoveryState;
+        public int recoveryBattlesRemaining;
     }
 
     public sealed class BattleController : MonoBehaviour
     {
+        private const string GuardStatusName = "护卫";
+        private const string SuppressedStatusName = "压制";
+        private const int WoundedRecoveryBattleCount = 1;
+        private const int RecoveryTreatmentCost = 150;
+        private const float RecoveryTreatmentHealthPercent = 0.5f;
+        private const float WoundedStabilizedHealthPercent = 0.01f;
+
         private const int MaxFormationSlots = 4;
         private const int MapNodeCount = 3;
         private const int InitialGold = 1200;
@@ -187,12 +197,19 @@ namespace ClockworkWasteland.Combat
         [SerializeField] private AdventureMapCatalog adventureMapCatalog;
 
         [Header("Presentation")]
-        [SerializeField] private BattleUI battleUIPrefab;
+        [FormerlySerializedAs("battleUIPrefab")]
+        [SerializeField] private BattleHudController battleHudControllerPrefab;
         [SerializeField] private CombatantView defaultUnitPrefab;
         [SerializeField] private CombatNameplate nameplatePrefab;
-        [SerializeField] private float heroVisualScale = 0.8f;
         [SerializeField] private Sprite[] battleBackgrounds;
         [SerializeField] private int battleBackgroundIndex = 0;
+        [SerializeField] private Vector3 floatingTextBaseOffset = new Vector3(0f, 1.2f, -0.6f);
+        [SerializeField] private float floatingTextBaseScale = 1f;
+        [SerializeField] private float floatingTextBurstWindow = 0.18f;
+        [SerializeField] private float floatingTextQueueDelay = 0.08f;
+        [SerializeField] private float floatingTextHorizontalSpacing = 0.18f;
+        [SerializeField] private float floatingTextVerticalSpacing = 0.26f;
+        [SerializeField] private float floatingTextAdditionalLiftPerText = 0.05f;
 
         [Header("Attack Focus")]
         [SerializeField] private Material attackFocusBlurMaterial;
@@ -215,14 +232,26 @@ namespace ClockworkWasteland.Combat
         [SerializeField] private float attackFocusAoeTargetOffset = 1.35f;
         [SerializeField] private float attackFocusAoeTargetSpacing = 1.35f;
 
+        [Header("Testing")]
+        [SerializeField] private bool debugTestingEnabled;
+        [SerializeField, Min(0.1f)] private float debugExperienceRewardMultiplier = 1f;
+        [SerializeField, Min(0.1f)] private float debugGoldRewardMultiplier = 1f;
+        [SerializeField, Min(0.1f)] private float debugChestGoldMultiplier = 1f;
+        [SerializeField] private bool debugUnlockAllMaps;
+        [SerializeField] private bool debugUnlockAllHeroesOnNewGame = true;
+        [SerializeField, Min(1)] private int debugNewGameHeroLevel = 1;
+        [SerializeField] private int debugStartingGoldOverride = -1;
+        [SerializeField, Min(1)] private int debugManualExperienceGrant = 100;
+
         private readonly List<BattleUnit> heroes = new List<BattleUnit>();
         private readonly List<BattleUnit> enemies = new List<BattleUnit>();
         private readonly BattleUnit[] heroSlots = new BattleUnit[MaxFormationSlots];
         private readonly BattleUnit[] enemySlots = new BattleUnit[MaxFormationSlots];
         private readonly Dictionary<BattleUnit, CombatantView> views = new Dictionary<BattleUnit, CombatantView>();
         private readonly List<BattleUnit> turnQueue = new List<BattleUnit>();
+        private Dictionary<string, BuffData> buffLookup;
 
-        private BattleUI ui;
+        private BattleHudController hudController;
         private Sprite fallbackSprite;
         private bool waitingForPlayer;
         private BattleUnit currentActor;
@@ -252,11 +281,11 @@ namespace ClockworkWasteland.Combat
         private Material runtimeFocusBlurMaterial;
         private int activeSaveSlotIndex = -1;
 
-        public void Configure(CombatantDefinition[] heroesToUse, CombatantDefinition[] enemiesToUse, BattleUI uiPrefabToUse = null, CombatantView unitPrefabToUse = null, CombatNameplate nameplatePrefabToUse = null)
+        public void Configure(CombatantDefinition[] heroesToUse, CombatantDefinition[] enemiesToUse, BattleHudController hudControllerPrefabToUse = null, CombatantView unitPrefabToUse = null, CombatNameplate nameplatePrefabToUse = null)
         {
             heroParty = heroesToUse;
             enemyParty = enemiesToUse;
-            battleUIPrefab = uiPrefabToUse;
+            battleHudControllerPrefab = hudControllerPrefabToUse;
             defaultUnitPrefab = unitPrefabToUse;
             nameplatePrefab = nameplatePrefabToUse;
         }
@@ -281,7 +310,7 @@ namespace ClockworkWasteland.Combat
             var skills = attacker != null ? GetSkillList(attacker).ToArray() : new SkillData[0];
             if (attacker == null || skillIndex < 0 || skillIndex >= skills.Length)
             {
-                ui?.AddLog("\u653b\u51fb\u6d41\u7a0b\u53c2\u6570\u65e0\u6548\u3002");
+                hudController?.AddLog("\u653b\u51fb\u6d41\u7a0b\u53c2\u6570\u65e0\u6548\u3002");
                 return;
             }
 
@@ -289,14 +318,14 @@ namespace ClockworkWasteland.Combat
             var state = GetSkillUseState(attacker, skill);
             if (!state.CanUse)
             {
-                ui?.AddLog($"\u6280\u80fd\u4e0d\u53ef\u7528\uff1a{state.DisabledReason}\u3002");
+                hudController?.AddLog($"\u6280\u80fd\u4e0d\u53ef\u7528\uff1a{state.DisabledReason}\u3002");
                 return;
             }
 
             var candidates = GetValidTargets(attacker, skill).ToArray();
             if (targetIndex < 0 || targetIndex >= candidates.Length)
             {
-                ui?.AddLog("\u76ee\u6807\u7d22\u5f15\u65e0\u6548\u3002");
+                hudController?.AddLog("\u76ee\u6807\u7d22\u5f15\u65e0\u6548\u3002");
                 return;
             }
 
@@ -305,8 +334,8 @@ namespace ClockworkWasteland.Combat
 
         private void ShowTitleScreen()
         {
-            PrepareNonCombatScreen("开始界面");
-            ui.ShowTitleScreen(HasAnySaveSlots(), StartNewGame, ShowContinueGameSlots, ShowSettings, QuitGame, ShowLobby);
+            PrepareNonCombatScreen("��ʼ����");
+            hudController.ShowTitleScreen(HasAnySaveSlots(), StartNewGame, ShowContinueGameSlots, ShowSettings, QuitGame, ShowLobby);
         }
 
         private void PrepareNonCombatScreen(string turnLabel, bool stopMusic = true)
@@ -317,11 +346,12 @@ namespace ClockworkWasteland.Combat
             }
 
             ClearAllUnits();
-            ui.HideOverlay();
-            ui.ClearActionPanels();
-            ui.SetRound(0);
-            ui.SetTurn(turnLabel);
-            ui.SetGold(gold);
+            hudController.HideOverlay();
+            hudController.ClearActionPanels();
+            hudController.SetRound(0);
+            hudController.SetTurn(turnLabel);
+            hudController.SetGold(gold);
+            hudController.HideBattleHud();
         }
 
         private void ResetCombatSelectionState()
@@ -348,14 +378,21 @@ namespace ClockworkWasteland.Combat
         {
             if (selectedHeroDefinitions.Count == 0)
             {
-                ui.AddLog("\u8bf7\u81f3\u5c11\u9009\u62e9 1 \u540d\u82f1\u96c4\u3002");
+                hudController.AddLog("\u8bf7\u81f3\u5c11\u9009\u62e9 1 \u540d\u82f1\u96c4\u3002");
                 return false;
             }
 
             var deadHero = selectedHeroDefinitions.FirstOrDefault(hero => hero != null && hero.IsDead);
             if (deadHero != null)
             {
-                ui.AddLog($"{deadHero.displayName} \u5df2\u6b7b\u4ea1\uff0c\u9700\u8981\u5148\u590d\u6d3b\u624d\u80fd\u51fa\u6218\u3002");
+                hudController.AddLog($"{deadHero.displayName} \u5df2\u6b7b\u4ea1\uff0c\u9700\u8981\u5148\u590d\u6d3b\u624d\u80fd\u51fa\u6218\u3002");
+                return false;
+            }
+
+            var recoveringHero = selectedHeroDefinitions.FirstOrDefault(hero => hero != null && hero.IsRecovering);
+            if (recoveringHero != null)
+            {
+                hudController.AddLog($"{recoveringHero.displayName} \u6b63\u5728\u4f11\u517b\uff0c\u9700\u8981\u5148\u6062\u590d\u624d\u80fd\u51fa\u6218\u3002");
                 return false;
             }
 
@@ -365,8 +402,8 @@ namespace ClockworkWasteland.Combat
         private void BeginSelectedAdventure()
         {
             ClearAllUnits();
-            ui.HideOverlay();
-            ui.ClearActionPanels();
+            hudController.HideOverlay();
+            hudController.ClearActionPanels();
             CombatAudio.Instance.PlayStartExpedition();
             CommitSelectedPartyToHeroParty();
             SetupHeroUnits();
@@ -376,7 +413,7 @@ namespace ClockworkWasteland.Combat
         private void ShowLobby()
         {
             PrepareNonCombatScreen("\u5927\u5385");
-            ui.ShowLobby(gold, ShowTavern, ShowAdventureMap, ShowHeroCodex, ShowTitleScreen);
+            hudController.ShowLobby(gold, ShowTavern, ShowAdventureMap, ShowRecoveryWard, ShowHeroCodex, ShowTitleScreen);
         }
 
         private void StartNewGame()
@@ -389,7 +426,7 @@ namespace ClockworkWasteland.Combat
                 return;
             }
 
-            ui.ShowChoicePrompt(
+            hudController.ShowChoicePrompt(
                 "\u4e09\u4e2a\u5b58\u6863\u4f4d\u90fd\u5df2\u6709\u5b58\u6863\u3002\u7ee7\u7eed\u65b0\u6e38\u620f\u5c06\u8986\u76d6 1 \u53f7\u5b58\u6863\u3002",
                 "\u53d6\u6d88",
                 ShowLobby,
@@ -405,10 +442,11 @@ namespace ClockworkWasteland.Combat
         {
             StopAllCoroutines();
             ClearAllUnits();
-            gold = InitialGold;
+            gold = GetInitialGoldForCurrentMode();
             inventory.Clear();
             totalHeroPool = BuildHeroPool();
             NormalizeHeroPool(totalHeroPool);
+            ApplyDebugNewGameOverrides(totalHeroPool);
             availableHeroPool = GetUnlockedHeroPool();
             SyncSelectedHeroDefinitions(fillToMax: true);
             currentBattleNumber = 0;
@@ -419,38 +457,44 @@ namespace ClockworkWasteland.Combat
         private void ShowSettings()
         {
             PrepareNonCombatScreen("\u8bbe\u7f6e", false);
-            ui.ShowSettingsScreen(ShowLobby, ShowManualSaveSlots);
+            hudController.ShowSettingsScreen(ShowLobby, ShowManualSaveSlots);
         }
 
         private void QuitGame()
         {
-            ui.AddLog("\u9000\u51fa\u6e38\u620f\u3002");
+            hudController.AddLog("\u9000\u51fa\u6e38\u620f\u3002");
             Application.Quit();
         }
 
         private void ShowHeroCodex()
         {
             PrepareNonCombatScreen("\u82f1\u96c4\u56fe\u9274");
-            ui.ShowHeroCodex(totalHeroPool, ShowLobby);
+            hudController.ShowHeroCodex(totalHeroPool, ShowLobby);
+        }
+
+        private void ShowRecoveryWard()
+        {
+            PrepareNonCombatScreen("\u4f24\u5458\u4f11\u6574", false);
+            hudController.ShowRecoveryWard(totalHeroPool, gold, RecoveryTreatmentCost, TreatRecoveringHero, ShowLobby);
         }
 
         private void ShowAdventureMap()
         {
             PrepareNonCombatScreen("\u5192\u9669");
-            ui.ShowAdventureMap(GetAdventureMaps(), SelectAdventureMap, ShowLobby);
+            hudController.ShowAdventureMap(GetAdventureMaps(), SelectAdventureMap, ShowLobby);
         }
 
         private void SelectAdventureMap(AdventureMapOption map)
         {
             if (!map.IsUnlocked)
             {
-                ui.AddLog($"\u5730\u56fe\u5c1a\u672a\u89e3\u9501\uff1a{map.UnlockSummary}");
+                hudController.AddLog($"\u5730\u56fe\u5c1a\u672a\u89e3\u9501\uff1a{map.UnlockSummary}");
                 ShowAdventureMap();
                 return;
             }
 
             selectedAdventureMap = map;
-            ui.AddLog($"\u9009\u62e9\u5730\u56fe\uff1a{map.DisplayName}\u3002");
+            hudController.AddLog($"\u9009\u62e9\u5730\u56fe\uff1a{map.DisplayName}\u3002");
             ShowTeamSelection();
         }
 
@@ -458,7 +502,7 @@ namespace ClockworkWasteland.Combat
         {
             PrepareNonCombatScreen("\u961f\u4f0d\u914d\u7f6e");
             SyncSelectedHeroDefinitions(fillToMax: false);
-            ui.ShowTeamSelection(GetDeployableHeroPool(), selectedHeroDefinitions, ToggleHeroSelection, StartSelectedBattleSequence, ShowAdventureMap);
+            hudController.ShowTeamSelection(GetDeployableHeroPool(), selectedHeroDefinitions, ToggleHeroSelection, StartSelectedBattleSequence, ShowAdventureMap);
         }
 
         private void ToggleHeroSelection(CombatantDefinition hero)
@@ -478,11 +522,11 @@ namespace ClockworkWasteland.Combat
             }
             else
             {
-                ui.AddLog("\u6700\u591a\u53ea\u80fd\u9009\u62e9 4 \u540d\u82f1\u96c4\u3002");
+                hudController.AddLog("\u6700\u591a\u53ea\u80fd\u9009\u62e9 4 \u540d\u82f1\u96c4\u3002");
             }
 
             SortSelectedHeroesInPlace();
-            ui.ShowTeamSelection(GetDeployableHeroPool(), selectedHeroDefinitions, ToggleHeroSelection, StartSelectedBattleSequence, ShowAdventureMap);
+            hudController.ShowTeamSelection(GetDeployableHeroPool(), selectedHeroDefinitions, ToggleHeroSelection, StartSelectedBattleSequence, ShowAdventureMap);
         }
 
         private void StartSelectedBattleSequence()
@@ -497,12 +541,12 @@ namespace ClockworkWasteland.Combat
 
         private void ShowShop()
         {
-            ui.ShowShop(shopItems, gold, GetInventoryStacks(), BuyItem, ShowTeamSelection);
+            hudController.ShowShop(shopItems, gold, GetInventoryStacks(), BuyItem, ShowTeamSelection);
         }
 
         private void ShowInventory()
         {
-            ui.ShowInventory(GetInventoryStacks(), availableHeroPool, UseItemOnHero, ShowTeamSelection);
+            hudController.ShowInventory(GetInventoryStacks(), availableHeroPool, UseItemOnHero, ShowTeamSelection);
         }
 
         private void ShowTavern()
@@ -512,7 +556,7 @@ namespace ClockworkWasteland.Combat
                 RefreshTavernOffers();
             }
 
-            ui.ShowTavern(tavernOffers, gold, RecruitHero, ShowLobby);
+            hudController.ShowTavern(tavernOffers, gold, RecruitHero, ShowLobby);
         }
 
         private void RecruitHero(CombatantDefinition hero)
@@ -524,14 +568,14 @@ namespace ClockworkWasteland.Combat
 
             if (hero.isUnlocked)
             {
-                ui.AddLog($"{hero.displayName} \u5df2\u7ecf\u52a0\u5165\u82f1\u96c4\u6c60\u3002");
+                hudController.AddLog($"{hero.displayName} \u5df2\u7ecf\u52a0\u5165\u82f1\u96c4\u6c60\u3002");
                 ShowTavern();
                 return;
             }
 
             if (gold < hero.recruitPrice)
             {
-                ui.AddLog("\u91d1\u5e01\u4e0d\u8db3\uff0c\u65e0\u6cd5\u62db\u52df\u8be5\u82f1\u96c4\u3002");
+                hudController.AddLog("\u91d1\u5e01\u4e0d\u8db3\uff0c\u65e0\u6cd5\u62db\u52df\u8be5\u82f1\u96c4\u3002");
                 ShowTavern();
                 return;
             }
@@ -541,11 +585,11 @@ namespace ClockworkWasteland.Combat
             hero.EnsureRuntimeHealth();
             availableHeroPool = GetUnlockedHeroPool();
             selectedHeroDefinitions.RemoveAll(selected => selected == null || !selected.isUnlocked);
-            ui.SetGold(gold);
+            hudController.SetGold(gold);
             SaveGameState();
             RefreshTavernOffers();
-            ui.AddLog($"\u62db\u52df\u4e86 {hero.displayName}\uff0c\u4ed6\u5df2\u52a0\u5165\u82f1\u96c4\u6c60\u3002");
-            ui.ShowContinuePrompt($"\u62db\u52df\u6210\u529f\uff1a{hero.displayName}", "\u7ee7\u7eed", ShowTavern);
+            hudController.AddLog($"\u62db\u52df\u4e86 {hero.displayName}\uff0c\u4ed6\u5df2\u52a0\u5165\u82f1\u96c4\u6c60\u3002");
+            hudController.ShowContinuePrompt($"\u62db\u52df\u6210\u529f\uff1a{hero.displayName}", "\u7ee7\u7eed", ShowTavern);
         }
 
         private void BuyItem(InventoryItemData item)
@@ -557,16 +601,16 @@ namespace ClockworkWasteland.Combat
 
             if (gold < item.price)
             {
-                ui.AddLog("\u91d1\u5e01\u4e0d\u8db3\u3002");
+                hudController.AddLog("\u91d1\u5e01\u4e0d\u8db3\u3002");
                 ShowShop();
                 return;
             }
 
             gold -= item.price;
             inventory[item] = inventory.TryGetValue(item, out var count) ? count + 1 : 1;
-            ui.SetGold(gold);
+            hudController.SetGold(gold);
             SaveGameState();
-            ui.AddLog($"\u8d2d\u4e70\u4e86 {item.itemName}\u3002");
+            hudController.AddLog($"\u8d2d\u4e70\u4e86 {item.itemName}\u3002");
             ShowShop();
         }
 
@@ -577,13 +621,20 @@ namespace ClockworkWasteland.Combat
                 return;
             }
 
+            if (hero.IsRecovering && item.effectType != InventoryItemEffectType.Revive)
+            {
+                hudController.AddLog($"{hero.displayName} 正在休养中，不能直接使用治疗道具。");
+                ShowInventory();
+                return;
+            }
+
             var used = false;
             switch (item.effectType)
             {
                 case InventoryItemEffectType.Revive:
                     var revivedHealth = hero.ReviveOutsideBattle(item.reviveHealthPercent);
                     used = revivedHealth > 0;
-                    ui.AddLog(used
+                    hudController.AddLog(used
                         ? $"{hero.displayName} \u88ab\u590d\u6d3b\uff0c\u751f\u547d\u6062\u590d\u5230 {revivedHealth}/{hero.MaxHealthWithGrowth}\u3002"
                         : $"{item.itemName} \u53ea\u80fd\u5bf9\u6b7b\u4ea1\u82f1\u96c4\u4f7f\u7528\u3002");
                     break;
@@ -591,7 +642,7 @@ namespace ClockworkWasteland.Combat
                 default:
                     var healed = hero.HealOutsideBattle(item.healAmount);
                     used = healed > 0;
-                    ui.AddLog(used
+                    hudController.AddLog(used
                         ? $"{hero.displayName} \u6062\u590d\u4e86 {healed} \u70b9\u751f\u547d\u3002"
                         : $"{item.itemName} \u65e0\u6cd5\u5bf9\u8be5\u82f1\u96c4\u751f\u6548\u3002");
                     break;
@@ -634,10 +685,40 @@ namespace ClockworkWasteland.Combat
                 .ToArray();
         }
 
+        private void TreatRecoveringHero(CombatantDefinition hero)
+        {
+            if (hero == null || !hero.isHero)
+            {
+                ShowRecoveryWard();
+                return;
+            }
+
+            if (!hero.IsRecovering)
+            {
+                hudController.AddLog($"{hero.displayName} 当前无需休整。");
+                ShowRecoveryWard();
+                return;
+            }
+
+            if (gold < RecoveryTreatmentCost)
+            {
+                hudController.AddLog($"金币不足，急救恢复需要 {RecoveryTreatmentCost} 金币。");
+                ShowRecoveryWard();
+                return;
+            }
+
+            gold -= RecoveryTreatmentCost;
+            hero.RecoverImmediately(RecoveryTreatmentHealthPercent);
+            RebuildDerivedGameState();
+            SaveGameState();
+            hudController.AddLog($"{hero.displayName} 完成急救恢复，重新回到可出战状态。");
+            ShowRecoveryWard();
+        }
+
         private CombatantDefinition[] GetDeployableHeroPool()
         {
             return availableHeroPool
-                .Where(hero => hero != null && hero.isHero && hero.isUnlocked && !hero.IsDead)
+                .Where(hero => hero != null && hero.CanDeploy)
                 .OrderBy(GetPreferredRowSortOrder)
                 .ThenBy(GetArchetypeSortOrder)
                 .ThenBy(hero => hero.displayName)
@@ -668,7 +749,7 @@ namespace ClockworkWasteland.Combat
             }
 
             return maps
-                .Select(map => new AdventureMapOption(map, map != null && map.IsUnlocked(clearedMapIds)))
+                .Select(map => new AdventureMapOption(map, map != null && (debugTestingEnabled && debugUnlockAllMaps || map.IsUnlocked(clearedMapIds))))
                 .ToArray();
         }
 
@@ -707,6 +788,8 @@ namespace ClockworkWasteland.Combat
             {
                 if (!heroStates.TryGetValue(hero.characterId, out var state))
                 {
+                    hero.recoveryState = HeroRecoveryState.Ready;
+                    hero.recoveryBattlesRemaining = 0;
                     hero.EnsureRuntimeHealth();
                     continue;
                 }
@@ -718,6 +801,14 @@ namespace ClockworkWasteland.Combat
                 hero.specialization = System.Enum.IsDefined(typeof(CombatSpecialization), state.specialization)
                     ? (CombatSpecialization)state.specialization
                     : CombatSpecialization.None;
+                hero.recoveryState = System.Enum.IsDefined(typeof(HeroRecoveryState), state.recoveryState)
+                    ? (HeroRecoveryState)state.recoveryState
+                    : HeroRecoveryState.Ready;
+                hero.recoveryBattlesRemaining = Mathf.Max(0, state.recoveryBattlesRemaining);
+                if (hero.IsRecovering && hero.currentHealth <= 0)
+                {
+                    hero.currentHealth = 1;
+                }
             }
 
             if (save.clearedMapIds != null)
@@ -894,7 +985,9 @@ namespace ClockworkWasteland.Combat
                         level = hero.Level,
                         experience = hero.Experience,
                         health = hero.CurrentHealth,
-                        specialization = (int)hero.specialization
+                        specialization = (int)hero.specialization,
+                        recoveryState = (int)hero.recoveryState,
+                        recoveryBattlesRemaining = hero.recoveryBattlesRemaining
                     })
                     .ToList()
             };
@@ -906,13 +999,13 @@ namespace ClockworkWasteland.Combat
         private void ShowContinueGameSlots()
         {
             PrepareNonCombatScreen("\u7ee7\u7eed\u6e38\u620f");
-            ui.ShowSaveSlots("\u9009\u62e9\u8981\u7ee7\u7eed\u7684\u5b58\u6863", GetSaveSlotSummaries(), false, LoadSelectedSaveSlot, ConfirmDeleteFromContinueSlots, ShowTitleScreen);
+            hudController.ShowSaveSlots("\u9009\u62e9\u8981\u7ee7\u7eed\u7684\u5b58\u6863", GetSaveSlotSummaries(), false, LoadSelectedSaveSlot, ConfirmDeleteFromContinueSlots, ShowTitleScreen);
         }
 
         private void ShowManualSaveSlots()
         {
             PrepareNonCombatScreen("\u4fdd\u5b58\u6e38\u620f", false);
-            ui.ShowSaveSlots("\u9009\u62e9\u8981\u8986\u76d6\u7684\u5b58\u6863", GetSaveSlotSummaries(), true, ConfirmSaveToSlot, ConfirmDeleteFromManualSlots, ShowSettings);
+            hudController.ShowSaveSlots("\u9009\u62e9\u8981\u8986\u76d6\u7684\u5b58\u6863", GetSaveSlotSummaries(), true, ConfirmSaveToSlot, ConfirmDeleteFromManualSlots, ShowSettings);
         }
 
         private void ConfirmDeleteFromContinueSlots(int slotIndex)
@@ -934,7 +1027,7 @@ namespace ClockworkWasteland.Combat
                 return;
             }
 
-            ui.ShowChoicePrompt(
+            hudController.ShowChoicePrompt(
                 $"\u786e\u5b9a\u5220\u9664{summary.Title}\u5417\uff1f\n{summary.Detail}",
                 "\u53d6\u6d88",
                 onReturn,
@@ -966,7 +1059,7 @@ namespace ClockworkWasteland.Combat
         {
             if (!TryReadSaveSlot(slotIndex, out _))
             {
-                ui.ShowContinuePrompt("\u8be5\u5b58\u6863\u4f4d\u4e3a\u7a7a\u3002", "\u8fd4\u56de", ShowContinueGameSlots);
+                hudController.ShowContinuePrompt("\u8be5\u5b58\u6863\u4f4d\u4e3a\u7a7a\u3002", "\u8fd4\u56de", ShowContinueGameSlots);
                 return;
             }
 
@@ -983,7 +1076,7 @@ namespace ClockworkWasteland.Combat
                 return;
             }
 
-            ui.ShowChoicePrompt(
+            hudController.ShowChoicePrompt(
                 $"\u786e\u5b9a\u8986\u76d6{summary.Title}\u5417\uff1f\n{summary.Detail}",
                 "\u53d6\u6d88",
                 ShowManualSaveSlots,
@@ -1029,7 +1122,7 @@ namespace ClockworkWasteland.Combat
             SyncSelectedHeroDefinitions(fillToMax: true);
             CommitSelectedPartyToHeroParty();
             RefreshTavernOffers();
-            ui.SetGold(gold);
+            hudController.SetGold(gold);
         }
 
         private bool HasAnySaveSlots()
@@ -1180,13 +1273,13 @@ namespace ClockworkWasteland.Combat
             if (battles.Count == 0)
             {
                 currentBattleNumber = 1;
-                ui.AddLog($"\u5192\u9669\u5f00\u59cb\uff1a{selectedAdventureMap.DisplayName}\u3002");
+                hudController.AddLog($"\u5192\u9669\u5f00\u59cb\uff1a{selectedAdventureMap.DisplayName}\u3002");
                 currentAdventureBattle = null;
                 yield return StartCoroutine(RunCombatEncounter(false));
             }
             else
             {
-                ui.AddLog($"\u5192\u9669\u5f00\u59cb\uff1a{selectedAdventureMap.DisplayName}\u3002");
+                hudController.AddLog($"\u5192\u9669\u5f00\u59cb\uff1a{selectedAdventureMap.DisplayName}\u3002");
                 for (var battleIndex = 0; battleIndex < battles.Count; battleIndex++)
                 {
                     currentBattleNumber = battleIndex + 1;
@@ -1220,16 +1313,16 @@ namespace ClockworkWasteland.Combat
         private IEnumerator MapExpeditionLoop()
         {
             currentBattleNumber = 0;
-            ui.AddLog("\u8fdc\u5f81\u5f00\u59cb\u3002");
+            hudController.AddLog("\u8fdc\u5f81\u5f00\u59cb\u3002");
 
             for (var mapStep = 1; mapStep <= MapNodeCount; mapStep++)
             {
                 var nodeSelected = false;
                 var selectedNode = default(MapNodeOption);
-                ui.ClearActionPanels();
-                ui.SetRound(0);
-                ui.SetTurn($"\u5730\u56fe {mapStep}/{MapNodeCount}");
-                ui.ShowMap(mapStep, MapNodeCount, GenerateMapOptions(mapStep), node =>
+                hudController.ClearActionPanels();
+                hudController.SetRound(0);
+                hudController.SetTurn($"\u5730\u56fe {mapStep}/{MapNodeCount}");
+                hudController.ShowMap(mapStep, MapNodeCount, GenerateMapOptions(mapStep), node =>
                 {
                     selectedNode = node;
                     nodeSelected = true;
@@ -1240,7 +1333,7 @@ namespace ClockworkWasteland.Combat
                     yield return null;
                 }
 
-                ui.HideOverlay();
+                hudController.HideOverlay();
 
                 if (selectedNode.NodeType == MapNodeType.Battle)
                 {
@@ -1264,7 +1357,7 @@ namespace ClockworkWasteland.Combat
             }
 
             currentBattleNumber++;
-            ui.AddLog("\u8fdc\u5f81\u8d70\u5230\u5c3d\u5934\uff0cBoss \u51fa\u73b0\u4e86\u3002");
+            hudController.AddLog("\u8fdc\u5f81\u8d70\u5230\u5c3d\u5934\uff0cBoss \u51fa\u73b0\u4e86\u3002");
             yield return StartCoroutine(RunCombatEncounter(true));
 
             if (!heroes.Any(hero => hero.CanAct))
@@ -1273,11 +1366,11 @@ namespace ClockworkWasteland.Combat
                 yield break;
             }
 
-            ui.ClearActionPanels();
-            ui.SetTurn("\u606d\u559c\u901a\u5173");
-            ui.AddLog("Boss \u5df2\u88ab\u51fb\u8d25\uff0c\u8fdc\u5f81\u901a\u5173\u3002");
+            hudController.ClearActionPanels();
+            hudController.SetTurn("\u606d\u559c\u901a\u5173");
+            hudController.AddLog("Boss \u5df2\u88ab\u51fb\u8d25\uff0c\u8fdc\u5f81\u901a\u5173\u3002");
             var requestedReturn = false;
-            ui.ShowContinuePrompt("\u606d\u559c\u901a\u5173", "\u8fd4\u56de\u5927\u5385", () => requestedReturn = true);
+            hudController.ShowContinuePrompt("\u606d\u559c\u901a\u5173", "\u8fd4\u56de\u5927\u5385", () => requestedReturn = true);
             while (!requestedReturn)
             {
                 yield return null;
@@ -1302,9 +1395,9 @@ namespace ClockworkWasteland.Combat
 
             var rewardResults = GrantVictoryRewards(out var goldGained);
             var continueRequested = false;
-            ui.SetTurn(bossBattle ? "Boss \u6218\u80dc\u5229" : "\u6218\u6597\u80dc\u5229");
-            ui.ShowRewardScreen(goldGained, gold, rewardResults, () => continueRequested = true);
-            ui.AddLog(bossBattle ? "Boss \u6218\u80dc\u5229\u3002" : "\u6218\u6597\u80dc\u5229\uff0c\u961f\u4f0d\u72b6\u6001\u5df2\u4fdd\u7559\u3002");
+            hudController.SetTurn(bossBattle ? "Boss \u6218\u80dc\u5229" : "\u6218\u6597\u80dc\u5229");
+            hudController.ShowRewardScreen(goldGained, gold, rewardResults, () => continueRequested = true);
+            hudController.AddLog(bossBattle ? "Boss \u6218\u80dc\u5229\u3002" : "\u6218\u6597\u80dc\u5229\uff0c\u961f\u4f0d\u72b6\u6001\u5df2\u4fdd\u7559\u3002");
 
             while (!continueRequested)
             {
@@ -1317,8 +1410,8 @@ namespace ClockworkWasteland.Combat
         private IEnumerator RunRestNode()
         {
             var selected = false;
-            ui.SetTurn("\u4f11\u606f");
-            ui.ShowRestNode(selectedHeroDefinitions, hero =>
+            hudController.SetTurn("\u4f11\u606f");
+            hudController.ShowRestNode(selectedHeroDefinitions, hero =>
             {
                 if (hero != null)
                 {
@@ -1328,7 +1421,7 @@ namespace ClockworkWasteland.Combat
                         CombatAudio.Instance.PlayHeal();
                     }
 
-                    ui.AddLog(healed > 0
+                    hudController.AddLog(healed > 0
                         ? $"{hero.displayName} \u5728\u4f11\u606f\u4e2d\u6062\u590d\u4e86 {healed} \u70b9\u751f\u547d\u3002"
                         : $"{hero.displayName} \u73b0\u5728\u65e0\u9700\u4f11\u606f\u3002");
                     SaveGameState();
@@ -1342,7 +1435,7 @@ namespace ClockworkWasteland.Combat
                 yield return null;
             }
 
-            ui.HideOverlay();
+            hudController.HideOverlay();
         }
 
         private static IReadOnlyList<MapNodeOption> GenerateMapOptions(int mapStep)
@@ -1371,14 +1464,14 @@ namespace ClockworkWasteland.Combat
 
         private IEnumerator RunChestNode()
         {
-            var gained = Random.Range(50, 151);
+            var gained = ApplyDebugGoldMultiplier(Random.Range(50, 151), debugChestGoldMultiplier);
             gold += gained;
-            ui.SetGold(gold);
-            ui.AddLog($"\u6253\u5f00\u5b9d\u7bb1\uff0c\u83b7\u5f97\u91d1\u5e01 {gained}\u3002");
+            hudController.SetGold(gold);
+            hudController.AddLog($"\u6253\u5f00\u5b9d\u7bb1\uff0c\u83b7\u5f97\u91d1\u5e01 {gained}\u3002");
             SaveGameState();
 
             var continueRequested = false;
-            ui.ShowContinuePrompt($"\u5b9d\u7bb1\uff1a\u83b7\u5f97 {gained} \u91d1\u5e01", "\u7ee7\u7eed", () => continueRequested = true);
+            hudController.ShowContinuePrompt($"\u5b9d\u7bb1\uff1a\u83b7\u5f97 {gained} \u91d1\u5e01", "\u7ee7\u7eed", () => continueRequested = true);
             while (!continueRequested)
             {
                 yield return null;
@@ -1387,11 +1480,13 @@ namespace ClockworkWasteland.Combat
 
         private IEnumerator ShowDefeatAndReturn()
         {
-            ui.ClearActionPanels();
-            ui.SetTurn("\u6218\u8d25");
-            ui.AddLog("\u8fdc\u5f81\u961f\u5012\u4e0b\u4e86\uff0c\u8fdc\u5f81\u7ec8\u6b62\u3002");
+            FinalizeHeroCasualtiesFromCurrentBattle();
+            RebuildDerivedGameState();
+            hudController.ClearActionPanels();
+            hudController.SetTurn("\u6218\u8d25");
+            hudController.AddLog("\u8fdc\u5f81\u961f\u5012\u4e0b\u4e86\uff0c\u8fdc\u5f81\u7ec8\u6b62\u3002");
             var returnRequested = false;
-            ui.ShowContinuePrompt("\u6218\u8d25", "\u8fd4\u56de\u5927\u5385", () => returnRequested = true);
+            hudController.ShowContinuePrompt("\u6218\u8d25", "\u8fd4\u56de\u5927\u5385", () => returnRequested = true);
             while (!returnRequested)
             {
                 yield return null;
@@ -1403,21 +1498,24 @@ namespace ClockworkWasteland.Combat
 
         private IReadOnlyList<BattleRewardResult> GrantVictoryRewards(out int goldGained)
         {
+            AdvanceRecoveryProgress(1);
+            FinalizeHeroCasualtiesFromCurrentBattle();
             var rewardMin = currentAdventureBattle != null ? currentAdventureBattle.goldRewardMin : 50;
             var rewardMax = currentAdventureBattle != null ? currentAdventureBattle.goldRewardMax : 150;
-            goldGained = Random.Range(Mathf.Min(rewardMin, rewardMax), Mathf.Max(rewardMin, rewardMax) + 1);
+            goldGained = ApplyDebugGoldMultiplier(Random.Range(Mathf.Min(rewardMin, rewardMax), Mathf.Max(rewardMin, rewardMax) + 1), debugGoldRewardMultiplier);
             gold += goldGained;
-            ui.SetGold(gold);
-            ui.AddLog($"\u83b7\u5f97\u91d1\u5e01 {goldGained}\u3002");
+            hudController.SetGold(gold);
+            hudController.AddLog($"\u83b7\u5f97\u91d1\u5e01 {goldGained}\u3002");
 
             var results = new List<BattleRewardResult>();
             foreach (var hero in heroes.Where(unit => unit.IsHero && unit.IsAlive && !unit.IsCorpse))
             {
                 var expMin = currentAdventureBattle != null ? currentAdventureBattle.experienceRewardMin : 10;
                 var expMax = currentAdventureBattle != null ? currentAdventureBattle.experienceRewardMax : 20;
-                var progression = hero.Definition.GrantExperienceReward(Random.Range(Mathf.Min(expMin, expMax), Mathf.Max(expMin, expMax) + 1));
+                var grantedExperience = ApplyDebugExperienceMultiplier(Random.Range(Mathf.Min(expMin, expMax), Mathf.Max(expMin, expMax) + 1));
+                var progression = hero.Definition.GrantExperienceReward(grantedExperience);
                 results.Add(new BattleRewardResult(hero.Definition, progression.ExperienceGained, progression.LevelsGained));
-                ui.AddLog($"{hero.Definition.displayName} \u83b7\u5f97 {progression.ExperienceGained} \u7ecf\u9a8c\u3002");
+                hudController.AddLog($"{hero.Definition.displayName} \u83b7\u5f97 {progression.ExperienceGained} \u7ecf\u9a8c\u3002");
 
                 if (progression.HealthRestoredFromGrowth > 0)
                 {
@@ -1428,14 +1526,42 @@ namespace ClockworkWasteland.Combat
                 {
                     for (var level = progression.LevelBefore + 1; level <= progression.LevelAfter; level++)
                     {
-                        ui.AddLog($"{hero.Definition.displayName} \u5347\u5230\u4e86 {level} \u7ea7\u3002");
+                        hudController.AddLog($"{hero.Definition.displayName} \u5347\u5230\u4e86 {level} \u7ea7\u3002");
                     }
                 }
             }
 
             RefreshViews();
+            RebuildDerivedGameState();
             SaveGameState();
             return results;
+        }
+
+        private void FinalizeHeroCasualtiesFromCurrentBattle()
+        {
+            foreach (var hero in heroes.Where(unit => unit != null && unit.IsHero))
+            {
+                if (!hero.IsAlive)
+                {
+                    hero.Definition.MarkWounded(WoundedRecoveryBattleCount, WoundedStabilizedHealthPercent);
+                }
+            }
+        }
+
+        private void AdvanceRecoveryProgress(int completedBattles)
+        {
+            if (completedBattles <= 0 || totalHeroPool == null)
+            {
+                return;
+            }
+
+            foreach (var hero in totalHeroPool.Where(hero => hero != null && hero.isHero && hero.IsRecovering))
+            {
+                if (hero.AdvanceRecovery(completedBattles))
+                {
+                    hudController.AddLog($"{hero.displayName} 完成休养，重新可出战。");
+                }
+            }
         }
 
         private IEnumerator ResolvePendingSpecializationChoices(IReadOnlyList<BattleRewardResult> rewardResults)
@@ -1460,24 +1586,14 @@ namespace ClockworkWasteland.Combat
 
                 var resolved = false;
                 var selected = CombatSpecialization.None;
-                var message =
-                    $"{hero.displayName} 升到了 {hero.Level} 级，请选择专精分支。\n\n" +
-                    $"{GetSpecializationChoiceBlock(left)}\n\n" +
-                    $"{GetSpecializationChoiceBlock(right)}";
+                var presentation = CreateSpecializationLevelUpPresentation(hero, left, right);
 
-                ui.ShowChoicePrompt(
-                    message,
-                    CombatantDefinition.GetSpecializationDisplayName(left),
-                    () =>
+                hudController.ShowLevelUpSelection(
+                    presentation,
+                    option =>
                     {
-                        selected = left;
-                        resolved = true;
-                    },
-                    CombatantDefinition.GetSpecializationDisplayName(right),
-                    () =>
-                    {
-                        selected = right;
-                        resolved = true;
+                        selected = option != null ? option.Specialization : CombatSpecialization.None;
+                        resolved = selected != CombatSpecialization.None;
                     });
 
                 while (!resolved)
@@ -1486,7 +1602,7 @@ namespace ClockworkWasteland.Combat
                 }
 
                 hero.specialization = selected;
-                ui.AddLog($"{hero.displayName} 选择了专精：{hero.SpecializationDisplayName}。");
+                hudController.AddLog($"{hero.displayName} 选择了专精：{hero.SpecializationDisplayName}");
                 SaveGameState();
             }
         }
@@ -1518,19 +1634,154 @@ namespace ClockworkWasteland.Combat
             }
         }
 
-        private static string GetSpecializationChoiceBlock(CombatSpecialization specialization)
+        private static LevelUpPresentation CreateSpecializationLevelUpPresentation(CombatantDefinition hero, CombatSpecialization left, CombatSpecialization right)
         {
-            return $"{CombatantDefinition.GetSpecializationDisplayName(specialization)}：{CombatantDefinition.GetSpecializationSummary(specialization)}";
+            var options = new[]
+            {
+                CreateSpecializationLevelUpOption(left),
+                CreateSpecializationLevelUpOption(right)
+            };
+
+            return new LevelUpPresentation(
+                hero,
+                $"{hero.displayName} \u5347\u7ea7\u6210\u957f",
+                $"\u5f53\u524d\u7b49\u7ea7 Lv.{hero.Level}  \u8bf7\u9009\u62e9\u672c\u6b21\u7684\u4e13\u7cbe\u5206\u652f",
+                options);
+        }
+
+        private static LevelUpOptionData CreateSpecializationLevelUpOption(CombatSpecialization specialization)
+        {
+            return new LevelUpOptionData(
+                specialization.ToString(),
+                LevelUpOptionType.Specialization,
+                CombatantDefinition.GetSpecializationDisplayName(specialization),
+                HeroProgressionDescriptions.GetSpecializationTrackLabel(specialization),
+                CombatantDefinition.GetSpecializationSummary(specialization),
+                HeroProgressionDescriptions.GetSpecializationLongDescription(specialization),
+                HeroProgressionDescriptions.GetSpecializationTags(specialization),
+                specialization: specialization);
+        }
+
+        public void DebugResetCurrentRunWithTesting()
+        {
+            if (!Application.isPlaying)
+            {
+                Debug.LogWarning("Debug reset only works in Play Mode.", this);
+                return;
+            }
+
+            ResetGameState();
+            SaveGameState();
+            ShowLobby();
+            hudController?.AddLog("\u8C03\u8BD5\uFF1A\u5DF2\u91CD\u7F6E\u8FD0\u884C\u72B6\u6001\u5E76\u5E94\u7528\u6D4B\u8BD5\u53C2\u6570\u3002");
+        }
+
+        public void DebugGrantExperienceToCurrentHeroes()
+        {
+            if (!Application.isPlaying)
+            {
+                Debug.LogWarning("Debug experience grant only works in Play Mode.", this);
+                return;
+            }
+
+            if (heroes.Count > 0 || enemies.Count > 0)
+            {
+                Debug.LogWarning("Debug experience grant is only supported outside active combat.", this);
+                return;
+            }
+
+            StartCoroutine(DebugGrantExperienceRoutine());
+        }
+
+        private IEnumerator DebugGrantExperienceRoutine()
+        {
+            var targetHeroes = (selectedHeroDefinitions.Count > 0 ? selectedHeroDefinitions : GetDeployableHeroPool().ToList())
+                .Where(hero => hero != null && hero.isHero && hero.isUnlocked)
+                .Distinct()
+                .ToArray();
+
+            if (targetHeroes.Length == 0)
+            {
+                hudController?.AddLog("\u8C03\u8BD5\uFF1A\u5F53\u524D\u6CA1\u6709\u53EF\u53D1\u7ECF\u9A8C\u7684\u82F1\u96C4\u3002");
+                yield break;
+            }
+
+            var amount = Mathf.Max(1, debugManualExperienceGrant);
+            var results = new List<BattleRewardResult>();
+            foreach (var hero in targetHeroes)
+            {
+                var progression = hero.GrantExperienceReward(amount);
+                results.Add(new BattleRewardResult(hero, progression.ExperienceGained, progression.LevelsGained));
+                hudController?.AddLog($"{hero.displayName} \u83B7\u5F97\u8C03\u8BD5\u7ECF\u9A8C {progression.ExperienceGained}\u3002");
+            }
+
+            SaveGameState();
+            yield return StartCoroutine(ResolvePendingSpecializationChoices(results));
+            ShowLobby();
+        }
+
+        private int GetInitialGoldForCurrentMode()
+        {
+            if (!debugTestingEnabled || debugStartingGoldOverride < 0)
+            {
+                return InitialGold;
+            }
+
+            return Mathf.Max(0, debugStartingGoldOverride);
+        }
+
+        private void ApplyDebugNewGameOverrides(IEnumerable<CombatantDefinition> heroesToConfigure)
+        {
+            if (!debugTestingEnabled || heroesToConfigure == null)
+            {
+                return;
+            }
+
+            foreach (var hero in heroesToConfigure.Where(hero => hero != null && hero.isHero))
+            {
+                if (debugUnlockAllHeroesOnNewGame)
+                {
+                    hero.isUnlocked = true;
+                }
+
+                hero.currentLevel = Mathf.Max(1, debugNewGameHeroLevel);
+                hero.currentExperience = 0;
+                hero.currentHealth = hero.MaxHealthWithGrowth;
+                hero.specialization = CombatSpecialization.None;
+                hero.recoveryState = HeroRecoveryState.Ready;
+                hero.recoveryBattlesRemaining = 0;
+            }
+        }
+
+        private int ApplyDebugExperienceMultiplier(int baseValue)
+        {
+            return ApplyRewardMultiplier(baseValue, debugExperienceRewardMultiplier);
+        }
+
+        private int ApplyDebugGoldMultiplier(int baseValue, float multiplier)
+        {
+            return ApplyRewardMultiplier(baseValue, multiplier);
+        }
+
+        private int ApplyRewardMultiplier(int baseValue, float configuredMultiplier)
+        {
+            if (!debugTestingEnabled)
+            {
+                return baseValue;
+            }
+
+            var multiplier = Mathf.Max(0.1f, configuredMultiplier);
+            return Mathf.Max(0, Mathf.RoundToInt(baseValue * multiplier));
         }
 
         private IEnumerator BattleLoop()
         {
-            ui.AddLog($"\u7b2c {currentBattleNumber} \u573a\u6218\u6597\u5f00\u59cb\u3002");
+            hudController.AddLog($"\u7b2c {currentBattleNumber} \u573a\u6218\u6597\u5f00\u59cb\u3002");
 
             while (!IsBattleOver())
             {
                 round++;
-                ui.SetRound(round);
+                hudController.SetRound(round);
                 RebuildTurnQueue();
 
                 foreach (var actor in turnQueue.ToArray())
@@ -1547,15 +1798,16 @@ namespace ClockworkWasteland.Combat
             }
 
             ResetCombatRuntimeState(clearTurnQueue: true);
-            ui.ClearActionPanels();
-            ui.SetTurn(heroes.Any(hero => hero.CanAct) ? "\u80dc\u5229" : "\u5931\u8d25");
-            ui.AddLog(heroes.Any(hero => hero.CanAct) ? "\u5c0f\u961f\u6491\u8fc7\u4e86\u8fd9\u573a\u906d\u9047\u3002" : "\u8fdc\u5f81\u961f\u5012\u4e0b\u4e86\u3002");
+            hudController.ClearActionPanels();
+            hudController.SetTurn(heroes.Any(hero => hero.CanAct) ? "\u80dc\u5229" : "\u5931\u8d25");
+            hudController.AddLog(heroes.Any(hero => hero.CanAct) ? "\u5c0f\u961f\u6491\u8fc7\u4e86\u8fd9\u573a\u906d\u9047\u3002" : "\u8fdc\u5f81\u961f\u5012\u4e0b\u4e86\u3002");
         }
 
         private IEnumerator RunTurn(BattleUnit actor)
         {
             var stunnedAtTurnStart = actor.IsStunned;
-            var statusDamage = actor.TickStatuses();
+            var statusTicks = actor.TickStatuses();
+            var statusDamage = statusTicks.Sum(result => result.Damage);
             if (!actor.IsAlive)
             {
                 HandleDefeatedUnit(actor, null);
@@ -1565,7 +1817,20 @@ namespace ClockworkWasteland.Combat
 
             if (statusDamage > 0)
             {
-                ui.AddLog($"{actor.DisplayName} \u53d7\u5230 {statusDamage} \u70b9\u72b6\u6001\u4f24\u5bb3\u3002");
+                if (views.TryGetValue(actor, out var actorView))
+                {
+                    foreach (var tick in statusTicks)
+                    {
+                        if (tick.Status != null)
+                        {
+                            actorView.ShowFloatingText(tick.Status.DisplayName, tick.Status.NameTextColor, 0.8f);
+                        }
+
+                        actorView.ShowFloatingText($"-{tick.Damage}", tick.Status != null ? tick.Status.DamageTextColor : Color.red, 0.95f);
+                    }
+                }
+
+                hudController.AddLog($"{actor.DisplayName} \u53d7\u5230 {statusDamage} \u70b9\u72b6\u6001\u4f24\u5bb3\u3002");
                 yield return new WaitForSeconds(0.45f);
             }
 
@@ -1573,7 +1838,7 @@ namespace ClockworkWasteland.Combat
             {
                 if (stunnedAtTurnStart)
                 {
-                    ui.AddLog($"{actor.DisplayName} \u88ab\u7729\u6655\uff0c\u65e0\u6cd5\u884c\u52a8\u3002");
+                    hudController.AddLog($"{actor.DisplayName} \u88ab\u7729\u6655\uff0c\u65e0\u6cd5\u884c\u52a8\u3002");
                 }
 
                 actor.TickSkillCooldowns();
@@ -1597,7 +1862,7 @@ namespace ClockworkWasteland.Combat
                 selectedSkill = null;
                 validSelectedTargets = new BattleUnit[0];
                 SetTargetHighlights(validSelectedTargets);
-                ui.RenderPlayerTurn(actor, GetSkillUseStates(actor), SelectSkill);
+                hudController.RenderPlayerTurn(actor, GetSkillUseStates(actor), SelectSkill);
 
                 while (waitingForPlayer)
                 {
@@ -1626,8 +1891,8 @@ namespace ClockworkWasteland.Combat
             var state = GetSkillUseState(currentActor, skill);
             if (!state.CanUse)
             {
-                ui.AddLog($"\u65e0\u6cd5\u4f7f\u7528 {skill.skillName}\uff1a{state.DisabledReason}\u3002");
-                ui.RenderUnitPanel(selectedUnit, currentActor, GetSkillUseStates(selectedUnit), SelectSkill);
+                hudController.AddLog($"\u65e0\u6cd5\u4f7f\u7528 {skill.skillName}\uff1a{state.DisabledReason}\u3002");
+                hudController.RenderUnitPanel(selectedUnit, currentActor, GetSkillUseStates(selectedUnit), SelectSkill);
                 return;
             }
 
@@ -1641,7 +1906,7 @@ namespace ClockworkWasteland.Combat
                 return;
             }
 
-            ui.RenderTargets(skill, validSelectedTargets, SelectTarget);
+            hudController.RenderTargets(skill, validSelectedTargets, SelectTarget);
         }
 
         private void HandleUnitClicked(BattleUnit unit)
@@ -1659,7 +1924,7 @@ namespace ClockworkWasteland.Combat
 
             if (waitingForPlayer && selectedSkill != null)
             {
-                ui.AddLog("\u8be5\u6280\u80fd\u65e0\u6cd5\u653b\u51fb\u8fd9\u4e2a\u76ee\u6807\u3002");
+                hudController.AddLog("\u8be5\u6280\u80fd\u65e0\u6cd5\u653b\u51fb\u8fd9\u4e2a\u76ee\u6807\u3002");
                 SetTargetHighlights(validSelectedTargets);
                 return;
             }
@@ -1668,7 +1933,7 @@ namespace ClockworkWasteland.Combat
             selectedSkill = null;
             validSelectedTargets = new BattleUnit[0];
             SetTargetHighlights(validSelectedTargets);
-            ui.RenderUnitPanel(selectedUnit, waitingForPlayer ? currentActor : null, GetSkillUseStates(selectedUnit), SelectSkill);
+            hudController.RenderUnitPanel(selectedUnit, waitingForPlayer ? currentActor : null, GetSkillUseStates(selectedUnit), SelectSkill);
         }
 
         private void SelectTarget(BattleUnit target)
@@ -1680,7 +1945,7 @@ namespace ClockworkWasteland.Combat
 
             if (!IsValidTarget(currentActor, selectedSkill, target))
             {
-                ui.AddLog("\u8be5\u76ee\u6807\u5df2\u4e0d\u518d\u5408\u6cd5\uff0c\u8bf7\u91cd\u65b0\u9009\u62e9\u3002");
+                hudController.AddLog("\u8be5\u76ee\u6807\u5df2\u4e0d\u518d\u5408\u6cd5\uff0c\u8bf7\u91cd\u65b0\u9009\u62e9\u3002");
                 validSelectedTargets = GetValidTargets(currentActor, selectedSkill).ToArray();
                 SetTargetHighlights(validSelectedTargets);
                 return;
@@ -1692,7 +1957,7 @@ namespace ClockworkWasteland.Combat
         private IEnumerator ResolvePlayerAction(BattleUnit target)
         {
             resolvingPlayerAction = true;
-            ui.ClearActionPanels();
+            hudController.ClearActionPanels();
             SetTargetHighlights(new BattleUnit[0]);
             yield return StartCoroutine(ExecuteSkill(currentActor, selectedSkill, target));
             validSelectedTargets = new BattleUnit[0];
@@ -1705,7 +1970,7 @@ namespace ClockworkWasteland.Combat
         {
             if (!actor.CanAct || !GetSkillUseState(actor, skill).CanUse || !IsValidTarget(actor, skill, primaryTarget))
             {
-                ui.AddLog("\u884c\u52a8\u5df2\u5931\u6548\uff0c\u8bf7\u91cd\u65b0\u9009\u62e9\u3002");
+                hudController.AddLog("\u884c\u52a8\u5df2\u5931\u6548\uff0c\u8bf7\u91cd\u65b0\u9009\u62e9\u3002");
                 yield break;
             }
 
@@ -1717,7 +1982,7 @@ namespace ClockworkWasteland.Combat
 
             if (skill.isPassSkill)
             {
-                ui.AddLog($"{actor.DisplayName} 选择了跳过回合。");
+                hudController.AddLog($"{actor.DisplayName} ѡ���������غϡ�");
                 yield break;
             }
 
@@ -1793,9 +2058,10 @@ namespace ClockworkWasteland.Combat
                         var targetDamage = damage.Amount;
                         if (protector != null)
                         {
-                            protectorDamage = Mathf.Max(1, Mathf.RoundToInt(damage.Amount * 0.3f));
+                            var protectionRatio = protector.Specialization == CombatSpecialization.Bastion ? 0.5f : 0.3f;
+                            protectorDamage = Mathf.Max(1, Mathf.RoundToInt(damage.Amount * protectionRatio));
                             targetDamage = Mathf.Max(1, damage.Amount - protectorDamage);
-                            ui.AddLog($"{protector.DisplayName} 挺身保护 {target.DisplayName}，分担了 {protectorDamage} 点伤害。");
+                            hudController.AddLog($"{protector.DisplayName} ͦ����� {target.DisplayName}���ֵ��� {protectorDamage} ���˺���");
                             ApplyRawDamage(protector, protectorDamage, actor);
                         }
 
@@ -1805,7 +2071,7 @@ namespace ClockworkWasteland.Combat
                             ApplyRawDamage(target, targetDamage, actor);
                         }
 
-                        ui.AddLog(damage.IsCritical
+                        hudController.AddLog(damage.IsCritical
                             ? $"{actor.DisplayName} \u4f7f\u7528 {skill.skillName}\u66b4\u51fb\uff01{target.DisplayName} \u53d7\u5230 {targetDamage} \u70b9\u4f24\u5bb3\u3002"
                             : $"{actor.DisplayName} \u4f7f\u7528 {skill.skillName}\uff0c{target.DisplayName} \u53d7\u5230 {targetDamage} \u70b9\u4f24\u5bb3\u3002");
 
@@ -1837,7 +2103,7 @@ namespace ClockworkWasteland.Combat
                     var amount = CalculateHealingAmount(actor, skill, target);
                     target.Heal(amount);
                     CombatAudio.Instance.PlayAttack(skill);
-                    ui.AddLog($"{actor.DisplayName} \u4f7f\u7528 {skill.skillName}\uff0c{target.DisplayName} \u6062\u590d {amount} \u70b9\u751f\u547d\u3002");
+                    hudController.AddLog($"{actor.DisplayName} \u4f7f\u7528 {skill.skillName}\uff0c{target.DisplayName} \u6062\u590d {amount} \u70b9\u751f\u547d\u3002");
 
                     if (views.TryGetValue(target, out var targetView))
                     {
@@ -1848,7 +2114,13 @@ namespace ClockworkWasteland.Combat
                 if (skill.applyBuff != null && target.CanAct)
                 {
                     target.AddOrRefreshBuff(skill.applyBuff, Mathf.Max(1, skill.applyBuffDuration));
-                    ui.AddLog($"{target.DisplayName} \u83b7\u5f97\u72b6\u6001\uff1a{skill.applyBuff.buffName}\u3002");
+                    if (views.TryGetValue(target, out var buffTargetView))
+                    {
+                        buffTargetView.Refresh();
+                        buffTargetView.ShowFloatingText(skill.applyBuff.buffName, skill.applyBuff.nameTextColor, 0.85f);
+                    }
+
+                    hudController.AddLog($"{target.DisplayName} \u83b7\u5f97\u72b6\u6001\uff1a{skill.applyBuff.buffName}\u3002");
                 }
 
                 ApplySkillSpecificPostEffect(actor, skill, target);
@@ -1890,7 +2162,7 @@ namespace ClockworkWasteland.Combat
         {
             if (actor == target)
             {
-                ui.AddLog("\u4e0d\u80fd\u548c\u81ea\u5df1\u6362\u4f4d\u3002");
+                hudController.AddLog("\u4e0d\u80fd\u548c\u81ea\u5df1\u6362\u4f4d\u3002");
                 yield break;
             }
 
@@ -1908,7 +2180,7 @@ namespace ClockworkWasteland.Combat
             yield return StartCoroutine(AnimateFormation(actor.IsHero));
 
             RefreshViews();
-            ui.AddLog($"{actor.DisplayName} \u548c {target.DisplayName} \u4ea4\u6362\u4e86\u7ad9\u4f4d\u3002");
+            hudController.AddLog($"{actor.DisplayName} \u548c {target.DisplayName} \u4ea4\u6362\u4e86\u7ad9\u4f4d\u3002");
         }
 
         private IEnumerator AnimateFormation(bool isHero)
@@ -2083,7 +2355,7 @@ namespace ClockworkWasteland.Combat
                     break;
                 case CombatArchetype.Bulwark:
                     score += skill.targetType == SkillDataTargetType.自己 ? 12f : 0f;
-                    score += skill.targetType == SkillDataTargetType.单友 ? 8f : 0f;
+                    score += skill.targetType == SkillDataTargetType.单敌 ? 8f : 0f;
                     score += enemyTargets.Any(target => target.CurrentPosition <= 2) ? 8f : 0f;
                     break;
                 case CombatArchetype.Executioner:
@@ -2237,16 +2509,41 @@ namespace ClockworkWasteland.Combat
                 return;
             }
 
+            if (unit.IsHero && !unit.IsDowned)
+            {
+                unit.EnterDownedState();
+                hudController.AddLog($"{unit.Definition.displayName} \u6fd2\u5371\u5012\u4e0b\uff0c\u9000\u51fa\u4e86\u9635\u7ebf\u3002");
+                ReleaseUnitSlot(unit);
+                return;
+            }
+
             if (!unit.IsCorpse)
             {
                 unit.ConvertToCorpse();
-                ui.AddLog($"{unit.Definition.displayName} \u5012\u4e0b\uff0c\u7559\u4e0b\u4e86\u5c38\u4f53\u3002");
+                hudController.AddLog($"{unit.Definition.displayName} \u5012\u4e0b\uff0c\u7559\u4e0b\u4e86\u5c38\u4f53\u3002");
                 RefreshViews();
                 return;
             }
 
             RemoveUnitFromFormation(unit);
-            ui.AddLog($"{unit.DisplayName} \u88ab\u6e05\u9664\u4e86\u3002");
+            hudController.AddLog($"{unit.DisplayName} \u88ab\u6e05\u9664\u4e86\u3002");
+        }
+
+        private void ReleaseUnitSlot(BattleUnit unit)
+        {
+            var slots = unit.IsHero ? heroSlots : enemySlots;
+            var index = unit.CurrentPosition - 1;
+            if (index >= 0 && index < slots.Length && slots[index] == unit)
+            {
+                slots[index] = null;
+            }
+
+            if (views.TryGetValue(unit, out var view))
+            {
+                StartCoroutine(HideViewAfterDownedCue(view));
+            }
+
+            CompactFormation(unit.IsHero);
         }
 
         private void RemoveUnitFromFormation(BattleUnit unit)
@@ -2264,6 +2561,17 @@ namespace ClockworkWasteland.Combat
             }
 
             CompactFormation(unit.IsHero);
+        }
+
+        private static IEnumerator HideViewAfterDownedCue(CombatantView view)
+        {
+            if (view == null)
+            {
+                yield break;
+            }
+
+            yield return new WaitForSecondsRealtime(0.05f);
+            view.gameObject.SetActive(false);
         }
 
         private void CompactFormation(bool isHero)
@@ -2512,6 +2820,11 @@ namespace ClockworkWasteland.Combat
             amount = ApplySpecializationToDamage(actor, skill, target, amount);
             amount = ApplySkillSpecificDamageModifier(actor, skill, target, amount);
 
+            if (actor.HasStatus(SuppressedStatusName))
+            {
+                amount = Mathf.Max(1, Mathf.RoundToInt(amount * 0.8f));
+            }
+
             var critical = Random.value < 0.1f;
             if (critical)
             {
@@ -2743,6 +3056,13 @@ namespace ClockworkWasteland.Combat
                         amount = Mathf.RoundToInt(amount * 1.15f);
                     }
                     break;
+                case "hero_03_earthbreak_ram":
+                case "hero_05_earthbreak_ram":
+                    if (target.IsFrontline)
+                    {
+                        amount = Mathf.RoundToInt(amount * 1.15f);
+                    }
+                    break;
             }
 
             return Mathf.Max(1, amount);
@@ -2762,7 +3082,7 @@ namespace ClockworkWasteland.Combat
                     {
                         var selfHeal = Mathf.Max(1, Mathf.RoundToInt(actor.MaxHealth * 0.08f));
                         actor.Heal(selfHeal);
-                        ui.AddLog($"{actor.DisplayName} 借近身补刀稳住阵脚，恢复了 {selfHeal} 点生命。");
+                        hudController.AddLog($"{actor.DisplayName} ����������ס��ţ��ָ��� {selfHeal} ��������");
                         if (views.TryGetValue(actor, out var medicActorView))
                         {
                             medicActorView.ShowFloatingText("+" + selfHeal, new Color(0.48f, 1f, 0.48f), 0.85f);
@@ -2773,7 +3093,7 @@ namespace ClockworkWasteland.Combat
                     var cooledSkill = target.ReduceRandomCooldown(1);
                     if (cooledSkill != null)
                     {
-                        ui.AddLog($"{target.DisplayName} \u7684 {cooledSkill.skillName} \u51b7\u5374\u7f29\u77ed\u4e86 1 \u56de\u5408\u3002");
+                        hudController.AddLog($"{target.DisplayName} \u7684 {cooledSkill.skillName} \u51b7\u5374\u7f29\u77ed\u4e86 1 \u56de\u5408\u3002");
                         if (views.TryGetValue(target, out var fieldStitchTargetView))
                         {
                             fieldStitchTargetView.ShowFloatingText("\u51b7\u5374-1", new Color(0.76f, 0.9f, 1f), 0.85f);
@@ -2785,7 +3105,7 @@ namespace ClockworkWasteland.Combat
                     {
                         var selfHeal = Mathf.Max(1, Mathf.RoundToInt(actor.MaxHealth * 0.06f));
                         actor.Heal(selfHeal);
-                        ui.AddLog($"{actor.DisplayName} 用拦截打击稳住前线，恢复了 {selfHeal} 点生命。");
+                        hudController.AddLog($"{actor.DisplayName} �����ش����סǰ�ߣ��ָ��� {selfHeal} ��������");
                         if (views.TryGetValue(actor, out var bodyguardActorView))
                         {
                             bodyguardActorView.ShowFloatingText("+" + selfHeal, new Color(0.55f, 0.95f, 0.7f), 0.85f);
@@ -2796,7 +3116,7 @@ namespace ClockworkWasteland.Combat
                     var removed = target.ClearNegativeStatuses();
                     if (removed > 0)
                     {
-                        ui.AddLog($"{target.DisplayName} \u7684\u8d1f\u9762\u72b6\u6001\u88ab\u84b8\u6c7d\u51c0\u5316\u6e05\u9664\u4e86\u3002");
+                        hudController.AddLog($"{target.DisplayName} \u7684\u8d1f\u9762\u72b6\u6001\u88ab\u84b8\u6c7d\u51c0\u5316\u6e05\u9664\u4e86\u3002");
                         if (views.TryGetValue(target, out var purgeTargetView))
                         {
                             purgeTargetView.ShowFloatingText("\u51c0\u5316", new Color(0.58f, 0.94f, 0.95f), 0.9f);
@@ -2809,11 +3129,73 @@ namespace ClockworkWasteland.Combat
                         var gained = actor.GainResource(1);
                         if (gained > 0)
                         {
-                            ui.AddLog($"{actor.DisplayName} \u7528\u9707\u8361\u9501\u94fe\u538b\u5236\u540e\u6392\uff0c\u989d\u5916\u83b7\u5f97\u4e86 {gained} \u70b9\u8d44\u6e90\u3002");
+                            hudController.AddLog($"{actor.DisplayName} \u7528\u9707\u8361\u9501\u94fe\u538b\u5236\u540e\u6392\uff0c\u989d\u5916\u83b7\u5f97\u4e86 {gained} \u70b9\u8d44\u6e90\u3002");
+                        }
+                    }
+                    break;
+                case "hero_03_earthbreak_ram":
+                case "hero_05_earthbreak_ram":
+                    if (TryPushUnitBackward(target))
+                    {
+                        RefreshViews();
+                        LayoutFormation(target.IsHero);
+                        hudController.AddLog($"{target.DisplayName} 被裂地撞击顶退了一格。");
+                        if (views.TryGetValue(target, out var pushedTargetView))
+                        {
+                            pushedTargetView.ShowFloatingText("击退", new Color(0.95f, 0.78f, 0.32f), 0.9f);
+                        }
+                    }
+                    break;
+                case "hero_03_watcher_sweep":
+                case "hero_05_watcher_sweep":
+                    if (actor.Specialization == CombatSpecialization.Sentinel)
+                    {
+                        var suppressBuff = FindBuffByName(SuppressedStatusName);
+                        if (suppressBuff != null)
+                        {
+                            target.AddOrRefreshBuff(suppressBuff, 1);
+                            if (views.TryGetValue(target, out var sentinelTargetView))
+                            {
+                                sentinelTargetView.Refresh();
+                                sentinelTargetView.ShowFloatingText(suppressBuff.buffName, suppressBuff.nameTextColor, 0.85f);
+                            }
+
+                            hudController.AddLog($"{target.DisplayName} 被哨卫横扫压制，下一次攻击会变弱。");
+                        }
+                    }
+                    break;
+                case "hero_03_stand_guard":
+                case "hero_05_stand_guard":
+                    if (actor.Specialization == CombatSpecialization.Bastion && actor.HealthRatio < 0.7f)
+                    {
+                        var selfHeal = Mathf.Max(1, Mathf.RoundToInt(actor.MaxHealth * 0.08f));
+                        actor.Heal(selfHeal);
+                        hudController.AddLog($"{actor.DisplayName} 的壁垒专精在护卫时稳住了阵线，恢复了 {selfHeal} 点生命。");
+                        if (views.TryGetValue(actor, out var bastionActorView))
+                        {
+                            bastionActorView.ShowFloatingText("+" + selfHeal, new Color(0.55f, 0.95f, 0.7f), 0.85f);
                         }
                     }
                     break;
             }
+        }
+
+        private BuffData FindBuffByName(string buffName)
+        {
+            if (string.IsNullOrWhiteSpace(buffName))
+            {
+                return null;
+            }
+
+            if (buffLookup == null)
+            {
+                buffLookup = Resources.LoadAll<BuffData>("Buffs")
+                    .Where(buff => buff != null && !string.IsNullOrWhiteSpace(buff.buffName))
+                    .GroupBy(buff => buff.buffName)
+                    .ToDictionary(group => group.Key, group => group.First());
+            }
+
+            return buffLookup.TryGetValue(buffName, out var buffData) ? buffData : null;
         }
 
         private void ApplySkillSpecificActionReward(BattleUnit actor, SkillData skill, BattleUnit[] targets)
@@ -2832,7 +3214,7 @@ namespace ClockworkWasteland.Combat
                         var sentinelGain = actor.GainResource(1);
                         if (sentinelGain > 0)
                         {
-                            ui.AddLog($"{actor.DisplayName} 的哨卫专精稳住前线，获得了 {sentinelGain} 点资源。");
+                            hudController.AddLog($"{actor.DisplayName} ������ר����סǰ�ߣ������ {sentinelGain} ����Դ��");
                         }
                     }
                     break;
@@ -2842,7 +3224,7 @@ namespace ClockworkWasteland.Combat
                         var controllerGain = actor.GainResource(1);
                         if (controllerGain > 0)
                         {
-                            ui.AddLog($"{actor.DisplayName} 的控场专精从压制中回收了 {controllerGain} 点资源。");
+                            hudController.AddLog($"{actor.DisplayName} �Ŀس�ר����ѹ���л����� {controllerGain} ����Դ��");
                         }
                     }
                     break;
@@ -2852,7 +3234,7 @@ namespace ClockworkWasteland.Combat
                         var stimGain = actor.GainResource(1);
                         if (stimGain > 0)
                         {
-                            ui.AddLog($"{actor.DisplayName} 的激励专精帮助队友转冷，获得了 {stimGain} 点资源。");
+                            hudController.AddLog($"{actor.DisplayName} �ļ���ר����������ת�䣬����� {stimGain} ����Դ��");
                         }
                     }
                     break;
@@ -2866,7 +3248,7 @@ namespace ClockworkWasteland.Combat
                         var gained = actor.GainResource(1);
                         if (gained > 0)
                         {
-                            ui.AddLog($"{actor.DisplayName} 在前线对撞中稳住节奏，获得了 {gained} 点资源。");
+                            hudController.AddLog($"{actor.DisplayName} ��ǰ�߶�ײ����ס���࣬����� {gained} ����Դ��");
                         }
                     }
                     break;
@@ -2876,7 +3258,7 @@ namespace ClockworkWasteland.Combat
                         var gained = actor.GainResource(1);
                         if (gained > 0)
                         {
-                            ui.AddLog($"{actor.DisplayName} 从后排完成精准刺杀，回收了 {gained} 点资源。");
+                            hudController.AddLog($"{actor.DisplayName} �Ӻ�����ɾ�׼��ɱ�������� {gained} ����Դ��");
                         }
                     }
                     break;
@@ -2886,7 +3268,7 @@ namespace ClockworkWasteland.Combat
                         var gained = actor.GainResource(1);
                         if (gained > 0)
                         {
-                            ui.AddLog($"{actor.DisplayName} 的余热割裂压中了后排，获得了 {gained} 点资源。");
+                            hudController.AddLog($"{actor.DisplayName} �����ȸ���ѹ���˺��ţ������ {gained} ����Դ��");
                         }
                     }
                     break;
@@ -2897,7 +3279,7 @@ namespace ClockworkWasteland.Combat
                 var gained = actor.GainResource(1);
                 if (gained > 0)
                 {
-                    ui.AddLog($"{actor.DisplayName} \u7684\u9f50\u5c04\u547d\u4e2d\u591a\u540d\u76ee\u6807\uff0c\u56de\u6536\u4e86 {gained} \u70b9\u8d44\u6e90\u3002");
+                    hudController.AddLog($"{actor.DisplayName} \u7684\u9f50\u5c04\u547d\u4e2d\u591a\u540d\u76ee\u6807\uff0c\u56de\u6536\u4e86 {gained} \u70b9\u8d44\u6e90\u3002");
                 }
             }
         }
@@ -2932,7 +3314,7 @@ namespace ClockworkWasteland.Combat
             }
 
             ApplyRawDamage(actor, recoilDamage, null);
-            ui.AddLog($"{actor.DisplayName} \u627f\u53d7\u4e86\u9f50\u5c04\u53cd\u9707\u7684 {recoilDamage} \u70b9\u4f24\u5bb3\u3002");
+            hudController.AddLog($"{actor.DisplayName} \u627f\u53d7\u4e86\u9f50\u5c04\u53cd\u9707\u7684 {recoilDamage} \u70b9\u4f24\u5bb3\u3002");
             if (views.TryGetValue(actor, out var actorView))
             {
                 actorView.ShowFloatingText($"-{recoilDamage}", new Color(1f, 0.68f, 0.22f), 0.95f);
@@ -2961,7 +3343,7 @@ namespace ClockworkWasteland.Combat
                 case HeroPassive.Regenerator:
                     var regenAmount = Mathf.Max(1, Mathf.RoundToInt(unit.MaxHealth * 0.05f));
                     unit.Heal(regenAmount);
-                    ui.AddLog($"{unit.DisplayName} 的再生恢复了 {regenAmount} 点生命。");
+                    hudController.AddLog($"{unit.DisplayName} �������ָ��� {regenAmount} ��������");
                     break;
 
                 case HeroPassive.Tactician:
@@ -2972,7 +3354,7 @@ namespace ClockworkWasteland.Combat
                         var reducedSkill = ally.ReduceRandomCooldown(2);
                         if (reducedSkill != null)
                         {
-                            ui.AddLog($"{unit.DisplayName} 的战术指挥缩短了 {ally.DisplayName} 的 {reducedSkill.skillName} 冷却。");
+                            hudController.AddLog($"{unit.DisplayName} ��ս��ָ�������� {ally.DisplayName} �� {reducedSkill.skillName} ��ȴ��");
                         }
                     }
                     break;
@@ -2980,7 +3362,7 @@ namespace ClockworkWasteland.Combat
                 case HeroPassive.Vanguard:
                     if (unit.IsFrontline)
                     {
-                        ui.AddLog($"{unit.DisplayName} 的先锋光环为全队提供了攻击加成。");
+                        hudController.AddLog($"{unit.DisplayName} ���ȷ�⻷Ϊȫ���ṩ�˹����ӳɡ�");
                     }
                     break;
 
@@ -2990,7 +3372,7 @@ namespace ClockworkWasteland.Combat
                         var healAmount = Mathf.Max(1, Mathf.RoundToInt(ally.MaxHealth * 0.1f));
                         ally.Heal(healAmount);
                     }
-                    ui.AddLog($"{unit.DisplayName} 的鼓舞恢复了全队生命。");
+                    hudController.AddLog($"{unit.DisplayName} �Ĺ���ָ���ȫ��������");
                     break;
             }
         }
@@ -3007,7 +3389,7 @@ namespace ClockworkWasteland.Combat
                 case HeroPassive.Scavenger:
                     var healAmount = Mathf.Max(1, Mathf.RoundToInt(killer.MaxHealth * 0.2f));
                     killer.Heal(healAmount);
-                    ui.AddLog($"{killer.DisplayName} 的回收者被动恢复了 {healAmount} 点生命。");
+                    hudController.AddLog($"{killer.DisplayName} �Ļ����߱����ָ��� {healAmount} ��������");
                     break;
 
                 case HeroPassive.ChainReaction:
@@ -3017,7 +3399,7 @@ namespace ClockworkWasteland.Combat
                         var target = aliveEnemies[Random.Range(0, aliveEnemies.Length)];
                         var splashDamage = Mathf.Max(1, Mathf.RoundToInt(victim.MaxHealth * 0.25f));
                         target.TakeDamage(splashDamage);
-                        ui.AddLog($"{killer.DisplayName} 的连锁反应对 {target.DisplayName} 造成 {splashDamage} 点溅射伤害。");
+                        hudController.AddLog($"{killer.DisplayName} ��������Ӧ�� {target.DisplayName} ��� {splashDamage} �㽦���˺���");
                         if (!target.IsAlive && views.TryGetValue(target, out var targetView))
                         {
                             HandleDefeatedUnit(target, null);
@@ -3040,7 +3422,7 @@ namespace ClockworkWasteland.Combat
             {
                 var reflectDamage = Mathf.Max(1, Mathf.RoundToInt(amount * 0.2f));
                 attacker.TakeDamage(reflectDamage);
-                ui.AddLog($"{target.DisplayName} 的荆棘护甲反弹了 {reflectDamage} 点伤害给 {attacker.DisplayName}。");
+                hudController.AddLog($"{target.DisplayName} �ľ������׷����� {reflectDamage} ���˺��� {attacker.DisplayName}��");
 
                 if (views.TryGetValue(attacker, out var attackerView))
                 {
@@ -3064,8 +3446,46 @@ namespace ClockworkWasteland.Combat
 
             return GetLivingAllies(protectedUnit).FirstOrDefault(candidate =>
                 candidate != protectedUnit &&
-                candidate.HasPassive(HeroPassive.Bodyguard) &&
+                (candidate.HasPassive(HeroPassive.Bodyguard) || candidate.HasStatus(GuardStatusName)) &&
                 Mathf.Abs(candidate.CurrentPosition - protectedUnit.CurrentPosition) == 1);
+        }
+
+        private bool TryPushUnitBackward(BattleUnit target)
+        {
+            if (target == null || !target.IsAlive)
+            {
+                return false;
+            }
+
+            var slots = target.IsHero ? heroSlots : enemySlots;
+            var targetIndex = target.CurrentPosition - 1;
+            if (targetIndex < 0 || targetIndex >= slots.Length - 1)
+            {
+                return false;
+            }
+
+            var emptyIndex = -1;
+            for (var i = targetIndex + 1; i < slots.Length; i++)
+            {
+                if (slots[i] == null)
+                {
+                    emptyIndex = i;
+                    break;
+                }
+            }
+
+            if (emptyIndex < 0)
+            {
+                return false;
+            }
+
+            for (var i = emptyIndex; i > targetIndex; i--)
+            {
+                slots[i] = slots[i - 1];
+            }
+
+            slots[targetIndex] = null;
+            return true;
         }
 
         private bool ApplyPassiveBeforeDeath(BattleUnit unit, int incomingDamage)
@@ -3081,7 +3501,7 @@ namespace ClockworkWasteland.Combat
                 {
                     ironWillUsedThisBattle.Add(unit);
                     unit.TakeDamage(Mathf.Max(0, unit.Health - 1));
-                    ui.AddLog($"{unit.DisplayName} 的铁意志触发了！保留 1 点生命。");
+                    hudController.AddLog($"{unit.DisplayName} ������־�����ˣ����� 1 ��������");
                     return true;
                 }
             }
@@ -3180,7 +3600,7 @@ namespace ClockworkWasteland.Combat
 
             if (gained > 0)
             {
-                ui.AddLog($"{actor.DisplayName} 的{actor.Definition.ArchetypeDisplayName}节奏恢复了 {gained} 点资源。");
+                hudController.AddLog($"{actor.DisplayName} ��{actor.Definition.ArchetypeDisplayName}����ָ��� {gained} ����Դ��");
             }
 
             ApplySpecializationTurnStart(actor);
@@ -3212,7 +3632,7 @@ namespace ClockworkWasteland.Combat
 
             if (gained > 0)
             {
-                ui.AddLog($"{actor.DisplayName} 的{actor.Definition.SpecializationDisplayName}专精恢复了 {gained} 点资源。");
+                hudController.AddLog($"{actor.DisplayName} ��{actor.Definition.SpecializationDisplayName}ר���ָ��� {gained} ����Դ��");
             }
         }
 
@@ -3245,7 +3665,7 @@ namespace ClockworkWasteland.Combat
                     }
                     break;
                 case CombatArchetype.Physician:
-                    if (skill.skillType == SkillDataType.治疗)
+                    if (skill.skillType == SkillDataType.控制)
                     {
                         gained = actor.GainResource(targets.Count(target => target.HealthRatio < 1f) >= 2 ? 2 : 1);
                     }
@@ -3254,7 +3674,7 @@ namespace ClockworkWasteland.Combat
 
             if (gained > 0)
             {
-                ui.AddLog($"{actor.DisplayName} 积累了 {gained} 点资源。");
+                hudController.AddLog($"{actor.DisplayName} ������ {gained} ����Դ��");
             }
         }
 
@@ -3701,12 +4121,12 @@ namespace ClockworkWasteland.Combat
             EnsureAudioListener();
             UpdateBackdrop(ResolveBattleBackground(), Vector2.zero, 1f);
 
-            ui = battleUIPrefab != null
-                ? Instantiate(battleUIPrefab)
-                : new GameObject("Battle UI", typeof(RectTransform)).AddComponent<BattleUI>();
+            hudController = battleHudControllerPrefab != null
+                ? Instantiate(battleHudControllerPrefab)
+                : new GameObject("Battle HUD Controller", typeof(RectTransform)).AddComponent<BattleHudController>();
 
-            ui.name = "Battle UI";
-            ui.Build();
+            hudController.name = "Battle HUD Controller";
+            hudController.Build();
         }
 
         private static void EnsureAudioListener()
@@ -3806,11 +4226,11 @@ namespace ClockworkWasteland.Combat
             LayoutFormation(true);
             LayoutFormation(false);
             RefreshViews();
-            ui.SetRound(1);
+            hudController.SetRound(1);
             var turnLabel = currentAdventureBattle != null && !string.IsNullOrWhiteSpace(currentAdventureBattle.displayName)
                 ? currentAdventureBattle.displayName
                 : (bossBattle ? "\u6700\u7ec8 Boss \u6218" : $"\u7b2c {battleNumber} \u573a\u6218\u6597");
-            ui.SetTurn(turnLabel);
+            hudController.SetTurn(turnLabel);
         }
 
         private CombatantDefinition[] SelectRandomEnemyEncounter()
@@ -3938,8 +4358,8 @@ namespace ClockworkWasteland.Combat
 
                 var view = CreateCombatantView(unit);
                 view.transform.position = new Vector3(GetBaseSlotX(false, unit.CurrentPosition), InitialCombatantY, 0f);
-                view.Initialize(unit, fallbackSprite, 1f, HandleUnitClicked, nameplatePrefab);
-                view.AlignFeetTo(FormationFeetY);
+                view.Initialize(unit, fallbackSprite, HandleUnitClicked, nameplatePrefab);
+                view.ResetVisualOffset();
                 views[unit] = view;
             }
 
@@ -4038,9 +4458,8 @@ namespace ClockworkWasteland.Combat
 
                 var view = CreateCombatantView(unit);
                 view.transform.position = new Vector3(GetBaseSlotX(isHero, unit.CurrentPosition), InitialCombatantY, 0f);
-                var runtimeScaleMultiplier = isHero ? heroVisualScale : 1f;
-                view.Initialize(unit, fallbackSprite, runtimeScaleMultiplier, HandleUnitClicked, nameplatePrefab);
-                view.AlignFeetTo(FormationFeetY);
+                view.Initialize(unit, fallbackSprite, HandleUnitClicked, nameplatePrefab);
+                view.ResetVisualOffset();
                 views[unit] = view;
             }
         }
@@ -4165,6 +4584,14 @@ namespace ClockworkWasteland.Combat
             {
                 var view = Instantiate(prefab);
                 view.name = unit.DisplayName;
+                view.ConfigureFloatingText(
+                    floatingTextBaseOffset,
+                    floatingTextBaseScale,
+                    floatingTextBurstWindow,
+                    floatingTextQueueDelay,
+                    floatingTextHorizontalSpacing,
+                    floatingTextVerticalSpacing,
+                    floatingTextAdditionalLiftPerText);
 #if UNITY_EDITOR
                 Debug.Log($"Spawned {unit.DisplayName} using unit prefab: {prefabSource}", view);
 #endif
@@ -4172,7 +4599,16 @@ namespace ClockworkWasteland.Combat
             }
 
             var unitObject = new GameObject(unit.DisplayName);
-            return unitObject.AddComponent<CombatantView>();
+            var fallbackView = unitObject.AddComponent<CombatantView>();
+            fallbackView.ConfigureFloatingText(
+                floatingTextBaseOffset,
+                floatingTextBaseScale,
+                floatingTextBurstWindow,
+                floatingTextQueueDelay,
+                floatingTextHorizontalSpacing,
+                floatingTextVerticalSpacing,
+                floatingTextAdditionalLiftPerText);
+            return fallbackView;
         }
 
         private void LayoutFormation(bool isHero)
@@ -4188,7 +4624,7 @@ namespace ClockworkWasteland.Combat
 
                 unit.CurrentPosition = i + 1;
                 view.transform.position = new Vector3(GetFormationSlotX(isHero, slots, unit.CurrentPosition), InitialCombatantY, 0f);
-                view.AlignFeetTo(FormationFeetY);
+                view.ResetVisualOffset();
             }
         }
 
@@ -4275,8 +4711,8 @@ namespace ClockworkWasteland.Combat
             var skill = ScriptableObject.CreateInstance<SkillData>();
             skill.skillId = "pass_turn";
             skill.skillName = "跳过回合";
-            skill.description = "本回合不执行技能，直接结束行动。";
-            skill.skillType = SkillDataType.治疗;
+            skill.description = "跳过回合且不执行技能，直接结束行动。";
+            skill.skillType = SkillDataType.控制;
             skill.targetType = SkillDataTargetType.自己;
             skill.baseValue = 0;
             skill.powerMultiplier = 1f;
@@ -4378,4 +4814,7 @@ namespace ClockworkWasteland.Combat
         }
     }
 }
+
+
+
 

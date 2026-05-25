@@ -24,10 +24,11 @@ MonoBehaviour:
   targetAllowedPositions: 010000000200000003000000
   manaCost: 0
   cooldown: 0
-  applyBuff: {fileID: 0}
+  applyBuff: {fileID: 11400000, guid: 2c10b99181fe425478126621b26639a1, type: 2}
   applyBuffDuration: 1
   attackSprite: {fileID: 0}
   hitSprite: {fileID: 0}
   skillSfx: {fileID: 8300000, guid: 4870696828e2e05478eb10922229738e, type: 3}
   overlayDuration: 0.2
   isSwapSkill: 0
+  isPassSkill: 0

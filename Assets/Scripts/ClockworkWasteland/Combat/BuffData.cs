@@ -12,5 +12,8 @@ namespace ClockworkWasteland.Combat
         public int duration = 1;
         public bool stun;
         public int tickDamage;
+        public Color nameTextColor = Color.white;
+        public Color damageTextColor = new Color(1f, 0.3f, 0.3f, 1f);
+        public Sprite icon;
     }
 }

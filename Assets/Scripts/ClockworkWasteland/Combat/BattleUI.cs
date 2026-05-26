@@ -306,6 +306,22 @@ namespace ClockworkWasteland.Combat
 
             switch (skill.skillId)
             {
+                case "hero_01_gear_sting":
+                    return "战术提示：后排点杀工具，命中敌方后排时还能回资源。\n";
+                case "hero_01_scrap_volley":
+                    return "战术提示：压低全体血线，命中三人以上可回资源，但会有少量反震。\n";
+                case "hero_01_lock_pin":
+                    return "战术提示：先给目标挂压制，再用其他技能扩大收益。\n";
+                case "hero_01_overload_spark":
+                    return "战术提示：优先打已被压制的目标，伤害会更高。\n";
+                case "hero_03_shadow_cut":
+                    return "战术提示：优先打带负面状态目标，作为稳定起手和补刀都合适。\n";
+                case "hero_03_vein_rend":
+                    return "战术提示：先挂流血，再为后续处决和追猎铺路。\n";
+                case "hero_03_crescent_lunge":
+                    return "战术提示：专打敌方后排，命中后排时还能回资源。\n";
+                case "hero_03_wild_hunt":
+                    return "战术提示：锁定残血目标，完成击杀时会大量回收资源。\n";
                 case "hero_01_iron_cut":
                     return "\u6218\u672f\u63d0\u793a\uff1a\u524d\u6392\u5bf9\u649e\u65f6\u4f1a\u989d\u5916\u56de\u8d44\u6e90\u3002\n";
                 case "hero_01_ember_rend":
@@ -314,6 +330,12 @@ namespace ClockworkWasteland.Combat
                     return "\u6218\u672f\u63d0\u793a\uff1a\u53d7\u4f24\u65f6\u53ef\u7528\u6765\u8fd1\u8eab\u81ea\u7a33\u3002\n";
                 case "hero_02_field_stitch":
                     return "\u6218\u672f\u63d0\u793a\uff1a\u62a2\u6551\u534a\u8840\u4ee5\u4e0b\u53cb\u519b\u6536\u76ca\u66f4\u9ad8\u3002\n";
+                case "hero_02_steam_purge":
+                    return "战术提示：净化灼烧和眩晕时收益最高，适合稳住濒危友军。\n";
+                case "hero_02_stun_chain":
+                    return "战术提示：优先压制敌方后排，命中后排时会额外回资源。\n";
+                case "hero_02_bone_dart":
+                    return "战术提示：作为低消耗补刀和过渡出手，方便把资源留给治疗与控制。\n";
                 case "hero_03_scrap_volley":
                     return "\u6218\u672f\u63d0\u793a\uff1a\u547d\u4e2d\u591a\u4eba\u65f6\u53ef\u56de\u8d44\u6e90\uff0c\u66f4\u504f\u7a33\u5b9a\u538b\u5236\u3002\n";
                 case "hero_04_iron_cut":
@@ -383,13 +405,17 @@ namespace ClockworkWasteland.Combat
                 targetMetaText.text = $"{side}  {selectedUnit.Definition.ArchetypeDisplayName}  {selectedUnit.Definition.SpecializationDisplayName}";
             }
 
+            var passiveLine = selectedUnit.Definition.growthPassive != HeroPassive.None
+                ? $"{selectedUnit.Definition.PassiveDisplayName} / {selectedUnit.Definition.GrowthPassiveDisplayName}"
+                : selectedUnit.Definition.PassiveDisplayName;
+
             infoText.text =
                 $"{side}{active}\n\n" +
                 $"\u804c\u80fd\uff1a{selectedUnit.Definition.ArchetypeDisplayName}\n" +
                 $"\u5b9a\u4f4d\uff1a{selectedUnit.Definition.ArchetypeSummary}\n" +
                 $"\u4e13\u7cbe\uff1a{selectedUnit.Definition.SpecializationDisplayName}\n" +
                 $"\u4e13\u7cbe\u7279\u5f81\uff1a{selectedUnit.Definition.SpecializationSummary}\n" +
-                $"\u88ab\u52a8\uff1a{selectedUnit.Definition.PassiveDisplayName}\n" +
+                $"\u88ab\u52a8\uff1a{passiveLine}\n" +
                 $"\u504f\u597d\u7ad9\u4f4d\uff1a{selectedUnit.Definition.PreferredRowDisplayName}\n" +
                 $"\u7b49\u7ea7\uff1a{selectedUnit.Level}\n" +
                 $"\u751f\u547d\uff1a{selectedUnit.Health}/{selectedUnit.MaxHealth}\n" +
@@ -702,11 +728,11 @@ namespace ClockworkWasteland.Combat
             CreateButton(rootPanel, "\u5f00\u59cb\u6218\u6597", new Vector2(590f, -708f), onStartBattle.Invoke, selectedHeroes.Count > 0, null);
         }
 
-        public void ShowLobby(int currentGold, Action onOpenTavern, Action onOpenAdventure, Action onOpenRecoveryWard, Action onOpenHeroCodex, Action onOpenMenu)
+        public void ShowLobby(int currentGold, Action onOpenTavern, Action onOpenAdventure, Action onOpenRecoveryWard, Action onOpenHeroCodex, Action onOpenSettings, Action onBackToStartMenu)
         {
             EnsureRuntimePrefabUi();
             SetBattleHudVisible(false);
-            runtimeUiManager?.ShowLobby(currentGold, onOpenTavern, onOpenAdventure, onOpenRecoveryWard, onOpenHeroCodex, onOpenMenu);
+            runtimeUiManager?.ShowLobby(currentGold, onOpenTavern, onOpenAdventure, onOpenRecoveryWard, onOpenHeroCodex, onOpenSettings, onBackToStartMenu);
         }
 
         public void ShowSaveSlots(string title, IReadOnlyList<SaveSlotSummary> slots, bool allowEmptySelection, Action<int> onSelect, Action<int> onDelete, Action onBack)

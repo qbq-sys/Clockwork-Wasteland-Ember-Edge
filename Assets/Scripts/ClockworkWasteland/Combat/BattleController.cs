@@ -1,9 +1,11 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using UnityEngine;
 using UnityEngine.Serialization;
+using Object = UnityEngine.Object;
 
 #if UNITY_EDITOR
 using UnityEditor;
@@ -157,6 +159,7 @@ namespace ClockworkWasteland.Combat
         public int experience;
         public int health;
         public int specialization;
+        public int growthPassive;
         public int recoveryState;
         public int recoveryBattlesRemaining;
     }
@@ -280,6 +283,7 @@ namespace ClockworkWasteland.Combat
         private AdventureMapOption selectedAdventureMap;
         private Material runtimeFocusBlurMaterial;
         private int activeSaveSlotIndex = -1;
+        private Action settingsBackAction;
 
         public void Configure(CombatantDefinition[] heroesToUse, CombatantDefinition[] enemiesToUse, BattleHudController hudControllerPrefabToUse = null, CombatantView unitPrefabToUse = null, CombatNameplate nameplatePrefabToUse = null)
         {
@@ -335,7 +339,7 @@ namespace ClockworkWasteland.Combat
         private void ShowTitleScreen()
         {
             PrepareNonCombatScreen("��ʼ����");
-            hudController.ShowTitleScreen(HasAnySaveSlots(), StartNewGame, ShowContinueGameSlots, ShowSettings, QuitGame, ShowLobby);
+            hudController.ShowTitleScreen(HasAnySaveSlots(), StartNewGame, ShowContinueGameSlots, ShowSettingsFromTitle, QuitGame, ShowLobby);
         }
 
         private void PrepareNonCombatScreen(string turnLabel, bool stopMusic = true)
@@ -413,7 +417,7 @@ namespace ClockworkWasteland.Combat
         private void ShowLobby()
         {
             PrepareNonCombatScreen("\u5927\u5385");
-            hudController.ShowLobby(gold, ShowTavern, ShowAdventureMap, ShowRecoveryWard, ShowHeroCodex, ShowTitleScreen);
+            hudController.ShowLobby(gold, ShowTavern, ShowAdventureMap, ShowRecoveryWard, ShowHeroCodex, ShowSettingsFromLobby, ShowTitleScreen);
         }
 
         private void StartNewGame()
@@ -456,8 +460,24 @@ namespace ClockworkWasteland.Combat
 
         private void ShowSettings()
         {
+            ShowSettings(settingsBackAction ?? ShowTitleScreen);
+        }
+
+        private void ShowSettings(Action onBack)
+        {
             PrepareNonCombatScreen("\u8bbe\u7f6e", false);
-            hudController.ShowSettingsScreen(ShowLobby, ShowManualSaveSlots);
+            settingsBackAction = onBack ?? ShowTitleScreen;
+            hudController.ShowSettingsScreen(settingsBackAction, ShowManualSaveSlots);
+        }
+
+        private void ShowSettingsFromTitle()
+        {
+            ShowSettings(ShowTitleScreen);
+        }
+
+        private void ShowSettingsFromLobby()
+        {
+            ShowSettings(ShowLobby);
         }
 
         private void QuitGame()
@@ -729,7 +749,7 @@ namespace ClockworkWasteland.Combat
         {
             return totalHeroPool
                 .Where(hero => hero != null && hero.isHero && !hero.isUnlocked)
-                .OrderBy(_ => Random.value)
+                .OrderBy(_ => UnityEngine.Random.value)
                 .Take(3)
                 .ToArray();
         }
@@ -801,6 +821,9 @@ namespace ClockworkWasteland.Combat
                 hero.specialization = System.Enum.IsDefined(typeof(CombatSpecialization), state.specialization)
                     ? (CombatSpecialization)state.specialization
                     : CombatSpecialization.None;
+                hero.growthPassive = System.Enum.IsDefined(typeof(HeroPassive), state.growthPassive)
+                    ? (HeroPassive)state.growthPassive
+                    : HeroPassive.None;
                 hero.recoveryState = System.Enum.IsDefined(typeof(HeroRecoveryState), state.recoveryState)
                     ? (HeroRecoveryState)state.recoveryState
                     : HeroRecoveryState.Ready;
@@ -986,6 +1009,7 @@ namespace ClockworkWasteland.Combat
                         experience = hero.Experience,
                         health = hero.CurrentHealth,
                         specialization = (int)hero.specialization,
+                        growthPassive = (int)hero.growthPassive,
                         recoveryState = (int)hero.recoveryState,
                         recoveryBattlesRemaining = hero.recoveryBattlesRemaining
                     })
@@ -1404,7 +1428,7 @@ namespace ClockworkWasteland.Combat
                 yield return null;
             }
 
-            yield return StartCoroutine(ResolvePendingSpecializationChoices(rewardResults));
+            yield return StartCoroutine(ResolvePendingLevelUpChoices(rewardResults));
         }
 
         private IEnumerator RunRestNode()
@@ -1453,7 +1477,7 @@ namespace ClockworkWasteland.Combat
             else
             {
                 options.Add(new MapNodeOption(MapNodeType.Rest, "\u4f11\u606f\u8282\u70b9", "\u9009\u62e9\u4e00\u540d\u82f1\u96c4\u6062\u590d 20 \u751f\u547d\u3002"));
-                if (Random.value >= 0.45f)
+                if (UnityEngine.Random.value >= 0.45f)
                 {
                     options.Add(new MapNodeOption(MapNodeType.Chest, "\u5b9d\u7bb1\u8282\u70b9", "\u83b7\u5f97 50-150 \u91d1\u5e01\u3002"));
                 }
@@ -1464,7 +1488,7 @@ namespace ClockworkWasteland.Combat
 
         private IEnumerator RunChestNode()
         {
-            var gained = ApplyDebugGoldMultiplier(Random.Range(50, 151), debugChestGoldMultiplier);
+            var gained = ApplyDebugGoldMultiplier(UnityEngine.Random.Range(50, 151), debugChestGoldMultiplier);
             gold += gained;
             hudController.SetGold(gold);
             hudController.AddLog($"\u6253\u5f00\u5b9d\u7bb1\uff0c\u83b7\u5f97\u91d1\u5e01 {gained}\u3002");
@@ -1502,7 +1526,7 @@ namespace ClockworkWasteland.Combat
             FinalizeHeroCasualtiesFromCurrentBattle();
             var rewardMin = currentAdventureBattle != null ? currentAdventureBattle.goldRewardMin : 50;
             var rewardMax = currentAdventureBattle != null ? currentAdventureBattle.goldRewardMax : 150;
-            goldGained = ApplyDebugGoldMultiplier(Random.Range(Mathf.Min(rewardMin, rewardMax), Mathf.Max(rewardMin, rewardMax) + 1), debugGoldRewardMultiplier);
+            goldGained = ApplyDebugGoldMultiplier(UnityEngine.Random.Range(Mathf.Min(rewardMin, rewardMax), Mathf.Max(rewardMin, rewardMax) + 1), debugGoldRewardMultiplier);
             gold += goldGained;
             hudController.SetGold(gold);
             hudController.AddLog($"\u83b7\u5f97\u91d1\u5e01 {goldGained}\u3002");
@@ -1512,7 +1536,7 @@ namespace ClockworkWasteland.Combat
             {
                 var expMin = currentAdventureBattle != null ? currentAdventureBattle.experienceRewardMin : 10;
                 var expMax = currentAdventureBattle != null ? currentAdventureBattle.experienceRewardMax : 20;
-                var grantedExperience = ApplyDebugExperienceMultiplier(Random.Range(Mathf.Min(expMin, expMax), Mathf.Max(expMin, expMax) + 1));
+                var grantedExperience = ApplyDebugExperienceMultiplier(UnityEngine.Random.Range(Mathf.Min(expMin, expMax), Mathf.Max(expMin, expMax) + 1));
                 var progression = hero.Definition.GrantExperienceReward(grantedExperience);
                 results.Add(new BattleRewardResult(hero.Definition, progression.ExperienceGained, progression.LevelsGained));
                 hudController.AddLog($"{hero.Definition.displayName} \u83b7\u5f97 {progression.ExperienceGained} \u7ecf\u9a8c\u3002");
@@ -1564,7 +1588,7 @@ namespace ClockworkWasteland.Combat
             }
         }
 
-        private IEnumerator ResolvePendingSpecializationChoices(IReadOnlyList<BattleRewardResult> rewardResults)
+        private IEnumerator ResolvePendingLevelUpChoices(IReadOnlyList<BattleRewardResult> rewardResults)
         {
             if (rewardResults == null || rewardResults.Count == 0)
             {
@@ -1574,36 +1598,65 @@ namespace ClockworkWasteland.Combat
             foreach (var result in rewardResults)
             {
                 var hero = result.Hero;
-                if (hero == null || result.LevelsGained <= 0 || hero.specialization != CombatSpecialization.None || hero.Level < 2)
+                if (hero == null || result.LevelsGained <= 0)
                 {
                     continue;
                 }
 
-                if (!TryGetSpecializationChoices(hero.archetype, out var left, out var right))
+                if (hero.specialization == CombatSpecialization.None && hero.Level >= 2)
                 {
-                    continue;
-                }
-
-                var resolved = false;
-                var selected = CombatSpecialization.None;
-                var presentation = CreateSpecializationLevelUpPresentation(hero, left, right);
-
-                hudController.ShowLevelUpSelection(
-                    presentation,
-                    option =>
+                    if (TryGetSpecializationChoices(hero.archetype, out var left, out var right))
                     {
-                        selected = option != null ? option.Specialization : CombatSpecialization.None;
-                        resolved = selected != CombatSpecialization.None;
-                    });
+                        var resolved = false;
+                        var selected = CombatSpecialization.None;
+                        var presentation = CreateSpecializationLevelUpPresentation(hero, left, right);
 
-                while (!resolved)
-                {
-                    yield return null;
+                        hudController.ShowLevelUpSelection(
+                            presentation,
+                            option =>
+                            {
+                                selected = option != null ? option.Specialization : CombatSpecialization.None;
+                                resolved = selected != CombatSpecialization.None;
+                            });
+
+                        while (!resolved)
+                        {
+                            yield return null;
+                        }
+
+                        hero.specialization = selected;
+                        hudController.AddLog($"{hero.displayName} 选择了专精：{hero.SpecializationDisplayName}");
+                        SaveGameState();
+                    }
                 }
 
-                hero.specialization = selected;
-                hudController.AddLog($"{hero.displayName} 选择了专精：{hero.SpecializationDisplayName}");
-                SaveGameState();
+                if (hero.growthPassive == HeroPassive.None && hero.Level >= 3)
+                {
+                    var passiveChoices = HeroProgressionDescriptions.GetLevelThreePassiveChoices(hero);
+                    if (passiveChoices != null && passiveChoices.Length > 0)
+                    {
+                        var resolved = false;
+                        var selected = HeroPassive.None;
+                        var presentation = CreatePassiveLevelUpPresentation(hero, passiveChoices);
+
+                        hudController.ShowLevelUpSelection(
+                            presentation,
+                            option =>
+                            {
+                                selected = option != null ? option.Passive : HeroPassive.None;
+                                resolved = selected != HeroPassive.None;
+                            });
+
+                        while (!resolved)
+                        {
+                            yield return null;
+                        }
+
+                        hero.growthPassive = selected;
+                        hudController.AddLog($"{hero.displayName} 获得了成长被动：{HeroProgressionDescriptions.GetPassiveDisplayName(selected)}");
+                        SaveGameState();
+                    }
+                }
             }
         }
 
@@ -1662,6 +1715,33 @@ namespace ClockworkWasteland.Combat
                 specialization: specialization);
         }
 
+        private static LevelUpPresentation CreatePassiveLevelUpPresentation(CombatantDefinition hero, IReadOnlyList<HeroPassive> choices)
+        {
+            var options = choices
+                .Where(choice => choice != HeroPassive.None)
+                .Select(CreatePassiveLevelUpOption)
+                .ToArray();
+
+            return new LevelUpPresentation(
+                hero,
+                "3级成长选择",
+                "选择一个成长被动，决定这名角色的中期方向。",
+                options);
+        }
+
+        private static LevelUpOptionData CreatePassiveLevelUpOption(HeroPassive passive)
+        {
+            return new LevelUpOptionData(
+                passive.ToString(),
+                LevelUpOptionType.Passive,
+                HeroProgressionDescriptions.GetPassiveDisplayName(passive),
+                "3级成长 / 被动选择",
+                HeroProgressionDescriptions.GetPassiveDescription(passive),
+                HeroProgressionDescriptions.GetPassiveDesignNote(passive),
+                HeroProgressionDescriptions.GetPassiveTags(passive),
+                passive: passive);
+        }
+
         public void DebugResetCurrentRunWithTesting()
         {
             if (!Application.isPlaying)
@@ -1716,7 +1796,7 @@ namespace ClockworkWasteland.Combat
             }
 
             SaveGameState();
-            yield return StartCoroutine(ResolvePendingSpecializationChoices(results));
+            yield return StartCoroutine(ResolvePendingLevelUpChoices(results));
             ShowLobby();
         }
 
@@ -1748,6 +1828,7 @@ namespace ClockworkWasteland.Combat
                 hero.currentExperience = 0;
                 hero.currentHealth = hero.MaxHealthWithGrowth;
                 hero.specialization = CombatSpecialization.None;
+                hero.growthPassive = HeroPassive.None;
                 hero.recoveryState = HeroRecoveryState.Ready;
                 hero.recoveryBattlesRemaining = 0;
             }
@@ -2377,12 +2458,15 @@ namespace ClockworkWasteland.Combat
                 case "hero_08_ember_rend":
                     score += enemyTargets.Any(target => target.IsBackline) ? 12f : -4f;
                     break;
+                case "hero_02_field_stitch":
                 case "hero_06_field_stitch":
                     score += injuredAllies.Any(unit => unit.HasCooldowns) ? 10f : 0f;
                     break;
+                case "hero_02_steam_purge":
                 case "hero_06_steam_purge":
                     score += injuredAllies.Any(unit => unit.HasStatus("\u707c\u70e7") || unit.HasStatus("\u7729\u6655")) ? 14f : 0f;
                     break;
+                case "hero_02_stun_chain":
                 case "hero_06_stun_chain":
                     score += enemyTargets.Any(target => target.IsBackline) ? 10f : 0f;
                     break;
@@ -2809,7 +2893,7 @@ namespace ClockworkWasteland.Combat
 
         private DamageResult CalculateDamage(BattleUnit actor, SkillData skill, BattleUnit target)
         {
-            var randomOffset = Random.Range(-2, 3);
+            var randomOffset = UnityEngine.Random.Range(-2, 3);
             var attack = GetEffectiveAttack(actor, target);
             var defense = GetEffectiveDefense(target);
             var baseDamage = Mathf.Max(1, skill.baseValue + attack - defense + randomOffset);
@@ -2825,7 +2909,7 @@ namespace ClockworkWasteland.Combat
                 amount = Mathf.Max(1, Mathf.RoundToInt(amount * 0.8f));
             }
 
-            var critical = Random.value < 0.1f;
+            var critical = UnityEngine.Random.value < 0.1f;
             if (critical)
             {
                 amount = Mathf.Max(1, Mathf.RoundToInt(amount * 1.5f));
@@ -2837,7 +2921,7 @@ namespace ClockworkWasteland.Combat
         private int GetEffectiveAttack(BattleUnit unit, BattleUnit target)
         {
             var attack = unit.Attack;
-            if (unit.IsHero && unit.Definition.passive == HeroPassive.Berserker)
+            if (unit.HasPassive(HeroPassive.Berserker))
             {
                 var hpPercent = (float)unit.Health / unit.MaxHealth;
                 if (hpPercent < 0.5f)
@@ -2846,7 +2930,7 @@ namespace ClockworkWasteland.Combat
                 }
             }
 
-            if (unit.IsHero && unit.Definition.passive == HeroPassive.GlassCannon)
+            if (unit.HasPassive(HeroPassive.GlassCannon))
             {
                 attack = Mathf.RoundToInt(attack * 1.25f);
             }
@@ -3018,6 +3102,37 @@ namespace ClockworkWasteland.Combat
 
             switch (skill.skillId)
             {
+                case "hero_01_gear_sting":
+                case "hero_05_gear_sting":
+                    if (target.IsBackline)
+                    {
+                        amount = Mathf.RoundToInt(amount * 1.3f);
+                    }
+                    break;
+                case "hero_01_overload_spark":
+                    if (target.HasStatus(SuppressedStatusName))
+                    {
+                        amount = Mathf.RoundToInt(amount * 1.25f);
+                    }
+                    break;
+                case "hero_03_shadow_cut":
+                    if (target.Statuses.Count > 0)
+                    {
+                        amount = Mathf.RoundToInt(amount * 1.1f);
+                    }
+                    break;
+                case "hero_03_crescent_lunge":
+                    if (target.IsBackline)
+                    {
+                        amount = Mathf.RoundToInt(amount * 1.2f);
+                    }
+                    break;
+                case "hero_03_wild_hunt":
+                    if (target.HealthRatio <= 0.4f)
+                    {
+                        amount = Mathf.RoundToInt(amount * 1.25f);
+                    }
+                    break;
                 case "hero_01_ember_rend":
                 case "hero_08_ember_rend":
                     if (target.HasStatus("\u707c\u70e7"))
@@ -3030,12 +3145,6 @@ namespace ClockworkWasteland.Combat
                     if (target.IsFrontline)
                     {
                         amount = Mathf.RoundToInt(amount * 1.2f);
-                    }
-                    break;
-                case "hero_05_gear_sting":
-                    if (target.IsBackline)
-                    {
-                        amount = Mathf.RoundToInt(amount * 1.3f);
                     }
                     break;
                 case "hero_04_iron_cut":
@@ -3077,6 +3186,30 @@ namespace ClockworkWasteland.Combat
 
             switch (skill.skillId)
             {
+                case "hero_03_crescent_lunge":
+                    if (target.IsBackline)
+                    {
+                        var gained = actor.GainResource(1);
+                        if (gained > 0)
+                        {
+                            hudController.AddLog($"{actor.DisplayName} 突进压住了敌方后排，获得了 {gained} 点资源。");
+                        }
+                    }
+                    break;
+                case "hero_03_wild_hunt":
+                    if (!target.IsAlive)
+                    {
+                        var gained = actor.GainResource(2);
+                        if (gained > 0)
+                        {
+                            hudController.AddLog($"{actor.DisplayName} 完成了野性追猎，回收了 {gained} 点资源。");
+                            if (views.TryGetValue(actor, out var huntActorView))
+                            {
+                                huntActorView.ShowFloatingText($"+{gained} 资源", new Color(0.96f, 0.82f, 0.36f), 0.85f);
+                            }
+                        }
+                    }
+                    break;
                 case "hero_02_iron_cut":
                     if (actor.HealthRatio < 0.85f)
                     {
@@ -3089,6 +3222,7 @@ namespace ClockworkWasteland.Combat
                         }
                     }
                     break;
+                case "hero_02_field_stitch":
                 case "hero_06_field_stitch":
                     var cooledSkill = target.ReduceRandomCooldown(1);
                     if (cooledSkill != null)
@@ -3112,6 +3246,7 @@ namespace ClockworkWasteland.Combat
                         }
                     }
                     break;
+                case "hero_02_steam_purge":
                 case "hero_06_steam_purge":
                     var removed = target.ClearNegativeStatuses();
                     if (removed > 0)
@@ -3123,6 +3258,7 @@ namespace ClockworkWasteland.Combat
                         }
                     }
                     break;
+                case "hero_02_stun_chain":
                 case "hero_06_stun_chain":
                     if (target.IsBackline)
                     {
@@ -3252,6 +3388,7 @@ namespace ClockworkWasteland.Combat
                         }
                     }
                     break;
+                case "hero_01_gear_sting":
                 case "hero_05_gear_sting":
                     if (livingTargets > 0 && actor.IsBackline && targets.Any(target => target != null && target.IsBackline))
                     {
@@ -3274,7 +3411,7 @@ namespace ClockworkWasteland.Combat
                     break;
             }
 
-            if (skill.skillId == "hero_03_scrap_volley" && livingTargets >= 3)
+            if ((skill.skillId == "hero_01_scrap_volley" || skill.skillId == "hero_03_scrap_volley") && livingTargets >= 3)
             {
                 var gained = actor.GainResource(1);
                 if (gained > 0)
@@ -3300,6 +3437,9 @@ namespace ClockworkWasteland.Combat
             var recoilDamage = 0;
             switch (skill.skillId)
             {
+                case "hero_01_scrap_volley":
+                    recoilDamage = 2;
+                    break;
                 case "hero_03_scrap_volley":
                     recoilDamage = 2;
                     break;
@@ -3333,79 +3473,76 @@ namespace ClockworkWasteland.Combat
 
         private void ApplyPassiveOnTurnStart(BattleUnit unit)
         {
-            if (!unit.IsHero || unit.Definition.passive == HeroPassive.None)
+            if (!unit.IsHero || (unit.Definition.passive == HeroPassive.None && unit.Definition.growthPassive == HeroPassive.None))
             {
                 return;
             }
 
-            switch (unit.Definition.passive)
+            if (unit.HasPassive(HeroPassive.Regenerator))
             {
-                case HeroPassive.Regenerator:
-                    var regenAmount = Mathf.Max(1, Mathf.RoundToInt(unit.MaxHealth * 0.05f));
-                    unit.Heal(regenAmount);
-                    hudController.AddLog($"{unit.DisplayName} �������ָ��� {regenAmount} ��������");
-                    break;
+                var regenAmount = Mathf.Max(1, Mathf.RoundToInt(unit.MaxHealth * 0.05f));
+                unit.Heal(regenAmount);
+                hudController.AddLog($"{unit.DisplayName} 的再生恢复了 {regenAmount} 点生命。");
+            }
 
-                case HeroPassive.Tactician:
-                    var allies = GetLivingAllies(unit).Where(candidate => candidate.HasCooldowns).ToArray();
-                    if (allies.Length > 0)
+            if (unit.HasPassive(HeroPassive.Tactician))
+            {
+                var allies = GetLivingAllies(unit).Where(candidate => candidate.HasCooldowns).ToArray();
+                if (allies.Length > 0)
+                {
+                    var ally = allies[UnityEngine.Random.Range(0, allies.Length)];
+                    var reducedSkill = ally.ReduceRandomCooldown(2);
+                    if (reducedSkill != null)
                     {
-                        var ally = allies[Random.Range(0, allies.Length)];
-                        var reducedSkill = ally.ReduceRandomCooldown(2);
-                        if (reducedSkill != null)
-                        {
-                            hudController.AddLog($"{unit.DisplayName} ��ս��ָ�������� {ally.DisplayName} �� {reducedSkill.skillName} ��ȴ��");
-                        }
+                        hudController.AddLog($"{unit.DisplayName} 的战术家被动为 {ally.DisplayName} 缩短了 {reducedSkill.skillName} 的冷却。");
                     }
-                    break;
+                }
+            }
 
-                case HeroPassive.Vanguard:
-                    if (unit.IsFrontline)
-                    {
-                        hudController.AddLog($"{unit.DisplayName} ���ȷ�⻷Ϊȫ���ṩ�˹����ӳɡ�");
-                    }
-                    break;
+            if (unit.HasPassive(HeroPassive.Vanguard) && unit.IsFrontline)
+            {
+                hudController.AddLog($"{unit.DisplayName} 的先锋光环正在强化前线队友。");
+            }
 
-                case HeroPassive.Inspirer:
-                    foreach (var ally in GetLivingAllies(unit, includeSelf: true))
-                    {
-                        var healAmount = Mathf.Max(1, Mathf.RoundToInt(ally.MaxHealth * 0.1f));
-                        ally.Heal(healAmount);
-                    }
-                    hudController.AddLog($"{unit.DisplayName} �Ĺ���ָ���ȫ��������");
-                    break;
+            if (unit.HasPassive(HeroPassive.Inspirer))
+            {
+                foreach (var ally in GetLivingAllies(unit, includeSelf: true))
+                {
+                    var healAmount = Mathf.Max(1, Mathf.RoundToInt(ally.MaxHealth * 0.1f));
+                    ally.Heal(healAmount);
+                }
+                hudController.AddLog($"{unit.DisplayName} 的鼓舞恢复了全队生命。");
             }
         }
 
         private void ApplyPassiveOnKill(BattleUnit killer, BattleUnit victim)
         {
-            if (!killer.IsHero || killer.Definition.passive == HeroPassive.None)
+            if (!killer.IsHero || (killer.Definition.passive == HeroPassive.None && killer.Definition.growthPassive == HeroPassive.None))
             {
                 return;
             }
 
-            switch (killer.Definition.passive)
+            if (killer.HasPassive(HeroPassive.Scavenger))
             {
-                case HeroPassive.Scavenger:
-                    var healAmount = Mathf.Max(1, Mathf.RoundToInt(killer.MaxHealth * 0.2f));
-                    killer.Heal(healAmount);
-                    hudController.AddLog($"{killer.DisplayName} �Ļ����߱����ָ��� {healAmount} ��������");
-                    break;
+                var healAmount = Mathf.Max(1, Mathf.RoundToInt(killer.MaxHealth * 0.2f));
+                killer.Heal(healAmount);
+                hudController.AddLog($"{killer.DisplayName} 的回收者被动恢复了 {healAmount} 点生命。");
+            }
 
-                case HeroPassive.ChainReaction:
-                    var aliveEnemies = GetLivingOpponents(killer).Where(candidate => candidate != victim).ToArray();
-                    if (aliveEnemies.Length > 0)
+            if (killer.HasPassive(HeroPassive.ChainReaction))
+            {
+                var aliveEnemies = GetLivingOpponents(killer).Where(candidate => candidate != victim).ToArray();
+                if (aliveEnemies.Length > 0)
+                {
+                    var target = aliveEnemies[UnityEngine.Random.Range(0, aliveEnemies.Length)];
+                    var splashDamage = Mathf.Max(1, Mathf.RoundToInt(victim.MaxHealth * 0.25f));
+                    target.TakeDamage(splashDamage);
+                    hudController.AddLog($"{killer.DisplayName} 的连锁反应对 {target.DisplayName} 造成了 {splashDamage} 点溅射伤害。");
+                    if (!target.IsAlive && views.TryGetValue(target, out var targetView))
                     {
-                        var target = aliveEnemies[Random.Range(0, aliveEnemies.Length)];
-                        var splashDamage = Mathf.Max(1, Mathf.RoundToInt(victim.MaxHealth * 0.25f));
-                        target.TakeDamage(splashDamage);
-                        hudController.AddLog($"{killer.DisplayName} ��������Ӧ�� {target.DisplayName} ��� {splashDamage} �㽦���˺���");
-                        if (!target.IsAlive && views.TryGetValue(target, out var targetView))
-                        {
-                            HandleDefeatedUnit(target, null);
-                        }
+                        HandleDefeatedUnit(target, null);
+                    }
                 }
-                    break;
             }
         }
 
@@ -3418,7 +3555,7 @@ namespace ClockworkWasteland.Combat
 
             target.TakeDamage(amount);
 
-            if (target.IsHero && target.Definition.passive == HeroPassive.ThornArmor && attacker != null && attacker.IsAlive)
+            if (target.HasPassive(HeroPassive.ThornArmor) && attacker != null && attacker.IsAlive)
             {
                 var reflectDamage = Mathf.Max(1, Mathf.RoundToInt(amount * 0.2f));
                 attacker.TakeDamage(reflectDamage);
@@ -3490,7 +3627,7 @@ namespace ClockworkWasteland.Combat
 
         private bool ApplyPassiveBeforeDeath(BattleUnit unit, int incomingDamage)
         {
-            if (!unit.IsHero || unit.Definition.passive != HeroPassive.IronWill)
+            if (!unit.HasPassive(HeroPassive.IronWill))
             {
                 return false;
             }
@@ -3563,6 +3700,7 @@ namespace ClockworkWasteland.Combat
                         amount = Mathf.RoundToInt(amount * 1.25f);
                     }
                     break;
+                case "hero_02_steam_purge":
                 case "hero_06_steam_purge":
                     if (target.HasStatus("\u707c\u70e7") || target.HasStatus("\u7729\u6655"))
                     {
@@ -4096,8 +4234,8 @@ namespace ClockworkWasteland.Combat
             {
                 elapsed += Time.deltaTime;
                 camera.transform.position = basePosition + new Vector3(
-                    Random.Range(-strength, strength),
-                    Random.Range(-strength, strength),
+                    UnityEngine.Random.Range(-strength, strength),
+                    UnityEngine.Random.Range(-strength, strength),
                     0f);
                 yield return null;
             }
@@ -4251,9 +4389,9 @@ namespace ClockworkWasteland.Combat
             }
 
             var maxCount = Mathf.Min(MaxFormationSlots, pool.Length);
-            var count = Random.Range(1, maxCount + 1);
+            var count = UnityEngine.Random.Range(1, maxCount + 1);
             return pool
-                .OrderBy(_ => Random.value)
+                .OrderBy(_ => UnityEngine.Random.value)
                 .Take(count)
                 .ToArray();
         }
@@ -4814,6 +4952,7 @@ namespace ClockworkWasteland.Combat
         }
     }
 }
+
 
 
 

@@ -12,22 +12,23 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b8bfb20e525850f48a31396eb1a44be5, type: 3}
   m_Name: "\u6218\u5730\u7F1D\u5408"
   m_EditorClassIdentifier: 
-  skillId: field_stitch
+  skillId: hero_02_field_stitch
   skillName: "\u6218\u5730\u7F1D\u5408"
-  description: "\u6CBB\u7597\u4E00\u540D\u53CB\u65B9\u3002"
+  description: "\u7A33\u5B9A\u6CBB\u7597\u4E00\u540D\u53CB\u65B9\uFF0C\u5E76\u5E2E\u52A9\u5176\u66F4\u5FEB\u6062\u590D\u6280\u80FD\u8282\u594F\u3002"
   icon: {fileID: 0}
   skillType: 1
   baseValue: 7
   powerMultiplier: 1
   targetType: 1
-  casterAllowedPositions: 020000000300000004000000
+  casterAllowedPositions: 0300000004000000
   targetAllowedPositions: 01000000020000000300000004000000
-  manaCost: 0
+  manaCost: 1
   cooldown: 1
   applyBuff: {fileID: 0}
   applyBuffDuration: 1
   attackSprite: {fileID: 0}
   hitSprite: {fileID: 0}
   skillSfx: {fileID: 8300000, guid: 572c4f63b6342194fb20edc146454c80, type: 3}
-  overlayDuration: 0.2
+  overlayDuration: 0.22
   isSwapSkill: 0
+  isPassSkill: 0

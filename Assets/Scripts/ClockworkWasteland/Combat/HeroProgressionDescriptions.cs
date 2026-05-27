@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Text;
 
@@ -32,22 +33,82 @@ namespace ClockworkWasteland.Combat
         {
             switch (passive)
             {
-                case HeroPassive.Berserker: return "生命低于 50% 时，攻击力提升 30%。残血时越战越勇。";
-                case HeroPassive.Executioner: return "攻击生命低于 30% 的敌人时，伤害提升 50%。擅长收割残血目标。";
-                case HeroPassive.ChainReaction: return "击杀敌人时，对随机另一名敌人造成目标最大生命值 25% 的溅射伤害。";
-                case HeroPassive.Backstab: return "从后排攻击前排敌人时，伤害提升 25%。适合后排切入。";
-                case HeroPassive.GlassCannon: return "攻击力提升 25%，但防御力降低 50%。高攻低防的极端输出者。";
-                case HeroPassive.IronWill: return "每场战斗首次受到致命伤害时，保留 1 点生命值。绝境中屹立不倒。";
-                case HeroPassive.Regenerator: return "回合开始时，恢复最大生命值的 5%。擅长持久作战。";
-                case HeroPassive.ThornArmor: return "受到伤害时，反弹 20% 伤害给攻击者。";
-                case HeroPassive.Bodyguard: return "相邻队友受到攻击时，承担 30% 伤害。守护身边队友。";
-                case HeroPassive.Fortress: return "位于前排时，防御力 +4。前排最稳定的壁垒。";
-                case HeroPassive.Tactician: return "回合开始时，随机减少 1 名队友技能冷却 2 回合。";
-                case HeroPassive.Scavenger: return "击杀敌人时，恢复自身最大生命值的 20%。";
-                case HeroPassive.Vanguard: return "位于前排时，全体队友攻击力 +2。";
-                case HeroPassive.Reaper: return "场上每有 1 名敌人死亡，攻击力提升 10%（可叠加）。";
-                case HeroPassive.Inspirer: return "回合开始时，恢复全体队友最大生命值的 10%。";
-                default: return "该英雄当前没有固定被动。";
+                case HeroPassive.Berserker:
+                    return "生命低于 50% 时，攻击力提升 30%。适合残局爆发和强行换血。";
+                case HeroPassive.Executioner:
+                    return "攻击生命低于 30% 的敌人时，伤害提升 50%。适合终结残血目标。";
+                case HeroPassive.ChainReaction:
+                    return "击杀敌人后，对另一名随机敌人造成额外溅射伤害。适合多目标压制和滚雪球。";
+                case HeroPassive.Backstab:
+                    return "从后排攻击前排敌人时，伤害提升 25%。适合切入和越位打击。";
+                case HeroPassive.GlassCannon:
+                    return "攻击力提升 25%，但防御力降低 50%。高风险高收益。";
+                case HeroPassive.IronWill:
+                    return "每场战斗首次受到致命伤害时，保留 1 点生命。用于提供一次保命容错。";
+                case HeroPassive.Regenerator:
+                    return "回合开始时，恢复最大生命值的 5%。适合持续作战和慢速恢复。";
+                case HeroPassive.ThornArmor:
+                    return "受到伤害时，反弹部分伤害给攻击者。适合前排承伤角色。";
+                case HeroPassive.Bodyguard:
+                    return "相邻队友受到攻击时，承担部分伤害。强化护卫和队伍保护。";
+                case HeroPassive.Fortress:
+                    return "位于前排时，防御力提升。适合纯前排稳阵角色。";
+                case HeroPassive.Tactician:
+                    return "回合开始时，减少队友技能冷却。强化技能循环和节奏支持。";
+                case HeroPassive.Scavenger:
+                    return "击杀敌人时，恢复自身生命。强化连续作战能力。";
+                case HeroPassive.Vanguard:
+                    return "位于前排时，全队获得攻击增益。适合前线指挥型角色。";
+                case HeroPassive.Reaper:
+                    return "每有一个敌人死亡，自身攻击持续提高。适合收割滚雪球。";
+                case HeroPassive.Inspirer:
+                    return "回合开始时，为全队提供生命恢复。强化团队续航。";
+                default:
+                    return "当前没有被动效果。";
+            }
+        }
+
+        public static IReadOnlyList<string> GetPassiveTags(HeroPassive passive)
+        {
+            switch (passive)
+            {
+                case HeroPassive.Berserker: return new[] { "残血", "爆发", "换血" };
+                case HeroPassive.Executioner: return new[] { "处决", "单体", "收尾" };
+                case HeroPassive.ChainReaction: return new[] { "击杀", "溅射", "扩散" };
+                case HeroPassive.Backstab: return new[] { "切入", "后排", "爆发" };
+                case HeroPassive.GlassCannon: return new[] { "高攻", "脆皮", "风险" };
+                case HeroPassive.IronWill: return new[] { "保命", "容错", "前排" };
+                case HeroPassive.Regenerator: return new[] { "续航", "恢复", "持久" };
+                case HeroPassive.ThornArmor: return new[] { "反伤", "承伤", "牵制" };
+                case HeroPassive.Bodyguard: return new[] { "护卫", "相邻", "承伤" };
+                case HeroPassive.Fortress: return new[] { "前排", "防御", "稳阵" };
+                case HeroPassive.Tactician: return new[] { "冷却", "支援", "节奏" };
+                case HeroPassive.Scavenger: return new[] { "击杀", "回血", "续航" };
+                case HeroPassive.Vanguard: return new[] { "前排", "光环", "团队" };
+                case HeroPassive.Reaper: return new[] { "击杀", "叠层", "收割" };
+                case HeroPassive.Inspirer: return new[] { "群体", "恢复", "支援" };
+                default: return Array.Empty<string>();
+            }
+        }
+
+        public static string GetPassiveDesignNote(HeroPassive passive)
+        {
+            switch (passive)
+            {
+                case HeroPassive.Executioner:
+                    return "适合处决者路线，强化残血终结能力。";
+                case HeroPassive.Backstab:
+                    return "适合高机动切入角色，强调站位和目标选择。";
+                case HeroPassive.Bodyguard:
+                    return "适合守卫者的护卫路线，强化保护队友。";
+                case HeroPassive.Fortress:
+                    return "适合壁垒路线，强化前排纯防御。";
+                case HeroPassive.Tactician:
+                    return "适合控场师和激励师路线，强化团队技能循环。";
+                case HeroPassive.ChainReaction:
+                    return "适合爆破和多目标压制路线。";
+                default:
+                    return "当前仍然是第一版规则，后续如果被动系统继续扩展，可再升级为独立资产。";
             }
         }
 
@@ -56,21 +117,21 @@ namespace ClockworkWasteland.Combat
             switch (specialization)
             {
                 case CombatSpecialization.Bastion:
-                    return "更偏纯防御与护卫。通过承伤、拦截和稳阵站位维持前排。";
+                    return "偏纯防御与护卫。通过承伤、拦截和稳阵维持前排。";
                 case CombatSpecialization.Sentinel:
-                    return "更偏压制与破阵。通过撞击、压制和阵型干扰打乱敌方节奏。";
+                    return "偏压制与破阵。通过撞击、压制和阵型干扰打乱敌方节奏。";
                 case CombatSpecialization.Slayer:
-                    return "更偏残血处决。围绕击杀窗口和爆发收尾展开。";
+                    return "偏残局处决。围绕残血目标、击杀窗口和爆发收尾展开。";
                 case CombatSpecialization.Breaker:
-                    return "更偏破后切入。主动打开缺口，威胁关键后排。";
+                    return "偏切入破后。主动制造缺口，威胁关键后排。";
                 case CombatSpecialization.Bombardier:
-                    return "更偏爆破与范围压制。用多目标火力和异常持续施压。";
+                    return "偏爆破与范围压制。依靠多目标火力和异常状态扩大战果。";
                 case CombatSpecialization.Controller:
-                    return "更偏控场与干扰。通过控制、冷却干涉和节奏削弱压制敌方。";
+                    return "偏控场与干扰。依靠控制、冷却干涉和节奏压制削弱敌方出手。";
                 case CombatSpecialization.Surgeon:
-                    return "更偏急救与单体保命。围绕抢救濒危单位和稳定血线展开。";
+                    return "偏急救与单体保命。围绕濒危救援和血线稳定展开。";
                 case CombatSpecialization.Stimulator:
-                    return "更偏净化与团队支援。围绕增益、资源和冷却恢复展开。";
+                    return "偏净化与团队支援。围绕增益、资源和冷却恢复展开。";
                 default:
                     return "尚未选择专精分支。";
             }
@@ -96,43 +157,74 @@ namespace ClockworkWasteland.Combat
         {
             switch (specialization)
             {
-                case CombatSpecialization.Bastion:
-                    return new[] { "前排", "护卫", "承伤" };
-                case CombatSpecialization.Sentinel:
-                    return new[] { "阵型", "压制", "反制" };
-                case CombatSpecialization.Slayer:
-                    return new[] { "收割", "残血", "追击" };
-                case CombatSpecialization.Breaker:
-                    return new[] { "破后", "爆发", "切入" };
-                case CombatSpecialization.Bombardier:
-                    return new[] { "AOE", "DOT", "异常" };
-                case CombatSpecialization.Controller:
-                    return new[] { "控场", "冷却", "干扰" };
-                case CombatSpecialization.Surgeon:
-                    return new[] { "急救", "治疗", "保命" };
-                case CombatSpecialization.Stimulator:
-                    return new[] { "净化", "增益", "支援" };
-                default:
-                    return new[] { "成长" };
+                case CombatSpecialization.Bastion: return new[] { "前排", "护卫", "承伤" };
+                case CombatSpecialization.Sentinel: return new[] { "阵型", "压制", "反制" };
+                case CombatSpecialization.Slayer: return new[] { "收割", "残血", "追击" };
+                case CombatSpecialization.Breaker: return new[] { "破后", "爆发", "切入" };
+                case CombatSpecialization.Bombardier: return new[] { "AOE", "DOT", "异常" };
+                case CombatSpecialization.Controller: return new[] { "控场", "冷却", "干扰" };
+                case CombatSpecialization.Surgeon: return new[] { "急救", "治疗", "保命" };
+                case CombatSpecialization.Stimulator: return new[] { "净化", "增益", "支援" };
+                default: return new[] { "成长" };
             }
         }
 
-        public static string GetPassiveDesignNote(HeroPassive passive)
+        public static CombatSpecialization[] GetAvailableSpecializations(CombatArchetype archetype)
         {
-            switch (passive)
+            switch (archetype)
             {
-                case HeroPassive.Executioner:
-                    return "适合和 Slayer / Breaker 类专精配合，强化收尾节奏。";
-                case HeroPassive.Backstab:
-                    return "适合与后排点杀技能组合，形成高机动爆发。";
-                case HeroPassive.Bodyguard:
-                    return "更适合 Bulwark 的护卫路线，强化队友保护。";
-                case HeroPassive.Tactician:
-                    return "更适合 Stimulator 路线，围绕冷却和资源支援。";
-                case HeroPassive.ChainReaction:
-                    return "更适合 Bombardier 路线，强化 AOE 和击杀扩散。";
+                case CombatArchetype.Bulwark:
+                    return new[] { CombatSpecialization.Bastion, CombatSpecialization.Sentinel };
+                case CombatArchetype.Executioner:
+                    return new[] { CombatSpecialization.Slayer, CombatSpecialization.Breaker };
+                case CombatArchetype.Artificer:
+                    return new[] { CombatSpecialization.Bombardier, CombatSpecialization.Controller };
+                case CombatArchetype.Physician:
+                    return new[] { CombatSpecialization.Surgeon, CombatSpecialization.Stimulator };
                 default:
-                    return "当前仍是 enum 规则；后续如需更深成长，可以升级成 PassiveData 资产。";
+                    return Array.Empty<CombatSpecialization>();
+            }
+        }
+
+        public static HeroPassive[] GetLevelThreePassiveChoices(CombatantDefinition hero)
+        {
+            if (hero == null)
+            {
+                return Array.Empty<HeroPassive>();
+            }
+
+            switch (hero.specialization)
+            {
+                case CombatSpecialization.Bastion:
+                    return new[] { HeroPassive.Fortress, HeroPassive.Bodyguard };
+                case CombatSpecialization.Sentinel:
+                    return new[] { HeroPassive.Bodyguard, HeroPassive.Vanguard };
+                case CombatSpecialization.Slayer:
+                    return new[] { HeroPassive.Executioner, HeroPassive.Reaper };
+                case CombatSpecialization.Breaker:
+                    return new[] { HeroPassive.Backstab, HeroPassive.Berserker };
+                case CombatSpecialization.Bombardier:
+                    return new[] { HeroPassive.ChainReaction, HeroPassive.GlassCannon };
+                case CombatSpecialization.Controller:
+                    return new[] { HeroPassive.Tactician, HeroPassive.GlassCannon };
+                case CombatSpecialization.Surgeon:
+                    return new[] { HeroPassive.Regenerator, HeroPassive.Inspirer };
+                case CombatSpecialization.Stimulator:
+                    return new[] { HeroPassive.Tactician, HeroPassive.Inspirer };
+                default:
+                    switch (hero.archetype)
+                    {
+                        case CombatArchetype.Bulwark:
+                            return new[] { HeroPassive.Fortress, HeroPassive.Bodyguard };
+                        case CombatArchetype.Executioner:
+                            return new[] { HeroPassive.Executioner, HeroPassive.Backstab };
+                        case CombatArchetype.Artificer:
+                            return new[] { HeroPassive.ChainReaction, HeroPassive.Tactician };
+                        case CombatArchetype.Physician:
+                            return new[] { HeroPassive.Regenerator, HeroPassive.Inspirer };
+                        default:
+                            return Array.Empty<HeroPassive>();
+                    }
             }
         }
 
@@ -146,8 +238,15 @@ namespace ClockworkWasteland.Combat
             var builder = new StringBuilder();
             builder.AppendLine($"固定被动：{GetPassiveDisplayName(hero.passive)}");
             builder.AppendLine(GetPassiveDescription(hero.passive));
-            builder.AppendLine();
 
+            if (hero.growthPassive != HeroPassive.None)
+            {
+                builder.AppendLine();
+                builder.AppendLine($"成长被动：{GetPassiveDisplayName(hero.growthPassive)}");
+                builder.AppendLine(GetPassiveDescription(hero.growthPassive));
+            }
+
+            builder.AppendLine();
             var specializations = GetAvailableSpecializations(hero.archetype);
             if (specializations.Length > 0)
             {
@@ -185,23 +284,6 @@ namespace ClockworkWasteland.Combat
             }
 
             return builder.ToString().TrimEnd();
-        }
-
-        private static CombatSpecialization[] GetAvailableSpecializations(CombatArchetype archetype)
-        {
-            switch (archetype)
-            {
-                case CombatArchetype.Bulwark:
-                    return new[] { CombatSpecialization.Bastion, CombatSpecialization.Sentinel };
-                case CombatArchetype.Executioner:
-                    return new[] { CombatSpecialization.Slayer, CombatSpecialization.Breaker };
-                case CombatArchetype.Artificer:
-                    return new[] { CombatSpecialization.Bombardier, CombatSpecialization.Controller };
-                case CombatArchetype.Physician:
-                    return new[] { CombatSpecialization.Surgeon, CombatSpecialization.Stimulator };
-                default:
-                    return new CombatSpecialization[0];
-            }
         }
     }
 }

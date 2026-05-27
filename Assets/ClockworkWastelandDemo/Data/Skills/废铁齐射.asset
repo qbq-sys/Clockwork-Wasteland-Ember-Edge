@@ -12,22 +12,23 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b8bfb20e525850f48a31396eb1a44be5, type: 3}
   m_Name: "\u5E9F\u94C1\u9F50\u5C04"
   m_EditorClassIdentifier: 
-  skillId: scrap_volley
+  skillId: hero_01_scrap_volley
   skillName: "\u5E9F\u94C1\u9F50\u5C04"
-  description: "\u653B\u51FB\u654C\u65B9\u5168\u4F53\u3002"
+  description: "\u503E\u6CFB\u62FC\u88C5\u706B\u529B\uFF0C\u5BF9\u654C\u65B9\u5168\u4F53\u5F62\u6210\u538B\u5236\u3002"
   icon: {fileID: 0}
   skillType: 0
   baseValue: 4
-  powerMultiplier: 0.75
+  powerMultiplier: 0.8
   targetType: 3
-  casterAllowedPositions: 01000000020000000300000004000000
+  casterAllowedPositions: 0300000004000000
   targetAllowedPositions: 01000000020000000300000004000000
-  manaCost: 0
-  cooldown: 2
+  manaCost: 2
+  cooldown: 1
   applyBuff: {fileID: 0}
   applyBuffDuration: 1
   attackSprite: {fileID: 0}
   hitSprite: {fileID: 0}
-  skillSfx: {fileID: 8300000, guid: 0cc440c1d59b1ea47a45b048036355cd, type: 3}
-  overlayDuration: 0.2
+  skillSfx: {fileID: 0}
+  overlayDuration: 0.22
   isSwapSkill: 0
+  isPassSkill: 0

@@ -64,10 +64,13 @@ MonoBehaviour:
   attack: 7
   defense: 4
   passive: 10
+  growthPassive: 0
   growthData: {fileID: 11400000, guid: 0b230fd35703e7340958c9d0f0acd059, type: 2}
   currentLevel: 1
   currentExperience: 0
   currentHealth: -1
+  recoveryState: 0
+  recoveryBattlesRemaining: 0
   skills:
   - {fileID: 11400000, guid: af8836f4bcb11ad4c8e1042a647dbb11, type: 2}
   - {fileID: 11400000, guid: dd14f329a4b61ae4b9076b4850c30b81, type: 2}

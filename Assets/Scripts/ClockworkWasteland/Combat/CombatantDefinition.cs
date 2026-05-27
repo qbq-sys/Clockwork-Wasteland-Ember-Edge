@@ -63,6 +63,7 @@ namespace ClockworkWasteland.Combat
 
         [Header("Passive")]
         public HeroPassive passive = HeroPassive.None;
+        public HeroPassive growthPassive = HeroPassive.None;
 
         [Header("Growth")]
         public HeroGrowthData growthData;
@@ -103,6 +104,7 @@ namespace ClockworkWasteland.Combat
         public string SpecializationDisplayName => GetSpecializationDisplayName(specialization);
         public string SpecializationSummary => GetSpecializationSummary(specialization);
         public string PassiveDisplayName => GetPassiveDisplayName(passive);
+        public string GrowthPassiveDisplayName => GetPassiveDisplayName(growthPassive);
         public string RecoveryDisplayName => GetRecoveryDisplayName(recoveryState, recoveryBattlesRemaining);
 
         public bool PrefersFrontRows => preferredRow == CombatRowPreference.Front;

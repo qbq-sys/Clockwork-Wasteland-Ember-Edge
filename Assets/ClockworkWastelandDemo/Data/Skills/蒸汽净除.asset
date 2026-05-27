@@ -1,0 +1,34 @@
+%YAML 1.1
+%TAG !u! tag:yousandi.cn,2023:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b8bfb20e525850f48a31396eb1a44be5, type: 3}
+  m_Name: "\u84B8\u6C7D\u51C0\u9664"
+  m_EditorClassIdentifier: 
+  skillId: hero_02_steam_purge
+  skillName: "\u84B8\u6C7D\u51C0\u9664"
+  description: "\u51C0\u5316\u53CB\u65B9\u8D1F\u9762\u72B6\u6001\uFF0C\u9002\u5408\u5904\u7406\u707C\u70E7\u548C\u7729\u6655\u3002"
+  icon: {fileID: 0}
+  skillType: 2
+  baseValue: 0
+  powerMultiplier: 0
+  targetType: 1
+  casterAllowedPositions: 0300000004000000
+  targetAllowedPositions: 01000000020000000300000004000000
+  manaCost: 1
+  cooldown: 1
+  applyBuff: {fileID: 0}
+  applyBuffDuration: 1
+  attackSprite: {fileID: 0}
+  hitSprite: {fileID: 0}
+  skillSfx: {fileID: 8300000, guid: 572c4f63b6342194fb20edc146454c80, type: 3}
+  overlayDuration: 0.22
+  isSwapSkill: 0
+  isPassSkill: 0

@@ -139,7 +139,7 @@ namespace ClockworkWasteland.Combat
 
         public bool HasPassive(HeroPassive passive)
         {
-            return IsHero && Definition.passive == passive;
+            return IsHero && (Definition.passive == passive || Definition.growthPassive == passive);
         }
 
         public bool HasStatus(string displayName)

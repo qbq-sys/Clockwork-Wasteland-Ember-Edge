@@ -165,10 +165,9 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 6f81680e40859904d9e012a5a1f3de22, type: 2}
   heroPoolConfig: []
   adventureMapCatalog: {fileID: 0}
-  battleUIPrefab: {fileID: 473325589297198423, guid: 190b79f1586cf854189e89613c41e2ef, type: 3}
+  battleHudControllerPrefab: {fileID: 473325589297198423, guid: 190b79f1586cf854189e89613c41e2ef, type: 3}
   defaultUnitPrefab: {fileID: 0}
   nameplatePrefab: {fileID: 0}
-  heroVisualScale: 0.8
   battleBackgrounds: []
   battleBackgroundIndex: 0
   floatingTextBaseOffset: {x: 0, y: 1.2, z: -0.6}
@@ -197,6 +196,15 @@ MonoBehaviour:
   attackFocusAoeActorOffset: 3
   attackFocusAoeTargetOffset: 2
   attackFocusAoeTargetSpacing: 1
+  debugTestingEnabled: 0
+  debugExperienceRewardMultiplier: 1
+  debugGoldRewardMultiplier: 1
+  debugChestGoldMultiplier: 1
+  debugUnlockAllMaps: 0
+  debugUnlockAllHeroesOnNewGame: 1
+  debugNewGameHeroLevel: 1
+  debugStartingGoldOverride: -1
+  debugManualExperienceGrant: 100
 --- !u!4 &323222959
 Transform:
   m_ObjectHideFlags: 0

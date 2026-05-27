@@ -1,0 +1,34 @@
+%YAML 1.1
+%TAG !u! tag:yousandi.cn,2023:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b8bfb20e525850f48a31396eb1a44be5, type: 3}
+  m_Name: "\u88C2\u8109\u65A9"
+  m_EditorClassIdentifier: 
+  skillId: hero_03_vein_rend
+  skillName: "\u88C2\u8109\u65A9"
+  description: "\u65A9\u5F00\u8840\u8109\uFF0C\u9644\u52A0\u6D41\u8840\u5E76\u4E3A\u540E\u7EED\u5904\u51B3\u94FA\u8DEF\u3002"
+  icon: {fileID: 0}
+  skillType: 0
+  baseValue: 7
+  powerMultiplier: 1.1
+  targetType: 0
+  casterAllowedPositions: 0200000003000000
+  targetAllowedPositions: 01000000020000000300000004000000
+  manaCost: 2
+  cooldown: 1
+  applyBuff: {fileID: 11400000, guid: 8b07a085acec10b45b4c58b1ce009755, type: 2}
+  applyBuffDuration: 2
+  attackSprite: {fileID: 0}
+  hitSprite: {fileID: 0}
+  skillSfx: {fileID: 8300000, guid: 4870696828e2e05478eb10922229738e, type: 3}
+  overlayDuration: 0.22
+  isSwapSkill: 0
+  isPassSkill: 0

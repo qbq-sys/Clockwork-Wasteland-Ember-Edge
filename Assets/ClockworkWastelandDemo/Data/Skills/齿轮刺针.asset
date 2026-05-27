@@ -1,0 +1,34 @@
+%YAML 1.1
+%TAG !u! tag:yousandi.cn,2023:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b8bfb20e525850f48a31396eb1a44be5, type: 3}
+  m_Name: "\u9F7F\u8F6E\u523A\u9488"
+  m_EditorClassIdentifier: 
+  skillId: hero_01_gear_sting
+  skillName: "\u9F7F\u8F6E\u523A\u9488"
+  description: "\u53D1\u5C04\u5E26\u9F7F\u5C04\u9489\uFF0C\u64C5\u957F\u7CBE\u51C6\u6253\u51FB\u654C\u65B9\u540E\u6392\u3002"
+  icon: {fileID: 0}
+  skillType: 0
+  baseValue: 7
+  powerMultiplier: 1.05
+  targetType: 0
+  casterAllowedPositions: 0300000004000000
+  targetAllowedPositions: 020000000300000004000000
+  manaCost: 1
+  cooldown: 0
+  applyBuff: {fileID: 0}
+  applyBuffDuration: 1
+  attackSprite: {fileID: 0}
+  hitSprite: {fileID: 0}
+  skillSfx: {fileID: 0}
+  overlayDuration: 0.22
+  isSwapSkill: 0
+  isPassSkill: 0

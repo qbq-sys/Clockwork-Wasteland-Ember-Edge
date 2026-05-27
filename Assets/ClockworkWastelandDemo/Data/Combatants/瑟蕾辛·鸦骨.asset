@@ -60,20 +60,25 @@ MonoBehaviour:
   visualScale: 1
   occupiedSlotCount: 1
   corpseHealth: 3
-  archetype: 3
-  preferredRow: 2
+  archetype: 4
+  preferredRow: 3
   specialization: 0
   isUnlocked: 1
-  recruitPrice: 500
-  maxHealth: 32
+  recruitPrice: 650
+  maxHealth: 30
   speed: 5
-  attack: 8
+  attack: 7
   defense: 2
-  passive: 0
+  passive: 7
+  growthPassive: 0
   growthData: {fileID: 11400000, guid: 0b230fd35703e7340958c9d0f0acd059, type: 2}
   currentLevel: 1
   currentExperience: 0
   currentHealth: -1
+  recoveryState: 0
+  recoveryBattlesRemaining: 0
   skills:
-  - {fileID: 11400000, guid: 6bd85bde540a1704c85aac624c1054f2, type: 2}
+  - {fileID: 11400000, guid: 6bbdc3a0e24dbac43a70880de2f0229e, type: 2}
   - {fileID: 11400000, guid: eeb6de980dd94d648afaf50f7f19191e, type: 2}
+  - {fileID: 11400000, guid: ddfc13312e6be5341a9f5cb4c5167196, type: 2}
+  - {fileID: 11400000, guid: c586368a8c91f804f851edce8e9cfcee, type: 2}

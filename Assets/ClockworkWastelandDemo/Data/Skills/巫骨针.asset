@@ -1,0 +1,34 @@
+%YAML 1.1
+%TAG !u! tag:yousandi.cn,2023:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b8bfb20e525850f48a31396eb1a44be5, type: 3}
+  m_Name: "\u5DEB\u9AA8\u9488"
+  m_EditorClassIdentifier: 
+  skillId: hero_02_bone_dart
+  skillName: "\u5DEB\u9AA8\u9488"
+  description: "\u6295\u51FA\u5DEB\u9AA8\u9488\uFF0C\u4E3A\u540E\u7EED\u51C0\u5316\u548C\u538B\u5236\u4E89\u53D6\u65F6\u95F4\u3002"
+  icon: {fileID: 0}
+  skillType: 0
+  baseValue: 6
+  powerMultiplier: 0.95
+  targetType: 0
+  casterAllowedPositions: 0300000004000000
+  targetAllowedPositions: 01000000020000000300000004000000
+  manaCost: 1
+  cooldown: 0
+  applyBuff: {fileID: 0}
+  applyBuffDuration: 1
+  attackSprite: {fileID: 0}
+  hitSprite: {fileID: 0}
+  skillSfx: {fileID: 8300000, guid: 572c4f63b6342194fb20edc146454c80, type: 3}
+  overlayDuration: 0.22
+  isSwapSkill: 0
+  isPassSkill: 0

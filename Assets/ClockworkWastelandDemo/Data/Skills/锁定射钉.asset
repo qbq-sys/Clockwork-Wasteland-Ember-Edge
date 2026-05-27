@@ -1,0 +1,34 @@
+%YAML 1.1
+%TAG !u! tag:yousandi.cn,2023:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b8bfb20e525850f48a31396eb1a44be5, type: 3}
+  m_Name: "\u9501\u5B9A\u5C04\u9489"
+  m_EditorClassIdentifier: 
+  skillId: hero_01_lock_pin
+  skillName: "\u9501\u5B9A\u5C04\u9489"
+  description: "\u5C04\u51FA\u9501\u5B9A\u9489\u538B\u5236\u76EE\u6807\uFF0C\u524A\u5F31\u5176\u4E0B\u6B21\u653B\u51FB\u3002"
+  icon: {fileID: 0}
+  skillType: 2
+  baseValue: 5
+  powerMultiplier: 0.95
+  targetType: 0
+  casterAllowedPositions: 0300000004000000
+  targetAllowedPositions: 01000000020000000300000004000000
+  manaCost: 1
+  cooldown: 1
+  applyBuff: {fileID: 11400000, guid: 94238cb49e54d1c4fa62e3be577c79c8, type: 2}
+  applyBuffDuration: 1
+  attackSprite: {fileID: 0}
+  hitSprite: {fileID: 0}
+  skillSfx: {fileID: 0}
+  overlayDuration: 0.22
+  isSwapSkill: 0
+  isPassSkill: 0

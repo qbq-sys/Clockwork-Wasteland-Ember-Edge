@@ -59,16 +59,21 @@ MonoBehaviour:
   preferredRow: 2
   specialization: 0
   isUnlocked: 1
-  recruitPrice: 500
-  maxHealth: 32
-  speed: 5
-  attack: 8
+  recruitPrice: 650
+  maxHealth: 34
+  speed: 6
+  attack: 9
   defense: 2
-  passive: 0
+  passive: 2
+  growthPassive: 0
   growthData: {fileID: 11400000, guid: 0b230fd35703e7340958c9d0f0acd059, type: 2}
   currentLevel: 1
   currentExperience: 0
   currentHealth: -1
+  recoveryState: 0
+  recoveryBattlesRemaining: 0
   skills:
-  - {fileID: 11400000, guid: 9b793a2de7fac1446a66ee1aecb2dbae, type: 2}
-  - {fileID: 11400000, guid: c5f2c545b01680248a2cbe5cac00b164, type: 2}
+  - {fileID: 11400000, guid: 1b9549d82c949eb4783dc91f8be7cf73, type: 2}
+  - {fileID: 11400000, guid: a6a2606fed4e7a747b4a0148d562ef23, type: 2}
+  - {fileID: 11400000, guid: b9b08bc15f820cb4ab38b61a1d7ef664, type: 2}
+  - {fileID: 11400000, guid: aece548fe14eb6d4b973a21ed9eb2d53, type: 2}

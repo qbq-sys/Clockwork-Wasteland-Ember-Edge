@@ -80,6 +80,8 @@ namespace ClockworkWasteland.EditorTools
         private CombatArchetype createArchetype = CombatArchetype.Undefined;
         private CombatRowPreference createPreferredRow = CombatRowPreference.Flexible;
         private CombatSpecialization createSpecialization = CombatSpecialization.None;
+        private HeroPassive createPassive = HeroPassive.None;
+        private HeroPassive createGrowthPassive = HeroPassive.None;
         private HeroGrowthData createGrowthData;
         private UnityEngine.Object createIdleSourceAsset;
         private Sprite createAttackSprite;
@@ -314,6 +316,8 @@ namespace ClockworkWasteland.EditorTools
                 }
 
                 EditorGUILayout.Space(8f);
+                DrawSelectedCombatantProgressionSummary(selectedCombatant);
+                EditorGUILayout.Space(8f);
                 detailsScroll = EditorGUILayout.BeginScrollView(detailsScroll);
                 EnsureSelectedEditor();
                 selectedCombatantEditor?.OnInspectorGUI();
@@ -342,9 +346,13 @@ namespace ClockworkWasteland.EditorTools
             createTint = EditorGUILayout.ColorField("染色", createTint);
             createArchetype = (CombatArchetype)EditorGUILayout.EnumPopup("职业原型", createArchetype);
             createPreferredRow = (CombatRowPreference)EditorGUILayout.EnumPopup("偏好站位", createPreferredRow);
-            createSpecialization = (CombatSpecialization)EditorGUILayout.EnumPopup("专精分支", createSpecialization);
+            createSpecialization = DrawSpecializationPopup("专精分支", createArchetype, createSpecialization);
+            createPassive = (HeroPassive)EditorGUILayout.EnumPopup("固定被动", createPassive);
+            createGrowthPassive = (HeroPassive)EditorGUILayout.EnumPopup("成长被动", createGrowthPassive);
             createGrowthData = (HeroGrowthData)EditorGUILayout.ObjectField("成长数据", createGrowthData, typeof(HeroGrowthData), false);
 
+            EditorGUILayout.Space(6f);
+            DrawCreateProgressionPreview();
             EditorGUILayout.Space(6f);
             DrawSkillList();
             EditorGUILayout.Space(6f);
@@ -698,6 +706,101 @@ namespace ClockworkWasteland.EditorTools
             }
         }
 
+        private void DrawSelectedCombatantProgressionSummary(CombatantDefinition combatant)
+        {
+            if (combatant == null || !combatant.isHero)
+            {
+                return;
+            }
+
+            using (new EditorGUILayout.VerticalScope("box"))
+            {
+                EditorGUILayout.LabelField("成长与被动", EditorStyles.boldLabel);
+                EditorGUILayout.LabelField("固定被动", GetPassiveDisplayName(combatant.passive));
+                EditorGUILayout.HelpBox(GetPassiveRuleSummary(combatant.passive), MessageType.None);
+
+                if (combatant.growthPassive != HeroPassive.None)
+                {
+                    EditorGUILayout.LabelField("成长被动", GetPassiveDisplayName(combatant.growthPassive));
+                    EditorGUILayout.HelpBox(GetPassiveRuleSummary(combatant.growthPassive), MessageType.None);
+                }
+                else
+                {
+                    EditorGUILayout.HelpBox("当前还没有选择成长被动。", MessageType.None);
+                }
+
+                EditorGUILayout.LabelField("2级专精路线", BuildSpecializationSummaryText(combatant.archetype));
+                EditorGUILayout.LabelField("3级成长预览", BuildPassivePreviewText(combatant.archetype, combatant.specialization));
+            }
+        }
+
+        private void DrawCreateProgressionPreview()
+        {
+            using (new EditorGUILayout.VerticalScope("box"))
+            {
+                EditorGUILayout.LabelField("成长配置预览", EditorStyles.boldLabel);
+                EditorGUILayout.HelpBox("第一版先支持：固定被动、2级专精、3级成长被动。5/7/9级继续留接口。", MessageType.None);
+                EditorGUILayout.LabelField("固定被动说明", GetPassiveRuleSummary(createPassive));
+
+                if (createGrowthPassive != HeroPassive.None)
+                {
+                    EditorGUILayout.LabelField("成长被动说明", GetPassiveRuleSummary(createGrowthPassive));
+                }
+                else
+                {
+                    EditorGUILayout.LabelField("成长被动说明", "未指定");
+                }
+
+                EditorGUILayout.LabelField("2级专精路线", BuildSpecializationSummaryText(createArchetype));
+                EditorGUILayout.LabelField("3级成长预览", BuildPassivePreviewText(createArchetype, createSpecialization));
+            }
+        }
+
+        private static CombatSpecialization DrawSpecializationPopup(string label, CombatArchetype archetype, CombatSpecialization current)
+        {
+            var options = HeroProgressionDescriptions.GetAvailableSpecializations(archetype);
+            if (options == null || options.Length == 0)
+            {
+                EditorGUILayout.LabelField(label, "当前职业没有可用专精");
+                return CombatSpecialization.None;
+            }
+
+            var safeCurrent = options.Contains(current) ? current : options[0];
+            var index = Array.IndexOf(options, safeCurrent);
+            var names = options.Select(CombatantDefinition.GetSpecializationDisplayName).ToArray();
+            index = EditorGUILayout.Popup(label, Mathf.Max(0, index), names);
+            index = Mathf.Clamp(index, 0, options.Length - 1);
+            return options[index];
+        }
+
+        private static string BuildSpecializationSummaryText(CombatArchetype archetype)
+        {
+            var options = HeroProgressionDescriptions.GetAvailableSpecializations(archetype);
+            if (options == null || options.Length == 0)
+            {
+                return "当前职业原型没有配置专精。";
+            }
+
+            return string.Join(" | ", options.Select(specialization =>
+                $"{CombatantDefinition.GetSpecializationDisplayName(specialization)}：{HeroProgressionDescriptions.GetSpecializationTrackLabel(specialization)}"));
+        }
+
+        private static string BuildPassivePreviewText(CombatArchetype archetype, CombatSpecialization specialization)
+        {
+            var preview = ScriptableObject.CreateInstance<CombatantDefinition>();
+            preview.archetype = archetype;
+            preview.specialization = specialization;
+            var choices = HeroProgressionDescriptions.GetLevelThreePassiveChoices(preview);
+            DestroyImmediate(preview);
+
+            if (choices == null || choices.Length == 0)
+            {
+                return "当前尚未配置 3 级成长被动。";
+            }
+
+            return string.Join(" / ", choices.Select(GetPassiveDisplayName));
+        }
+
         private HeroPassive selectedPassive = HeroPassive.Executioner;
 
         private void DrawPassiveDetailsPane()
@@ -709,10 +812,18 @@ namespace ClockworkWasteland.EditorTools
 
                 EditorGUILayout.LabelField("已挂载英雄", EditorStyles.boldLabel);
                 passiveDetailsScroll = EditorGUILayout.BeginScrollView(passiveDetailsScroll);
-                var users = combatants.Where(combatant => combatant != null && combatant.isHero && combatant.passive == selectedPassive).ToArray();
+                var users = combatants.Where(combatant =>
+                    combatant != null &&
+                    combatant.isHero &&
+                    (combatant.passive == selectedPassive || combatant.growthPassive == selectedPassive)).ToArray();
                 foreach (var combatant in users)
                 {
-                    if (GUILayout.Button($"{combatant.displayName}  [{combatant.characterId}]  {combatant.ArchetypeDisplayName}/{combatant.SpecializationDisplayName}", GUILayout.Width(420f)))
+                    var passiveKind = combatant.passive == selectedPassive && combatant.growthPassive == selectedPassive
+                        ? "固定+成长"
+                        : combatant.passive == selectedPassive
+                            ? "固定"
+                            : "成长";
+                    if (GUILayout.Button($"{combatant.displayName}  [{combatant.characterId}]  {combatant.ArchetypeDisplayName}/{combatant.SpecializationDisplayName}  ({passiveKind})", GUILayout.Width(460f)))
                     {
                         tabIndex = 0;
                         SelectCombatant(combatant);
@@ -824,6 +935,8 @@ namespace ClockworkWasteland.EditorTools
             combatant.archetype = createArchetype;
             combatant.preferredRow = createPreferredRow;
             combatant.specialization = createSpecialization;
+            combatant.passive = createPassive;
+            combatant.growthPassive = createGrowthPassive;
             combatant.growthData = createIsHero ? (createGrowthData != null ? createGrowthData : LoadOrCreateDefaultGrowthData()) : null;
             combatant.idleAnimationFrames = idleFrames;
             combatant.battleSprite = idleFrames[0];
@@ -2144,6 +2257,8 @@ namespace ClockworkWasteland.EditorTools
             createArchetype = template.archetype;
             createPreferredRow = template.preferredRow;
             createSpecialization = template.specialization;
+            createPassive = template.passive;
+            createGrowthPassive = template.growthPassive;
             createGrowthData = template.growthData != null ? template.growthData : LoadOrCreateDefaultGrowthData();
 
             createSkills.Clear();

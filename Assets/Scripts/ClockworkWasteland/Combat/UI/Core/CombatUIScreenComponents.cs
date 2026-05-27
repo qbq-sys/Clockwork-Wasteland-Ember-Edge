@@ -25,7 +25,13 @@ namespace ClockworkWasteland.Combat
         public const string HeroCodexPrefabPath = ScreenPrefabRootPath + "/HeroCodexUI.prefab";
         public const string SettingsPrefabPath = ScreenPrefabRootPath + "/SettingsUI.prefab";
         public const string SaveSlotPrefabPath = ScreenPrefabRootPath + "/SaveSlotUI.prefab";
+        public const string RecoveryWardPrefabPath = ScreenPrefabRootPath + "/RecoveryWardUI.prefab";
         public const string LevelUpPrefabPath = ScreenPrefabRootPath + "/LevelUpUI.prefab";
+        public const string RewardScreenPrefabPath = ScreenPrefabRootPath + "/RewardScreenUI.prefab";
+        public const string ShopPrefabPath = ScreenPrefabRootPath + "/ShopUI.prefab";
+        public const string InventoryPrefabPath = ScreenPrefabRootPath + "/InventoryUI.prefab";
+        public const string RouteMapPrefabPath = ScreenPrefabRootPath + "/RouteMapUI.prefab";
+        public const string RestNodePrefabPath = ScreenPrefabRootPath + "/RestNodeUI.prefab";
         public const string PopupPrefabPath = PopupPrefabRootPath + "/PopupUI.prefab";
         public const string BattleHudPrefabPath = HudPrefabRootPath + "/BattleHudUI.prefab";
         public const string SkillDescriptionPrefabPath = HudPrefabRootPath + "/SkillDescriptionUI.prefab";
@@ -48,7 +54,13 @@ namespace ClockworkWasteland.Combat
         [SerializeField] private HeroCodexUI heroCodexPrefab;
         [SerializeField] private SettingsUI settingsPrefab;
         [SerializeField] private SaveSlotUI saveSlotPrefab;
+        [SerializeField] private RecoveryWardUI recoveryWardPrefab;
         [SerializeField] private LevelUpUI levelUpPrefab;
+        [SerializeField] private RewardScreenUI rewardScreenPrefab;
+        [SerializeField] private ShopUI shopPrefab;
+        [SerializeField] private InventoryUI inventoryPrefab;
+        [SerializeField] private RouteMapUI routeMapPrefab;
+        [SerializeField] private RestNodeUI restNodePrefab;
         [SerializeField] private PopupUI popupPrefab;
         [SerializeField] private BattleHudUI battleHudPrefab;
         [SerializeField] private SkillDescriptionUI skillDescriptionPrefab;
@@ -171,10 +183,46 @@ namespace ClockworkWasteland.Combat
             screen.Show(title, slots, allowEmptySelection, onSelect, onDelete, onBack);
         }
 
+        public void ShowRecoveryWard(IReadOnlyList<CombatantDefinition> heroes, int currentGold, int treatmentCost, Action<CombatantDefinition> onTreat, Action onBack)
+        {
+            var screen = ShowScreen(recoveryWardPrefab, CombatUIPaths.RecoveryWardPrefabPath);
+            screen.Show(heroes, currentGold, treatmentCost, onTreat, onBack);
+        }
+
         public void ShowLevelUp(LevelUpPresentation presentation, Action<LevelUpOptionData> onSelect)
         {
             var screen = ShowScreen(levelUpPrefab, CombatUIPaths.LevelUpPrefabPath);
             screen.Show(presentation, onSelect);
+        }
+
+        public void ShowRewardScreen(int goldGained, int totalGold, IReadOnlyList<BattleRewardResult> results, Action onContinue)
+        {
+            var screen = ShowScreen(rewardScreenPrefab, CombatUIPaths.RewardScreenPrefabPath);
+            screen.Show(goldGained, totalGold, results, onContinue);
+        }
+
+        public void ShowShop(IReadOnlyList<InventoryItemData> shopItems, int currentGold, IReadOnlyList<InventoryItemStack> inventory, Action<InventoryItemData> onBuy, Action onBack)
+        {
+            var screen = ShowScreen(shopPrefab, CombatUIPaths.ShopPrefabPath);
+            screen.Show(shopItems, currentGold, inventory, onBuy, onBack);
+        }
+
+        public void ShowInventory(IReadOnlyList<InventoryItemStack> inventory, IReadOnlyList<CombatantDefinition> heroes, Action<InventoryItemData, CombatantDefinition> onUse, Action onBack)
+        {
+            var screen = ShowScreen(inventoryPrefab, CombatUIPaths.InventoryPrefabPath);
+            screen.Show(inventory, heroes, onUse, onBack);
+        }
+
+        public void ShowRouteMap(int step, int totalSteps, IReadOnlyList<MapNodeOption> options, Action<MapNodeOption> onSelect)
+        {
+            var screen = ShowScreen(routeMapPrefab, CombatUIPaths.RouteMapPrefabPath);
+            screen.Show(step, totalSteps, options, onSelect);
+        }
+
+        public void ShowRestNode(IReadOnlyList<CombatantDefinition> heroes, Action<CombatantDefinition> onSelectHero)
+        {
+            var screen = ShowScreen(restNodePrefab, CombatUIPaths.RestNodePrefabPath);
+            screen.Show(heroes, onSelectHero);
         }
 
         public void ShowPopup(string message, string buttonLabel, Action onContinue)
@@ -608,6 +656,7 @@ namespace ClockworkWasteland.Combat
                     !AssetDatabase.LoadAssetAtPath<HeroCodexUI>(CombatUIPaths.HeroCodexPrefabPath) ||
                     !AssetDatabase.LoadAssetAtPath<SettingsUI>(CombatUIPaths.SettingsPrefabPath) ||
                     !AssetDatabase.LoadAssetAtPath<SaveSlotUI>(CombatUIPaths.SaveSlotPrefabPath) ||
+                    !AssetDatabase.LoadAssetAtPath<RecoveryWardUI>(CombatUIPaths.RecoveryWardPrefabPath) ||
                     !AssetDatabase.LoadAssetAtPath<PopupUI>(CombatUIPaths.PopupPrefabPath) ||
                     !AssetDatabase.LoadAssetAtPath<BattleHudUI>(CombatUIPaths.BattleHudPrefabPath) ||
                     !AssetDatabase.LoadAssetAtPath<SkillDescriptionUI>(CombatUIPaths.SkillDescriptionPrefabPath) ||
@@ -634,6 +683,7 @@ namespace ClockworkWasteland.Combat
             CreatePrefab<HeroCodexUI>(CombatUIPaths.HeroCodexPrefabPath, "HeroCodexUI", overwriteExisting: false);
             CreatePrefab<SettingsUI>(CombatUIPaths.SettingsPrefabPath, "SettingsUI", overwriteExisting: false);
             CreatePrefab<SaveSlotUI>(CombatUIPaths.SaveSlotPrefabPath, "SaveSlotUI", overwriteExisting: false);
+            CreatePrefab<RecoveryWardUI>(CombatUIPaths.RecoveryWardPrefabPath, "RecoveryWardUI", overwriteExisting: false);
             CreatePrefab<LevelUpUI>(CombatUIPaths.LevelUpPrefabPath, "LevelUpUI", overwriteExisting: false);
             CreatePrefab<PopupUI>(CombatUIPaths.PopupPrefabPath, "PopupUI", overwriteExisting: false);
             CreatePrefab<BattleHudUI>(CombatUIPaths.BattleHudPrefabPath, "BattleHudUI", overwriteExisting: false);
@@ -659,6 +709,7 @@ namespace ClockworkWasteland.Combat
             CreatePrefab<HeroCodexUI>(CombatUIPaths.HeroCodexPrefabPath, "HeroCodexUI", overwriteExisting: true);
             CreatePrefab<SettingsUI>(CombatUIPaths.SettingsPrefabPath, "SettingsUI", overwriteExisting: true);
             CreatePrefab<SaveSlotUI>(CombatUIPaths.SaveSlotPrefabPath, "SaveSlotUI", overwriteExisting: true);
+            CreatePrefab<RecoveryWardUI>(CombatUIPaths.RecoveryWardPrefabPath, "RecoveryWardUI", overwriteExisting: true);
             CreatePrefab<LevelUpUI>(CombatUIPaths.LevelUpPrefabPath, "LevelUpUI", overwriteExisting: true);
             CreatePrefab<PopupUI>(CombatUIPaths.PopupPrefabPath, "PopupUI", overwriteExisting: true);
             CreatePrefab<BattleHudUI>(CombatUIPaths.BattleHudPrefabPath, "BattleHudUI", overwriteExisting: true);
@@ -697,6 +748,17 @@ namespace ClockworkWasteland.Combat
             EnsureFolder("Assets/UI", "Prefabs");
             EnsureFolder(CombatUIPaths.PrefabRootPath, "Screens");
             CreatePrefab<HeroCodexUI>(CombatUIPaths.HeroCodexPrefabPath, "HeroCodexUI", overwriteExisting: true);
+            AssetDatabase.SaveAssets();
+            AssetDatabase.Refresh();
+        }
+
+        [MenuItem("Clockwork Wasteland/Build/Rebuild Recovery Ward Prefab")]
+        public static void RebuildRecoveryWardPrefab()
+        {
+            EnsureFolder("Assets", "UI");
+            EnsureFolder("Assets/UI", "Prefabs");
+            EnsureFolder(CombatUIPaths.PrefabRootPath, "Screens");
+            CreatePrefab<RecoveryWardUI>(CombatUIPaths.RecoveryWardPrefabPath, "RecoveryWardUI", overwriteExisting: true);
             AssetDatabase.SaveAssets();
             AssetDatabase.Refresh();
         }
@@ -830,6 +892,26 @@ namespace ClockworkWasteland.Combat
                 return;
             }
 
+            if (screen is RecoveryWardUI recoveryWard)
+            {
+                var hero = CreatePreviewHero();
+                hero.isUnlocked = true;
+                hero.currentHealth = 12;
+                hero.recoveryState = HeroRecoveryState.Wounded;
+                hero.recoveryBattlesRemaining = 2;
+                try
+                {
+                    recoveryWard.RebuildLayoutFromCode(null);
+                    recoveryWard.Show(new[] { hero }, 1200, 150, null, null);
+                }
+                finally
+                {
+                    UnityEngine.Object.DestroyImmediate(hero);
+                }
+
+                return;
+            }
+
             if (screen is LevelUpUI levelUp)
             {
                 var hero = CreatePreviewHero();
@@ -925,3 +1007,4 @@ namespace ClockworkWasteland.Combat
     }
 #endif
 }
+

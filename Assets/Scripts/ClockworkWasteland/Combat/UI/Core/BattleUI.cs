@@ -522,44 +522,28 @@ namespace ClockworkWasteland.Combat
 
         public void ShowContinuePrompt(string message, string buttonLabel, Action onContinue)
         {
-            EnsureOverlay();
-            overlayPanel.gameObject.SetActive(true);
-            overlayPanel.SetAsLastSibling();
-            overlayText.text = message;
-            var buttonParent = overlayPanel.Find("MessagePanel") as RectTransform ?? overlayPanel;
-            ClearRuntimeButtons(buttonParent);
-            CreateButton(buttonParent, buttonLabel, new Vector2(310f, -166f), () =>
+            EnsureRuntimePrefabUi();
+            if (runtimeUiManager == null)
             {
-                HideOverlay();
-                onContinue?.Invoke();
-            }, true, null);
+                Debug.LogError("BattleUI failed to resolve PopupUI. Continue prompt fallback has been removed.", this);
+                return;
+            }
+
+            SetBattleHudVisible(false);
+            runtimeUiManager.ShowPopup(message, buttonLabel, onContinue);
         }
 
         public void ShowChoicePrompt(string message, string leftLabel, Action onLeft, string rightLabel, Action onRight)
         {
             EnsureRuntimePrefabUi();
-            if (runtimeUiManager != null)
+            if (runtimeUiManager == null)
             {
-                runtimeUiManager.ShowChoicePopup(message, leftLabel, onLeft, rightLabel, onRight);
+                Debug.LogError("BattleUI failed to resolve PopupUI. Choice prompt fallback has been removed.", this);
                 return;
             }
 
-            EnsureOverlay();
-            overlayPanel.gameObject.SetActive(true);
-            overlayPanel.SetAsLastSibling();
-            overlayText.text = message;
-            var buttonParent = overlayPanel.Find("MessagePanel") as RectTransform ?? overlayPanel;
-            ClearRuntimeButtons(buttonParent);
-            CreateButton(buttonParent, leftLabel, new Vector2(190f, -166f), () =>
-            {
-                HideOverlay();
-                onLeft?.Invoke();
-            }, true, null);
-            CreateButton(buttonParent, rightLabel, new Vector2(430f, -166f), () =>
-            {
-                HideOverlay();
-                onRight?.Invoke();
-            }, true, null);
+            SetBattleHudVisible(false);
+            runtimeUiManager.ShowChoicePopup(message, leftLabel, onLeft, rightLabel, onRight);
         }
 
         public void ShowEndScreen(string message)
@@ -581,74 +565,28 @@ namespace ClockworkWasteland.Combat
 
         public void ShowSettingsScreen(Action onBack, Action onSaveGame)
         {
+            EnsureRuntimePrefabUi();
             SetBattleHudVisible(false);
-            if (runtimeUiManager != null)
+            if (runtimeUiManager == null)
             {
-                runtimeUiManager.ShowSettings(onBack, onSaveGame);
+                Debug.LogError("BattleUI failed to resolve SettingsUI. Legacy settings fallback has been removed.", this);
                 return;
             }
 
-            EnsureOverlay();
-            overlayPanel.gameObject.SetActive(true);
-            overlayPanel.SetAsLastSibling();
-            ClearChildren(overlayPanel);
-
-            var panel = CreatePanel("SettingsPanel", overlayPanel, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(620f, 360f), new Color(0.032f, 0.026f, 0.024f, 0.97f));
-            panel.GetComponent<Image>().sprite = descriptionSprite;
-            panel.GetComponent<Image>().type = Image.Type.Sliced;
-
-            var title = CreateText("Title", panel, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -60f), new Vector2(-70f, 58f), 28, TextAnchor.MiddleCenter);
-            title.text = "\u8bbe\u7f6e";
-            SetTextStyle(title, new Color(0.96f, 0.82f, 0.48f), true);
-
-            var body = CreateText("Body", panel, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero, 18, TextAnchor.MiddleCenter);
-            body.rectTransform.offsetMin = new Vector2(70f, 112f);
-            body.rectTransform.offsetMax = new Vector2(-70f, -128f);
-            body.text = "\u97f3\u6548\uff1a\u5f00\u542f";
-            SetTextStyle(body, new Color(0.86f, 0.78f, 0.64f), false);
-
-            CreateButton(panel, "\u8fd4\u56de", new Vector2(310f, -304f), () => onBack?.Invoke(), true, null);
+            runtimeUiManager.ShowSettings(onBack, onSaveGame);
         }
 
         public void ShowRewardScreen(int goldGained, int totalGold, IReadOnlyList<BattleRewardResult> results, Action onContinue)
         {
+            EnsureRuntimePrefabUi();
             SetBattleHudVisible(false);
-            EnsureOverlay();
-            overlayPanel.gameObject.SetActive(true);
-            overlayPanel.SetAsLastSibling();
-            ClearChildren(overlayPanel);
-
-            var panel = CreatePanel("RewardPanel", overlayPanel, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, 18f), new Vector2(720f, 470f), new Color(0.035f, 0.026f, 0.024f, 0.97f));
-            panel.GetComponent<Image>().sprite = descriptionSprite;
-            panel.GetComponent<Image>().type = Image.Type.Sliced;
-
-            var title = CreateText("Title", panel, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -48f), new Vector2(-56f, 58f), 30, TextAnchor.MiddleCenter);
-            title.text = "\u6218\u540e\u5956\u52b1";
-            SetTextStyle(title, new Color(0.96f, 0.82f, 0.48f), true);
-
-            var goldLine = CreateText("Gold", panel, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -102f), new Vector2(-80f, 36f), 20, TextAnchor.MiddleCenter);
-            goldLine.text = $"\u83b7\u5f97\u91d1\u5e01\uff1a{goldGained}    \u5f53\u524d\u91d1\u5e01\uff1a{totalGold}";
-            SetTextStyle(goldLine, new Color(1f, 0.78f, 0.34f), true);
-
-            var rewardLines = results != null && results.Count > 0
-                ? results.Select(result =>
-                {
-                    var levelText = result.LevelsGained > 0 ? $"  \u5347\u7ea7\uff01\u5f53\u524d {result.Hero.Level} \u7ea7" : $"  {result.Hero.Experience}/{result.Hero.ExperienceToNextLevel}";
-                    return $"{result.Hero.displayName}  +{result.ExperienceGained} EXP{levelText}";
-                })
-                : new[] { "\u6ca1\u6709\u5b58\u6d3b\u82f1\u96c4\u83b7\u5f97\u7ecf\u9a8c\u3002" };
-
-            var rewards = CreateText("Rewards", panel, new Vector2(0f, 0f), new Vector2(1f, 1f), Vector2.zero, Vector2.zero, 18, TextAnchor.UpperLeft);
-            rewards.rectTransform.offsetMin = new Vector2(80f, 92f);
-            rewards.rectTransform.offsetMax = new Vector2(-80f, -132f);
-            rewards.text = string.Join("\n", rewardLines);
-            SetTextStyle(rewards, new Color(0.88f, 0.8f, 0.66f), false);
-
-            CreateButton(panel, "\u7ee7\u7eed", new Vector2(360f, -414f), () =>
+            if (runtimeUiManager == null)
             {
-                HideOverlay();
-                onContinue?.Invoke();
-            }, true, null);
+                Debug.LogError("BattleUI failed to resolve RewardScreenUI. Legacy reward fallback has been removed.", this);
+                return;
+            }
+
+            runtimeUiManager.ShowRewardScreen(goldGained, totalGold, results, onContinue);
         }
 
         public void ShowTeamSelection(
@@ -746,32 +684,13 @@ namespace ClockworkWasteland.Combat
         {
             EnsureRuntimePrefabUi();
             SetBattleHudVisible(false);
-            if (runtimeUiManager != null)
+            if (runtimeUiManager == null)
             {
-                runtimeUiManager.ShowLevelUp(presentation, onSelect);
+                Debug.LogError("BattleUI failed to resolve LevelUpUI. Legacy level-up fallback has been removed.", this);
                 return;
             }
 
-            if (presentation.Options != null && presentation.Options.Count >= 2)
-            {
-                var left = presentation.Options[0];
-                var right = presentation.Options[1];
-                ShowChoicePrompt(
-                    $"{presentation.Title}\n\n{left.Title}\n{left.Summary}\n\n{right.Title}\n{right.Summary}",
-                    left.Title,
-                    () => onSelect?.Invoke(left),
-                    right.Title,
-                    () => onSelect?.Invoke(right));
-                return;
-            }
-
-            ShowContinuePrompt(presentation.Title, "\u786e\u5b9a", () =>
-            {
-                if (presentation.Options != null && presentation.Options.Count > 0)
-                {
-                    onSelect?.Invoke(presentation.Options[0]);
-                }
-            });
+            runtimeUiManager.ShowLevelUp(presentation, onSelect);
         }
 
         public void ShowAdventureMap(IReadOnlyList<AdventureMapOption> maps, Action<AdventureMapOption> onSelect, Action onBack)
@@ -792,13 +711,13 @@ namespace ClockworkWasteland.Combat
         {
             EnsureRuntimePrefabUi();
             SetBattleHudVisible(false);
-            if (runtimeUiManager != null)
+            if (runtimeUiManager == null)
             {
-                runtimeUiManager.ShowTeamSelection(heroPool, selectedHeroes, onToggleHero, onStartBattle, onBack);
+                Debug.LogError("BattleUI failed to resolve TeamSelectionUI. Legacy team-selection fallback has been removed.", this);
                 return;
             }
 
-            ShowTeamSelection(heroPool, selectedHeroes, onToggleHero, onStartBattle, onBack, null, null);
+            runtimeUiManager.ShowTeamSelection(heroPool, selectedHeroes, onToggleHero, onStartBattle, onBack);
         }
 
         public void ShowShop(
@@ -808,46 +727,15 @@ namespace ClockworkWasteland.Combat
             Action<InventoryItemData> onBuy,
             Action onBack)
         {
+            EnsureRuntimePrefabUi();
             SetBattleHudVisible(false);
-            EnsureOverlay();
-            overlayPanel.gameObject.SetActive(true);
-            overlayPanel.SetAsLastSibling();
-            ClearChildren(overlayPanel);
-
-            var panel = CreatePanel("ShopPanel", overlayPanel, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(860f, 620f), new Color(0.032f, 0.026f, 0.024f, 0.97f));
-            panel.GetComponent<Image>().sprite = descriptionSprite;
-            panel.GetComponent<Image>().type = Image.Type.Sliced;
-
-            var title = CreateText("Title", panel, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -48f), new Vector2(-80f, 56f), 30, TextAnchor.MiddleCenter);
-            title.text = "\u5546\u5e97";
-            SetTextStyle(title, new Color(0.96f, 0.82f, 0.48f), true);
-
-            var goldLine = CreateText("Gold", panel, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -96f), new Vector2(-110f, 34f), 18, TextAnchor.MiddleCenter);
-            goldLine.text = $"\u5f53\u524d\u91d1\u5e01\uff1a{currentGold}";
-            SetTextStyle(goldLine, new Color(1f, 0.78f, 0.34f), true);
-
-            var items = shopItems ?? Array.Empty<InventoryItemData>();
-            for (var i = 0; i < items.Count; i++)
+            if (runtimeUiManager == null)
             {
-                var item = items[i];
-                var y = -168f - i * 118f;
-                var row = CreatePanel($"ShopItem_{i}", panel, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, y), new Vector2(-100f, 94f), new Color(0.055f, 0.048f, 0.047f, 0.94f));
-                row.offsetMin = new Vector2(60f, row.offsetMin.y);
-                row.offsetMax = new Vector2(-60f, row.offsetMax.y);
-                row.GetComponent<Image>().sprite = panelSprite;
-                row.GetComponent<Image>().type = Image.Type.Sliced;
-
-                var count = inventory != null ? inventory.FirstOrDefault(stack => stack.Item == item).Count : 0;
-                var itemText = CreateText("ItemText", row, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero, 16, TextAnchor.UpperLeft);
-                itemText.rectTransform.offsetMin = new Vector2(18f, 10f);
-                itemText.rectTransform.offsetMax = new Vector2(-170f, -10f);
-                itemText.text = $"{item.itemName}  {item.price}\u91d1\u5e01  \u5df2\u6709 {count}\n{item.description}";
-                SetTextStyle(itemText, new Color(0.88f, 0.8f, 0.66f), false);
-
-                CreateButton(row, "\u8d2d\u4e70", new Vector2(650f, -48f), () => onBuy?.Invoke(item), currentGold >= item.price, null);
+                Debug.LogError("BattleUI failed to resolve ShopUI. Legacy shop fallback has been removed.", this);
+                return;
             }
 
-            CreateButton(panel, "\u8fd4\u56de", new Vector2(430f, -562f), () => onBack?.Invoke(), true, null);
+            runtimeUiManager.ShowShop(shopItems, currentGold, inventory, onBuy, onBack);
         }
 
         public void ShowTavern(
@@ -858,73 +746,13 @@ namespace ClockworkWasteland.Combat
         {
             EnsureRuntimePrefabUi();
             SetBattleHudVisible(false);
-            if (runtimeUiManager != null)
+            if (runtimeUiManager == null)
             {
-                runtimeUiManager.ShowTavern(recruitableHeroes, currentGold, onRecruit, onBack);
+                Debug.LogError("BattleUI failed to resolve TavernUI. Legacy tavern fallback has been removed.", this);
                 return;
             }
 
-            EnsureOverlay();
-            overlayPanel.gameObject.SetActive(true);
-            overlayPanel.SetAsLastSibling();
-            ClearChildren(overlayPanel);
-
-            var panel = CreatePanel("TavernPanel", overlayPanel, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(980f, 660f), new Color(0.032f, 0.026f, 0.024f, 0.97f));
-            panel.GetComponent<Image>().sprite = descriptionSprite;
-            panel.GetComponent<Image>().type = Image.Type.Sliced;
-
-            var title = CreateText("Title", panel, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -48f), new Vector2(-80f, 56f), 30, TextAnchor.MiddleCenter);
-            title.text = "\u9152\u9986";
-            SetTextStyle(title, new Color(0.96f, 0.82f, 0.48f), true);
-
-            var goldLine = CreateText("Gold", panel, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -96f), new Vector2(-110f, 34f), 18, TextAnchor.MiddleCenter);
-            goldLine.text = $"\u5f53\u524d\u91d1\u5e01\uff1a{currentGold}";
-            SetTextStyle(goldLine, new Color(1f, 0.78f, 0.34f), true);
-
-            var heroes = recruitableHeroes ?? Array.Empty<CombatantDefinition>();
-            if (heroes.Count == 0)
-            {
-                var empty = CreateText("Empty", panel, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero, 20, TextAnchor.MiddleCenter);
-                empty.text = "\u6240\u6709\u82f1\u96c4\u90fd\u5df2\u52a0\u5165\u961f\u4f0d\u3002";
-                SetTextStyle(empty, new Color(0.82f, 0.72f, 0.54f), false);
-            }
-            else
-            {
-                for (var i = 0; i < heroes.Count; i++)
-                {
-                    var hero = heroes[i];
-                    var card = CreatePanel($"RecruitHero_{i}", panel, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(190f + i * 300f, -330f), new Vector2(260f, 350f), new Color(0.055f, 0.048f, 0.047f, 0.94f));
-                    card.GetComponent<Image>().sprite = panelSprite;
-                    card.GetComponent<Image>().type = Image.Type.Sliced;
-
-                    var nameText = CreateText("Name", card, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -38f), new Vector2(-26f, 50f), 19, TextAnchor.MiddleCenter);
-                    nameText.text = hero.displayName;
-                    SetTextStyle(nameText, new Color(1f, 0.84f, 0.44f), true);
-
-                    var portraitObject = new GameObject("Portrait", typeof(RectTransform), typeof(Image));
-                    portraitObject.transform.SetParent(card, false);
-                    var portraitRect = portraitObject.GetComponent<RectTransform>();
-                    portraitRect.anchorMin = new Vector2(0.5f, 1f);
-                    portraitRect.anchorMax = new Vector2(0.5f, 1f);
-                    portraitRect.pivot = new Vector2(0.5f, 0.5f);
-                    portraitRect.anchoredPosition = new Vector2(0f, -112f);
-                    portraitRect.sizeDelta = new Vector2(96f, 122f);
-                    var portraitImage = portraitObject.GetComponent<Image>();
-                    portraitImage.sprite = ResolveHeroPortrait(hero);
-                    portraitImage.color = portraitImage.sprite != null ? Color.white : new Color(0.18f, 0.14f, 0.12f, 1f);
-                    portraitImage.preserveAspect = true;
-
-                    var stats = CreateText("Stats", card, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero, 15, TextAnchor.UpperLeft);
-                    stats.rectTransform.offsetMin = new Vector2(24f, 74f);
-                    stats.rectTransform.offsetMax = new Vector2(-24f, -196f);
-                    stats.text = $"\u804c\u80fd {hero.ArchetypeDisplayName}\n\u4e13\u7cbe {hero.SpecializationDisplayName}\n\u504f\u597d {hero.PreferredRowDisplayName}\n\u751f\u547d {hero.MaxHealthWithGrowth}\n\u653b\u51fb {hero.AttackWithGrowth}\n\u9632\u5fa1 {hero.DefenseWithGrowth}\n\u901f\u5ea6 {hero.SpeedWithArchetype}\n\u4ef7\u683c {hero.recruitPrice}\u91d1\u5e01";
-                    SetTextStyle(stats, new Color(0.88f, 0.8f, 0.66f), false);
-
-                    CreateButton(card, "\u62db\u52df", new Vector2(130f, -306f), () => onRecruit?.Invoke(hero), currentGold >= hero.recruitPrice, null);
-                }
-            }
-
-            CreateButton(panel, "\u8fd4\u56de", new Vector2(490f, -602f), () => onBack?.Invoke(), true, null);
+            runtimeUiManager.ShowTavern(recruitableHeroes, currentGold, onRecruit, onBack);
         }
 
         public void ShowInventory(
@@ -933,54 +761,15 @@ namespace ClockworkWasteland.Combat
             Action<InventoryItemData, CombatantDefinition> onUse,
             Action onBack)
         {
+            EnsureRuntimePrefabUi();
             SetBattleHudVisible(false);
-            EnsureOverlay();
-            overlayPanel.gameObject.SetActive(true);
-            overlayPanel.SetAsLastSibling();
-            ClearChildren(overlayPanel);
-
-            var panel = CreatePanel("InventoryPanel", overlayPanel, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(980f, 690f), new Color(0.032f, 0.026f, 0.024f, 0.97f));
-            panel.GetComponent<Image>().sprite = descriptionSprite;
-            panel.GetComponent<Image>().type = Image.Type.Sliced;
-
-            var title = CreateText("Title", panel, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -48f), new Vector2(-80f, 56f), 30, TextAnchor.MiddleCenter);
-            title.text = "\u80cc\u5305";
-            SetTextStyle(title, new Color(0.96f, 0.82f, 0.48f), true);
-
-            var stacks = inventory ?? Array.Empty<InventoryItemStack>();
-            if (stacks.Count == 0)
+            if (runtimeUiManager == null)
             {
-                var empty = CreateText("Empty", panel, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero, 20, TextAnchor.MiddleCenter);
-                empty.text = "\u80cc\u5305\u662f\u7a7a\u7684\u3002";
-                SetTextStyle(empty, new Color(0.82f, 0.72f, 0.54f), false);
-            }
-            else
-            {
-                for (var i = 0; i < stacks.Count; i++)
-                {
-                    var stack = stacks[i];
-                    var x = i % 2 == 0 ? 255f : 725f;
-                    var y = -150f - (i / 2) * 250f;
-                    var itemPanel = CreatePanel($"InventoryItem_{i}", panel, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(x, y), new Vector2(420f, 220f), new Color(0.055f, 0.048f, 0.047f, 0.94f));
-                    itemPanel.GetComponent<Image>().sprite = panelSprite;
-                    itemPanel.GetComponent<Image>().type = Image.Type.Sliced;
-
-                    var itemText = CreateText("ItemText", itemPanel, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -42f), new Vector2(-32f, 56f), 17, TextAnchor.MiddleCenter);
-                    itemText.text = $"{stack.Item.itemName} x{stack.Count}";
-                    SetTextStyle(itemText, new Color(0.96f, 0.82f, 0.48f), true);
-
-                    var heroList = heroes ?? Array.Empty<CombatantDefinition>();
-                    for (var h = 0; h < heroList.Count && h < 4; h++)
-                    {
-                        var hero = heroList[h];
-                        var usable = IsItemUsableOnHero(stack.Item, hero);
-                        var label = $"{hero.displayName} {hero.CurrentHealth}/{hero.MaxHealthWithGrowth}";
-                        CreateButton(itemPanel, label, new Vector2(210f, -86f - h * 34f), () => onUse?.Invoke(stack.Item, hero), usable, null);
-                    }
-                }
+                Debug.LogError("BattleUI failed to resolve InventoryUI. Legacy inventory fallback has been removed.", this);
+                return;
             }
 
-            CreateButton(panel, "\u8fd4\u56de", new Vector2(490f, -632f), () => onBack?.Invoke(), true, null);
+            runtimeUiManager.ShowInventory(inventory, heroes, onUse, onBack);
         }
 
         public void ShowRecoveryWard(
@@ -990,159 +779,41 @@ namespace ClockworkWasteland.Combat
             Action<CombatantDefinition> onTreat,
             Action onBack)
         {
+            EnsureRuntimePrefabUi();
             SetBattleHudVisible(false);
-            EnsureOverlay();
-            overlayPanel.gameObject.SetActive(true);
-            overlayPanel.SetAsLastSibling();
-            ClearChildren(overlayPanel);
-
-            var panel = CreatePanel("RecoveryWardPanel", overlayPanel, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(980f, 620f), new Color(0.032f, 0.026f, 0.024f, 0.97f));
-            panel.GetComponent<Image>().sprite = descriptionSprite;
-            panel.GetComponent<Image>().type = Image.Type.Sliced;
-
-            var title = CreateText("Title", panel, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -48f), new Vector2(-80f, 56f), 30, TextAnchor.MiddleCenter);
-            title.text = "\u4f24\u5458\u4f11\u6574";
-            SetTextStyle(title, new Color(0.96f, 0.82f, 0.48f), true);
-
-            var goldText = CreateText("Gold", panel, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -94f), new Vector2(-120f, 34f), 18, TextAnchor.MiddleCenter);
-            goldText.text = $"\u5f53\u524d\u91d1\u5e01\uff1a{currentGold}";
-            SetTextStyle(goldText, new Color(1f, 0.78f, 0.34f), true);
-
-            var heroList = (heroes ?? Array.Empty<CombatantDefinition>())
-                .Where(hero => hero != null && hero.isHero && hero.isUnlocked)
-                .OrderBy(hero => hero.IsRecovering ? 0 : 1)
-                .ThenBy(hero => hero.displayName)
-                .ToArray();
-
-            if (heroList.Length == 0)
+            if (runtimeUiManager == null)
             {
-                var empty = CreateText("Empty", panel, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero, 18, TextAnchor.MiddleCenter);
-                empty.text = "\u6682\u65e0\u53ef\u7ba1\u7406\u7684\u82f1\u96c4\u3002";
-                SetTextStyle(empty, new Color(0.82f, 0.72f, 0.54f), false);
-            }
-            else
-            {
-                for (var i = 0; i < heroList.Length && i < 6; i++)
-                {
-                    var hero = heroList[i];
-                    var y = -160f - i * 68f;
-                    var row = CreatePanel($"RecoveryHero_{i}", panel, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, y), new Vector2(-120f, 52f), new Color(0.055f, 0.048f, 0.047f, 0.94f));
-                    row.offsetMin = new Vector2(80f, row.offsetMin.y);
-                    row.offsetMax = new Vector2(-80f, row.offsetMax.y);
-                    row.GetComponent<Image>().sprite = panelSprite;
-                    row.GetComponent<Image>().type = Image.Type.Sliced;
-
-                    var statusText = hero.IsRecovering ? hero.RecoveryDisplayName : "\u53ef\u51fa\u6218";
-                    var text = CreateText("Hero", row, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero, 16, TextAnchor.MiddleLeft);
-                    text.rectTransform.offsetMin = new Vector2(18f, 0f);
-                    text.rectTransform.offsetMax = new Vector2(-260f, 0f);
-                    text.text = $"{hero.displayName}    {statusText}    \u751f\u547d {hero.CurrentHealth}/{hero.MaxHealthWithGrowth}";
-                    SetTextStyle(text, hero.IsRecovering ? new Color(0.95f, 0.74f, 0.52f) : new Color(0.78f, 0.84f, 0.72f), false);
-
-                    var canTreat = hero.IsRecovering && currentGold >= treatmentCost;
-                    var actionLabel = hero.IsRecovering ? $"\u6025\u6551\u6062\u590d {treatmentCost}\u91d1" : "\u5df2\u7a33\u5b9a";
-                    CreateButton(row, actionLabel, new Vector2(640f, -26f), () => onTreat?.Invoke(hero), canTreat, null);
-                }
+                Debug.LogError("BattleUI failed to resolve RecoveryWardUI. Legacy recovery-ward fallback has been removed.", this);
+                return;
             }
 
-            CreateButton(panel, "\u8fd4\u56de\u5927\u5385", new Vector2(490f, -572f), () => onBack?.Invoke(), true, null);
+            runtimeUiManager.ShowRecoveryWard(heroes, currentGold, treatmentCost, onTreat, onBack);
         }
 
         public void ShowMap(int step, int totalSteps, IReadOnlyList<MapNodeOption> options, Action<MapNodeOption> onSelect)
         {
+            EnsureRuntimePrefabUi();
             SetBattleHudVisible(false);
-            EnsureOverlay();
-            overlayPanel.gameObject.SetActive(true);
-            overlayPanel.SetAsLastSibling();
-            ClearChildren(overlayPanel);
-
-            var panel = CreatePanel("MapPanel", overlayPanel, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(980f, 560f), new Color(0.032f, 0.026f, 0.024f, 0.97f));
-            panel.GetComponent<Image>().sprite = descriptionSprite;
-            panel.GetComponent<Image>().type = Image.Type.Sliced;
-
-            var title = CreateText("Title", panel, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -48f), new Vector2(-80f, 56f), 30, TextAnchor.MiddleCenter);
-            title.text = "\u8def\u7ebf\u9009\u62e9";
-            SetTextStyle(title, new Color(0.96f, 0.82f, 0.48f), true);
-
-            var route = CreateText("Route", panel, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -106f), new Vector2(-120f, 40f), 18, TextAnchor.MiddleCenter);
-            route.text = $"\u8d77\u70b9  >  \u8282\u70b9 {step}/{totalSteps}  >  \u6700\u7ec8 Boss";
-            SetTextStyle(route, new Color(0.82f, 0.72f, 0.54f), false);
-
-            var nodeOptions = options ?? Array.Empty<MapNodeOption>();
-            for (var i = 0; i < nodeOptions.Count; i++)
+            if (runtimeUiManager == null)
             {
-                var option = nodeOptions[i];
-                var cardX = nodeOptions.Count == 2 ? 310f + i * 360f : 190f + i * 300f;
-                var card = CreatePanel($"MapNode_{i}", panel, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(cardX, -286f), new Vector2(260f, 240f), GetMapNodeColor(option.NodeType));
-                card.GetComponent<Image>().sprite = panelSprite;
-                card.GetComponent<Image>().type = Image.Type.Sliced;
-
-                var name = CreateText("Name", card, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -42f), new Vector2(-32f, 52f), 21, TextAnchor.MiddleCenter);
-                name.text = option.DisplayName;
-                SetTextStyle(name, new Color(1f, 0.84f, 0.44f), true);
-
-                var description = CreateText("Description", card, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero, 16, TextAnchor.UpperLeft);
-                description.rectTransform.offsetMin = new Vector2(24f, 72f);
-                description.rectTransform.offsetMax = new Vector2(-24f, -86f);
-                description.text = option.Description;
-                SetTextStyle(description, new Color(0.88f, 0.8f, 0.66f), false);
-
-                CreateButton(card, "\u524d\u5f80", new Vector2(130f, -198f), () => onSelect?.Invoke(option), true, null);
+                Debug.LogError("BattleUI failed to resolve RouteMapUI. Legacy map fallback has been removed.", this);
+                return;
             }
+
+            runtimeUiManager.ShowRouteMap(step, totalSteps, options, onSelect);
         }
 
         public void ShowRestNode(IReadOnlyList<CombatantDefinition> heroes, Action<CombatantDefinition> onSelectHero)
         {
+            EnsureRuntimePrefabUi();
             SetBattleHudVisible(false);
-            EnsureOverlay();
-            overlayPanel.gameObject.SetActive(true);
-            overlayPanel.SetAsLastSibling();
-            ClearChildren(overlayPanel);
-
-            var panel = CreatePanel("RestPanel", overlayPanel, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(840f, 560f), new Color(0.032f, 0.026f, 0.024f, 0.97f));
-            panel.GetComponent<Image>().sprite = descriptionSprite;
-            panel.GetComponent<Image>().type = Image.Type.Sliced;
-
-            var title = CreateText("Title", panel, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -48f), new Vector2(-80f, 56f), 30, TextAnchor.MiddleCenter);
-            title.text = "\u4f11\u606f\u8282\u70b9";
-            SetTextStyle(title, new Color(0.96f, 0.82f, 0.48f), true);
-
-            var subtitle = CreateText("Subtitle", panel, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -98f), new Vector2(-110f, 36f), 18, TextAnchor.MiddleCenter);
-            subtitle.text = "\u9009\u62e9\u4e00\u540d\u82f1\u96c4\u6062\u590d 20 \u751f\u547d";
-            SetTextStyle(subtitle, new Color(0.82f, 0.72f, 0.54f), false);
-
-            var heroList = heroes ?? Array.Empty<CombatantDefinition>();
-            var hasUsableHero = heroList.Any(hero => hero != null && hero.isHero && !hero.IsDead && hero.CurrentHealth < hero.MaxHealthWithGrowth);
-            for (var i = 0; i < heroList.Count && i < 4; i++)
+            if (runtimeUiManager == null)
             {
-                var hero = heroList[i];
-                if (hero == null)
-                {
-                    continue;
-                }
-
-                var y = -172f - i * 74f;
-                var row = CreatePanel($"RestHero_{i}", panel, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, y), new Vector2(-120f, 54f), new Color(0.055f, 0.048f, 0.047f, 0.94f));
-                row.offsetMin = new Vector2(80f, row.offsetMin.y);
-                row.offsetMax = new Vector2(-80f, row.offsetMax.y);
-                row.GetComponent<Image>().sprite = panelSprite;
-                row.GetComponent<Image>().type = Image.Type.Sliced;
-
-                var status = hero.IsDead ? "\u5df2\u6b7b\u4ea1" : $"{hero.CurrentHealth}/{hero.MaxHealthWithGrowth}";
-                var text = CreateText("Hero", row, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero, 17, TextAnchor.MiddleLeft);
-                text.rectTransform.offsetMin = new Vector2(18f, 0f);
-                text.rectTransform.offsetMax = new Vector2(-210f, 0f);
-                text.text = $"{hero.displayName}    \u751f\u547d {status}";
-                SetTextStyle(text, new Color(0.88f, 0.8f, 0.66f), false);
-
-                var usable = hero != null && !hero.IsDead && hero.CurrentHealth < hero.MaxHealthWithGrowth;
-                CreateButton(row, "\u4f11\u606f", new Vector2(610f, -27f), () => onSelectHero?.Invoke(hero), usable, null);
+                Debug.LogError("BattleUI failed to resolve RestNodeUI. Legacy rest-node fallback has been removed.", this);
+                return;
             }
 
-            if (!hasUsableHero)
-            {
-                CreateButton(panel, "\u7ee7\u7eed", new Vector2(420f, -496f), () => onSelectHero?.Invoke(null), true, null);
-            }
+            runtimeUiManager.ShowRestNode(heroes, onSelectHero);
         }
 
         public void HideOverlay()
@@ -1735,5 +1406,6 @@ namespace ClockworkWasteland.Combat
         }
     }
 }
+
 
 

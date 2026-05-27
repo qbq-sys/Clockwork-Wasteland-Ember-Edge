@@ -19,12 +19,8 @@ namespace ClockworkWasteland.Combat
             PrepareRoot();
             if (!TryBindExistingLayout())
             {
-                RebuildLayoutFromCode(null);
-                if (!TryBindExistingLayout())
-                {
-                    Debug.LogError("RestNodeUI layout could not be created. Repair or create the prefab.", this);
-                    return;
-                }
+                Debug.LogError("RestNodeUI prefab layout is incomplete. Repair the prefab instead of rebuilding it at runtime.", this);
+                return;
             }
 
             titleText.text = "休息节点";

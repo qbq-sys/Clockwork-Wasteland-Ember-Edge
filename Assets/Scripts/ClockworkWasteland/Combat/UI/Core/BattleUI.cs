@@ -29,8 +29,6 @@ namespace ClockworkWasteland.Combat
         [SerializeField] private Text skillDescriptionText;
         [SerializeField] private ScrollRect logScrollRect;
         [SerializeField] private RectTransform skillDescriptionPanel;
-        [SerializeField] private RectTransform overlayPanel;
-        [SerializeField] private Text overlayText;
 
         private readonly List<string> logLines = new List<string>();
         private Sprite panelSprite;
@@ -56,10 +54,10 @@ namespace ClockworkWasteland.Combat
         [Obsolete("Legacy authoring-only layout builder. Runtime battle HUD is provided by BattleHudUI.")]
         public void BuildDefaultLayout()
         {
-            RebuildLegacyLayoutFromCode();
+            RebuildLegacyHudLayout();
         }
 
-        public void RebuildLegacyLayoutFromCode()
+        public void RebuildLegacyHudLayout()
         {
             EnsureCanvas();
             EnsureSkinSprites();
@@ -140,6 +138,12 @@ namespace ClockworkWasteland.Combat
             skillDescriptionText.text = "\u6280\u80fd\u8bf4\u660e";
             SetTextStyle(skillDescriptionText, new Color(0.94f, 0.84f, 0.65f), false);
             skillDescriptionPanel.gameObject.SetActive(false);
+        }
+
+        [Obsolete("Use RebuildLegacyHudLayout() to make the HUD-specific compatibility path explicit.")]
+        public void RebuildLegacyLayoutFromCode()
+        {
+            RebuildLegacyHudLayout();
         }
 
         private void EnsureRuntimePrefabUi()
@@ -548,12 +552,7 @@ namespace ClockworkWasteland.Combat
 
         public void ShowEndScreen(string message)
         {
-            EnsureOverlay();
-            overlayPanel.gameObject.SetActive(true);
-            overlayPanel.SetAsLastSibling();
-            overlayText.text = message;
-            var buttonParent = overlayPanel.Find("MessagePanel") as RectTransform ?? overlayPanel;
-            ClearRuntimeButtons(buttonParent);
+            ShowContinuePrompt(message, "确定", null);
         }
 
         public void ShowTitleScreen(bool showContinue, Action onStartGame, Action onContinueGame, Action onOpenSettings, Action onQuit, Action onBack)
@@ -587,83 +586,6 @@ namespace ClockworkWasteland.Combat
             }
 
             runtimeUiManager.ShowRewardScreen(goldGained, totalGold, results, onContinue);
-        }
-
-        public void ShowTeamSelection(
-            IReadOnlyList<CombatantDefinition> heroPool,
-            IReadOnlyList<CombatantDefinition> selectedHeroes,
-            Action<CombatantDefinition> onToggleHero,
-            Action onStartBattle,
-            Action onOpenShop,
-            Action onOpenInventory,
-            Action onOpenTavern)
-        {
-            SetBattleHudVisible(false);
-            EnsureOverlay();
-            overlayPanel.gameObject.SetActive(true);
-            overlayPanel.SetAsLastSibling();
-            ClearChildren(overlayPanel);
-
-            var rootPanel = CreatePanel("TeamSelectionPanel", overlayPanel, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), Vector2.zero, new Vector2(1180f, 760f), new Color(0.032f, 0.026f, 0.024f, 0.97f));
-            rootPanel.GetComponent<Image>().sprite = descriptionSprite;
-            rootPanel.GetComponent<Image>().type = Image.Type.Sliced;
-
-            var title = CreateText("Title", rootPanel, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -48f), new Vector2(-80f, 56f), 30, TextAnchor.MiddleCenter);
-            title.text = "\u961f\u4f0d\u914d\u7f6e";
-            SetTextStyle(title, new Color(0.96f, 0.82f, 0.48f), true);
-
-            var subtitle = CreateText("Subtitle", rootPanel, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -94f), new Vector2(-120f, 36f), 17, TextAnchor.MiddleCenter);
-            subtitle.text = $"\u9009\u62e9\u6700\u591a 4 \u540d\u82f1\u96c4\u51fa\u6218\uff08\u5df2\u9009 {selectedHeroes.Count}/4\uff09";
-            SetTextStyle(subtitle, new Color(0.82f, 0.72f, 0.54f), false);
-
-            CreateButton(rootPanel, "\u5546\u5e97", new Vector2(1000f, -70f), () => onOpenShop?.Invoke(), true, null);
-            CreateButton(rootPanel, "\u80cc\u5305", new Vector2(1000f, -122f), () => onOpenInventory?.Invoke(), true, null);
-            CreateButton(rootPanel, "\u9152\u9986", new Vector2(1000f, -174f), () => onOpenTavern?.Invoke(), true, null);
-
-            for (var i = 0; i < heroPool.Count; i++)
-            {
-                var hero = heroPool[i];
-                var selected = selectedHeroes.Contains(hero);
-                var row = i / 4;
-                var column = i % 4;
-                var card = CreatePanel($"HeroCard_{i}", rootPanel, new Vector2(0f, 1f), new Vector2(0f, 1f), new Vector2(155f + column * 288f, -220f - row * 224f), new Vector2(250f, 176f), selected ? new Color(0.16f, 0.105f, 0.055f, 0.96f) : new Color(0.055f, 0.048f, 0.047f, 0.94f));
-                card.GetComponent<Image>().sprite = panelSprite;
-                card.GetComponent<Image>().type = Image.Type.Sliced;
-
-                var nameText = CreateText("Name", card, new Vector2(0f, 1f), new Vector2(1f, 1f), new Vector2(0f, -30f), new Vector2(-28f, 32f), 18, TextAnchor.MiddleCenter);
-                nameText.text = selected ? $"[\u5df2\u9009] {hero.displayName}" : hero.displayName;
-                SetTextStyle(nameText, selected ? new Color(1f, 0.82f, 0.38f) : new Color(0.95f, 0.84f, 0.65f), true);
-
-                var portraitObject = new GameObject("Portrait", typeof(RectTransform), typeof(Image));
-                portraitObject.transform.SetParent(card, false);
-                var portraitRect = portraitObject.GetComponent<RectTransform>();
-                portraitRect.anchorMin = new Vector2(0f, 0f);
-                portraitRect.anchorMax = new Vector2(0f, 1f);
-                portraitRect.pivot = new Vector2(0.5f, 0.5f);
-                portraitRect.anchoredPosition = new Vector2(48f, -8f);
-                portraitRect.sizeDelta = new Vector2(68f, 108f);
-                var portraitImage = portraitObject.GetComponent<Image>();
-                portraitImage.sprite = ResolveHeroPortrait(hero);
-                portraitImage.color = portraitImage.sprite != null ? Color.white : new Color(0.18f, 0.14f, 0.12f, 1f);
-                portraitImage.preserveAspect = true;
-
-                var stats = CreateText("Stats", card, new Vector2(0f, 0f), new Vector2(1f, 1f), Vector2.zero, Vector2.zero, 15, TextAnchor.UpperLeft);
-                stats.rectTransform.offsetMin = new Vector2(92f, 36f);
-                stats.rectTransform.offsetMax = new Vector2(-20f, -48f);
-                stats.text = $"\u804c\u80fd {hero.ArchetypeDisplayName}  \u4e13\u7cbe {hero.SpecializationDisplayName}\n\u504f\u597d {hero.PreferredRowDisplayName}\n\u7b49\u7ea7 {hero.Level}  EXP {hero.Experience}/{hero.ExperienceToNextLevel}\n\u751f\u547d {hero.CurrentHealth}/{hero.MaxHealthWithGrowth}\n\u653b\u51fb {hero.AttackWithGrowth}\n\u9632\u5fa1 {hero.DefenseWithGrowth}\n\u901f\u5ea6 {hero.SpeedWithArchetype}";
-                SetTextStyle(stats, new Color(0.84f, 0.78f, 0.66f), false);
-
-                CreateButton(card, selected ? "\u53d6\u6d88" : "\u9009\u62e9", new Vector2(125f, -148f), () => onToggleHero?.Invoke(hero), true, null);
-            }
-
-            var lineup = selectedHeroes.Count == 0
-                ? "\u5f53\u524d\u961f\u4f0d\uff1a\u672a\u9009\u62e9"
-                : "\u5f53\u524d\u961f\u4f0d\uff1a" + string.Join(" / ", selectedHeroes.Select(hero => hero.displayName));
-            var lineupText = CreateText("Lineup", rootPanel, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(0f, 94f), new Vector2(-96f, 40f), 17, TextAnchor.MiddleCenter);
-            lineupText.text = lineup;
-            SetTextStyle(lineupText, new Color(0.9f, 0.78f, 0.58f), false);
-
-            CreateButton(rootPanel, "\u5f00\u59cb\u6218\u6597", new Vector2(590f, -708f), onStartBattle.Invoke, selectedHeroes.Count > 0, null);
         }
 
         public void ShowLobby(int currentGold, Action onOpenTavern, Action onOpenAdventure, Action onOpenRecoveryWard, Action onOpenHeroCodex, Action onOpenSettings, Action onBackToStartMenu)
@@ -816,14 +738,15 @@ namespace ClockworkWasteland.Combat
             runtimeUiManager.ShowRestNode(heroes, onSelectHero);
         }
 
-        public void HideOverlay()
+        public void HideTransientUi()
         {
             runtimeUiManager?.HideAll();
+        }
 
-            if (overlayPanel != null)
-            {
-                overlayPanel.gameObject.SetActive(false);
-            }
+        [Obsolete("Use HideTransientUi() because this now hides all active transient UI, not only overlays.")]
+        public void HideOverlay()
+        {
+            HideTransientUi();
         }
 
         private void EnsureCanvas()
@@ -849,91 +772,6 @@ namespace ClockworkWasteland.Combat
             if (GetComponent<GraphicRaycaster>() == null)
             {
                 gameObject.AddComponent<GraphicRaycaster>();
-            }
-        }
-
-        private void EnsureOverlay()
-        {
-            if (overlayPanel != null && overlayText != null)
-            {
-                return;
-            }
-
-            var root = runtimeUiManager != null ? runtimeUiManager.GetOverlayRoot() : GetComponent<RectTransform>();
-            if (root == null)
-            {
-                return;
-            }
-
-            if (overlayPanel == null)
-            {
-                overlayPanel = CreatePanel("SequenceOverlay", root, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero, new Color(0f, 0f, 0f, 0.62f));
-                overlayPanel.offsetMin = Vector2.zero;
-                overlayPanel.offsetMax = Vector2.zero;
-            }
-            else
-            {
-                ClearChildren(overlayPanel);
-                overlayPanel.GetComponent<Image>().color = new Color(0f, 0f, 0f, 0.62f);
-            }
-
-            var messagePanel = CreatePanel("MessagePanel", overlayPanel, new Vector2(0.5f, 0.5f), new Vector2(0.5f, 0.5f), new Vector2(0f, 24f), new Vector2(620f, 220f), new Color(0.035f, 0.026f, 0.024f, 0.96f));
-            messagePanel.GetComponent<Image>().sprite = descriptionSprite;
-            messagePanel.GetComponent<Image>().type = Image.Type.Sliced;
-
-            overlayText = CreateText("OverlayText", messagePanel, new Vector2(0f, 0.5f), new Vector2(1f, 1f), new Vector2(0f, -30f), new Vector2(-56f, 92f), 28, TextAnchor.MiddleCenter);
-            overlayText.rectTransform.offsetMin = new Vector2(28f, -8f);
-            overlayText.rectTransform.offsetMax = new Vector2(-28f, -24f);
-            SetTextStyle(overlayText, new Color(0.96f, 0.82f, 0.48f), true);
-
-            overlayPanel.gameObject.SetActive(false);
-        }
-
-        private static Sprite ResolveHeroPortrait(CombatantDefinition hero)
-        {
-            if (hero.portrait != null)
-            {
-                return hero.portrait;
-            }
-
-            if (hero.battleSprite != null)
-            {
-                return hero.battleSprite;
-            }
-
-            return hero.idleAnimationFrames != null && hero.idleAnimationFrames.Length > 0
-                ? hero.idleAnimationFrames[0]
-                : null;
-        }
-
-        private static bool IsItemUsableOnHero(InventoryItemData item, CombatantDefinition hero)
-        {
-            if (item == null || hero == null || !hero.isHero)
-            {
-                return false;
-            }
-
-            switch (item.effectType)
-            {
-                case InventoryItemEffectType.Revive:
-                    return hero.IsDead;
-                case InventoryItemEffectType.Heal:
-                default:
-                    return !hero.IsDead && !hero.IsRecovering && hero.CurrentHealth < hero.MaxHealthWithGrowth;
-            }
-        }
-
-        private static Color GetMapNodeColor(MapNodeType nodeType)
-        {
-            switch (nodeType)
-            {
-                case MapNodeType.Rest:
-                    return new Color(0.045f, 0.075f, 0.06f, 0.96f);
-                case MapNodeType.Chest:
-                    return new Color(0.105f, 0.072f, 0.034f, 0.96f);
-                case MapNodeType.Battle:
-                default:
-                    return new Color(0.075f, 0.044f, 0.04f, 0.96f);
             }
         }
 

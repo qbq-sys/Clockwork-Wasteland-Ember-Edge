@@ -33,7 +33,7 @@ namespace ClockworkWasteland.EditorTools
 
             var prefabRoot = new GameObject("BattleHudController", typeof(RectTransform));
             var ui = prefabRoot.AddComponent<BattleHudController>();
-            ui.RebuildLegacyLayoutFromCode();
+            ui.RebuildLegacyHudLayout();
 
             var prefab = PrefabUtility.SaveAsPrefabAsset(prefabRoot, BattleHudControllerPrefabPath);
             Object.DestroyImmediate(prefabRoot);

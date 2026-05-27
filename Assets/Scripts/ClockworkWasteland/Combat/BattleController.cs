@@ -350,7 +350,7 @@ namespace ClockworkWasteland.Combat
             }
 
             ClearAllUnits();
-            hudController.HideOverlay();
+            hudController.HideTransientUi();
             hudController.ClearActionPanels();
             hudController.SetRound(0);
             hudController.SetTurn(turnLabel);
@@ -406,7 +406,7 @@ namespace ClockworkWasteland.Combat
         private void BeginSelectedAdventure()
         {
             ClearAllUnits();
-            hudController.HideOverlay();
+            hudController.HideTransientUi();
             hudController.ClearActionPanels();
             CombatAudio.Instance.PlayStartExpedition();
             CommitSelectedPartyToHeroParty();
@@ -1357,7 +1357,7 @@ namespace ClockworkWasteland.Combat
                     yield return null;
                 }
 
-                hudController.HideOverlay();
+                hudController.HideTransientUi();
 
                 if (selectedNode.NodeType == MapNodeType.Battle)
                 {
@@ -1459,7 +1459,7 @@ namespace ClockworkWasteland.Combat
                 yield return null;
             }
 
-            hudController.HideOverlay();
+            hudController.HideTransientUi();
         }
 
         private static IReadOnlyList<MapNodeOption> GenerateMapOptions(int mapStep)

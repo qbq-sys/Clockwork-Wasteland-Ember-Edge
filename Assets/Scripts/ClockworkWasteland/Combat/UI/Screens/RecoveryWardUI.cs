@@ -37,14 +37,8 @@ namespace ClockworkWasteland.Combat
             PrepareRoot();
             if (!TryBindExistingLayout())
             {
-                // Transitional fallback: this screen does not have a stable prefab asset yet.
-                // Rebuild once so the feature remains usable until the authored prefab is landed.
-                RebuildLayoutFromCode(null);
-                if (!TryBindExistingLayout())
-                {
-                    Debug.LogError("RecoveryWardUI layout could not be created. Repair or create the prefab.", this);
-                    return;
-                }
+                Debug.LogError("RecoveryWardUI prefab layout is incomplete. Repair the prefab instead of rebuilding it at runtime.", this);
+                return;
             }
 
             if (titleText != null)

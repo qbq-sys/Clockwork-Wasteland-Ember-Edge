@@ -19,12 +19,8 @@ namespace ClockworkWasteland.Combat
             PrepareRoot();
             if (!TryBindExistingLayout())
             {
-                RebuildLayoutFromCode(null);
-                if (!TryBindExistingLayout())
-                {
-                    Debug.LogError("InventoryUI layout could not be created. Repair or create the prefab.", this);
-                    return;
-                }
+                Debug.LogError("InventoryUI prefab layout is incomplete. Repair the prefab instead of rebuilding it at runtime.", this);
+                return;
             }
 
             titleText.text = "背包";

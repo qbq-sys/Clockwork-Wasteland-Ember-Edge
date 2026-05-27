@@ -657,6 +657,11 @@ namespace ClockworkWasteland.Combat
                     !AssetDatabase.LoadAssetAtPath<SettingsUI>(CombatUIPaths.SettingsPrefabPath) ||
                     !AssetDatabase.LoadAssetAtPath<SaveSlotUI>(CombatUIPaths.SaveSlotPrefabPath) ||
                     !AssetDatabase.LoadAssetAtPath<RecoveryWardUI>(CombatUIPaths.RecoveryWardPrefabPath) ||
+                    !AssetDatabase.LoadAssetAtPath<RewardScreenUI>(CombatUIPaths.RewardScreenPrefabPath) ||
+                    !AssetDatabase.LoadAssetAtPath<ShopUI>(CombatUIPaths.ShopPrefabPath) ||
+                    !AssetDatabase.LoadAssetAtPath<InventoryUI>(CombatUIPaths.InventoryPrefabPath) ||
+                    !AssetDatabase.LoadAssetAtPath<RouteMapUI>(CombatUIPaths.RouteMapPrefabPath) ||
+                    !AssetDatabase.LoadAssetAtPath<RestNodeUI>(CombatUIPaths.RestNodePrefabPath) ||
                     !AssetDatabase.LoadAssetAtPath<PopupUI>(CombatUIPaths.PopupPrefabPath) ||
                     !AssetDatabase.LoadAssetAtPath<BattleHudUI>(CombatUIPaths.BattleHudPrefabPath) ||
                     !AssetDatabase.LoadAssetAtPath<SkillDescriptionUI>(CombatUIPaths.SkillDescriptionPrefabPath) ||
@@ -685,6 +690,11 @@ namespace ClockworkWasteland.Combat
             CreatePrefab<SaveSlotUI>(CombatUIPaths.SaveSlotPrefabPath, "SaveSlotUI", overwriteExisting: false);
             CreatePrefab<RecoveryWardUI>(CombatUIPaths.RecoveryWardPrefabPath, "RecoveryWardUI", overwriteExisting: false);
             CreatePrefab<LevelUpUI>(CombatUIPaths.LevelUpPrefabPath, "LevelUpUI", overwriteExisting: false);
+            CreatePrefab<RewardScreenUI>(CombatUIPaths.RewardScreenPrefabPath, "RewardScreenUI", overwriteExisting: false);
+            CreatePrefab<ShopUI>(CombatUIPaths.ShopPrefabPath, "ShopUI", overwriteExisting: false);
+            CreatePrefab<InventoryUI>(CombatUIPaths.InventoryPrefabPath, "InventoryUI", overwriteExisting: false);
+            CreatePrefab<RouteMapUI>(CombatUIPaths.RouteMapPrefabPath, "RouteMapUI", overwriteExisting: false);
+            CreatePrefab<RestNodeUI>(CombatUIPaths.RestNodePrefabPath, "RestNodeUI", overwriteExisting: false);
             CreatePrefab<PopupUI>(CombatUIPaths.PopupPrefabPath, "PopupUI", overwriteExisting: false);
             CreatePrefab<BattleHudUI>(CombatUIPaths.BattleHudPrefabPath, "BattleHudUI", overwriteExisting: false);
             CreateSkillDescriptionPanelPrefab(overwriteExisting: false);
@@ -711,6 +721,11 @@ namespace ClockworkWasteland.Combat
             CreatePrefab<SaveSlotUI>(CombatUIPaths.SaveSlotPrefabPath, "SaveSlotUI", overwriteExisting: true);
             CreatePrefab<RecoveryWardUI>(CombatUIPaths.RecoveryWardPrefabPath, "RecoveryWardUI", overwriteExisting: true);
             CreatePrefab<LevelUpUI>(CombatUIPaths.LevelUpPrefabPath, "LevelUpUI", overwriteExisting: true);
+            CreatePrefab<RewardScreenUI>(CombatUIPaths.RewardScreenPrefabPath, "RewardScreenUI", overwriteExisting: true);
+            CreatePrefab<ShopUI>(CombatUIPaths.ShopPrefabPath, "ShopUI", overwriteExisting: true);
+            CreatePrefab<InventoryUI>(CombatUIPaths.InventoryPrefabPath, "InventoryUI", overwriteExisting: true);
+            CreatePrefab<RouteMapUI>(CombatUIPaths.RouteMapPrefabPath, "RouteMapUI", overwriteExisting: true);
+            CreatePrefab<RestNodeUI>(CombatUIPaths.RestNodePrefabPath, "RestNodeUI", overwriteExisting: true);
             CreatePrefab<PopupUI>(CombatUIPaths.PopupPrefabPath, "PopupUI", overwriteExisting: true);
             CreatePrefab<BattleHudUI>(CombatUIPaths.BattleHudPrefabPath, "BattleHudUI", overwriteExisting: true);
             CreateSkillDescriptionPanelPrefab(overwriteExisting: true);
@@ -903,6 +918,91 @@ namespace ClockworkWasteland.Combat
                 {
                     recoveryWard.RebuildLayoutFromCode(null);
                     recoveryWard.Show(new[] { hero }, 1200, 150, null, null);
+                }
+                finally
+                {
+                    UnityEngine.Object.DestroyImmediate(hero);
+                }
+
+                return;
+            }
+
+            if (screen is RewardScreenUI rewardScreen)
+            {
+                var hero = CreatePreviewHero();
+                try
+                {
+                    rewardScreen.Show(120, 1320, new[]
+                    {
+                        new BattleRewardResult(hero, 100, 1)
+                    }, null);
+                }
+                finally
+                {
+                    UnityEngine.Object.DestroyImmediate(hero);
+                }
+
+                return;
+            }
+
+            if (screen is ShopUI shop)
+            {
+                var item = ScriptableObject.CreateInstance<InventoryItemData>();
+                item.itemName = "急救药剂";
+                item.description = "恢复生命值的消耗品。";
+                item.price = 120;
+                try
+                {
+                    shop.Show(new[] { item }, 1200, Array.Empty<InventoryItemStack>(), null, null);
+                }
+                finally
+                {
+                    UnityEngine.Object.DestroyImmediate(item);
+                }
+
+                return;
+            }
+
+            if (screen is InventoryUI inventory)
+            {
+                var item = ScriptableObject.CreateInstance<InventoryItemData>();
+                item.itemName = "应急药箱";
+                item.description = "战斗后为一名英雄回复生命。";
+                item.price = 0;
+                item.effectType = InventoryItemEffectType.Heal;
+                var hero = CreatePreviewHero();
+                hero.currentHealth = Mathf.Max(1, hero.MaxHealthWithGrowth - 8);
+                try
+                {
+                    inventory.Show(new[] { new InventoryItemStack(item, 2) }, new[] { hero }, null, null);
+                }
+                finally
+                {
+                    UnityEngine.Object.DestroyImmediate(item);
+                    UnityEngine.Object.DestroyImmediate(hero);
+                }
+
+                return;
+            }
+
+            if (screen is RouteMapUI routeMap)
+            {
+                routeMap.Show(2, 3, new[]
+                {
+                    new MapNodeOption(MapNodeType.Battle, "战斗", "遭遇一场常规战斗。"),
+                    new MapNodeOption(MapNodeType.Rest, "休息", "在安全节点恢复状态。"),
+                    new MapNodeOption(MapNodeType.Chest, "补给", "获得一次额外战利品。")
+                }, null);
+                return;
+            }
+
+            if (screen is RestNodeUI restNode)
+            {
+                var hero = CreatePreviewHero();
+                hero.currentHealth = Mathf.Max(1, hero.MaxHealthWithGrowth - 10);
+                try
+                {
+                    restNode.Show(new[] { hero }, null);
                 }
                 finally
                 {

@@ -1,4 +1,4 @@
-﻿%YAML 1.1
+%YAML 1.1
 %TAG !u! tag:yousandi.cn,2023:
 --- !u!1 &65573902785832129
 GameObject:
@@ -12,6 +12,7 @@ GameObject:
   - component: {fileID: 1478937026368958686}
   - component: {fileID: 1897508817258441886}
   - component: {fileID: 7427610626686735039}
+  - component: {fileID: 4576538574032317049}
   m_Layer: 0
   m_HasEditorInfo: 1
   m_Name: "RuntimeButton_\u5F00\u59CB\u6218\u6597"
@@ -122,6 +123,29 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls: []
+--- !u!114 &4576538574032317049
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 65573902785832129}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 58217175d2ce3ea4ba2174a282f57e37, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  scaleTarget: {fileID: 0}
+  primaryGraphic: {fileID: 0}
+  extraGraphics: []
+  enableScale: 1
+  normalScale: {x: 1, y: 1, z: 1}
+  hoverScale: {x: 1.08, y: 1.08, z: 1}
+  enableColorTint: 1
+  normalColor: {r: 1, g: 1, b: 1, a: 1}
+  hoverColor: {r: 1, g: 0.85, b: 0.55, a: 1}
+  transitionDuration: 0.12
+  useUnscaledTime: 1
 --- !u!1 &458234852573869733
 GameObject:
   m_ObjectHideFlags: 0
@@ -378,6 +402,7 @@ GameObject:
   - component: {fileID: 123676388225473859}
   - component: {fileID: 3163466445996018909}
   - component: {fileID: 8529871695527532759}
+  - component: {fileID: 4671534564176837516}
   m_Layer: 0
   m_HasEditorInfo: 1
   m_Name: "RuntimeButton_\u53D6\u6D88"
@@ -401,10 +426,10 @@ RectTransform:
   - {fileID: 3321418525317541113}
   m_Father: {fileID: 6175290694155826356}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 1}
-  m_AnchorMax: {x: 0, y: 1}
-  m_AnchoredPosition: {x: 125, y: -148}
-  m_SizeDelta: {x: 162, y: 42}
+  m_AnchorMin: {x: 0.5, y: 0.5}
+  m_AnchorMax: {x: 0.5, y: 0.5}
+  m_AnchoredPosition: {x: 9, y: -69}
+  m_SizeDelta: {x: 90.3, y: 31.5}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &123676388225473859
 CanvasRenderer:
@@ -430,7 +455,7 @@ MonoBehaviour:
   m_Color: {r: 0.16, g: 0.12, b: 0.1, a: 1}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
-  m_Maskable: 1
+  m_Maskable: 0
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
@@ -463,10 +488,10 @@ MonoBehaviour:
     m_SelectOnDown: {fileID: 0}
     m_SelectOnLeft: {fileID: 0}
     m_SelectOnRight: {fileID: 0}
-  m_Transition: 1
+  m_Transition: 0
   m_Colors:
-    m_NormalColor: {r: 0.16, g: 0.12, b: 0.1, a: 1}
-    m_HighlightedColor: {r: 0.38, g: 0.2, b: 0.12, a: 1}
+    m_NormalColor: {r: 0, g: 0, b: 0, a: 1}
+    m_HighlightedColor: {r: 0.4339623, g: 0.4339623, b: 0.4339623, a: 1}
     m_PressedColor: {r: 0.55, g: 0.16, b: 0.12, a: 1}
     m_SelectedColor: {r: 0.9607843, g: 0.9607843, b: 0.9607843, a: 1}
     m_DisabledColor: {r: 0.12, g: 0.12, b: 0.12, a: 0.75}
@@ -488,6 +513,29 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls: []
+--- !u!114 &4671534564176837516
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1553182845289155491}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 58217175d2ce3ea4ba2174a282f57e37, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  scaleTarget: {fileID: 0}
+  primaryGraphic: {fileID: 0}
+  extraGraphics: []
+  enableScale: 1
+  normalScale: {x: 1, y: 1, z: 1}
+  hoverScale: {x: 1.08, y: 1.08, z: 1}
+  enableColorTint: 1
+  normalColor: {r: 0, g: 0, b: 0, a: 1}
+  hoverColor: {r: 1, g: 0.85, b: 0.55, a: 1}
+  transitionDuration: 0.12
+  useUnscaledTime: 1
 --- !u!1 &1748158691540024498
 GameObject:
   m_ObjectHideFlags: 0
@@ -500,6 +548,7 @@ GameObject:
   - component: {fileID: 1523967477755093730}
   - component: {fileID: 5240515572714650178}
   - component: {fileID: 8921416538699251898}
+  - component: {fileID: 649396771426749844}
   m_Layer: 0
   m_HasEditorInfo: 1
   m_Name: "RuntimeButton_\u53D6\u6D88"
@@ -523,10 +572,10 @@ RectTransform:
   - {fileID: 4495674300491408275}
   m_Father: {fileID: 5077171987689405218}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 1}
-  m_AnchorMax: {x: 0, y: 1}
-  m_AnchoredPosition: {x: 125, y: -148}
-  m_SizeDelta: {x: 162, y: 42}
+  m_AnchorMin: {x: 0.5, y: 0.5}
+  m_AnchorMax: {x: 0.5, y: 0.5}
+  m_AnchoredPosition: {x: 9, y: -69}
+  m_SizeDelta: {x: 90.3, y: 31.5}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &1523967477755093730
 CanvasRenderer:
@@ -552,7 +601,7 @@ MonoBehaviour:
   m_Color: {r: 0.16, g: 0.12, b: 0.1, a: 1}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
-  m_Maskable: 1
+  m_Maskable: 0
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
@@ -585,10 +634,10 @@ MonoBehaviour:
     m_SelectOnDown: {fileID: 0}
     m_SelectOnLeft: {fileID: 0}
     m_SelectOnRight: {fileID: 0}
-  m_Transition: 1
+  m_Transition: 0
   m_Colors:
-    m_NormalColor: {r: 0.16, g: 0.12, b: 0.1, a: 1}
-    m_HighlightedColor: {r: 0.38, g: 0.2, b: 0.12, a: 1}
+    m_NormalColor: {r: 0, g: 0, b: 0, a: 1}
+    m_HighlightedColor: {r: 0.4339623, g: 0.4339623, b: 0.4339623, a: 1}
     m_PressedColor: {r: 0.55, g: 0.16, b: 0.12, a: 1}
     m_SelectedColor: {r: 0.9607843, g: 0.9607843, b: 0.9607843, a: 1}
     m_DisabledColor: {r: 0.12, g: 0.12, b: 0.12, a: 0.75}
@@ -610,6 +659,29 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls: []
+--- !u!114 &649396771426749844
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1748158691540024498}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 58217175d2ce3ea4ba2174a282f57e37, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  scaleTarget: {fileID: 0}
+  primaryGraphic: {fileID: 0}
+  extraGraphics: []
+  enableScale: 1
+  normalScale: {x: 1, y: 1, z: 1}
+  hoverScale: {x: 1.08, y: 1.08, z: 1}
+  enableColorTint: 1
+  normalColor: {r: 0, g: 0, b: 0, a: 1}
+  hoverColor: {r: 1, g: 0.85, b: 0.55, a: 1}
+  transitionDuration: 0.12
+  useUnscaledTime: 1
 --- !u!1 &1864624609836663600
 GameObject:
   m_ObjectHideFlags: 0
@@ -622,6 +694,7 @@ GameObject:
   - component: {fileID: 4296804779902376169}
   - component: {fileID: 8834328245102969407}
   - component: {fileID: 4542191261176152762}
+  - component: {fileID: 6116824402607985210}
   m_Layer: 0
   m_HasEditorInfo: 1
   m_Name: "RuntimeButton_\u53D6\u6D88"
@@ -645,10 +718,10 @@ RectTransform:
   - {fileID: 9085846675654602323}
   m_Father: {fileID: 1624675351524663128}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 1}
-  m_AnchorMax: {x: 0, y: 1}
-  m_AnchoredPosition: {x: 125, y: -148}
-  m_SizeDelta: {x: 162, y: 42}
+  m_AnchorMin: {x: 0.5, y: 0.5}
+  m_AnchorMax: {x: 0.5, y: 0.5}
+  m_AnchoredPosition: {x: 9, y: -69}
+  m_SizeDelta: {x: 90.3, y: 31.5}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &4296804779902376169
 CanvasRenderer:
@@ -674,7 +747,7 @@ MonoBehaviour:
   m_Color: {r: 0.16, g: 0.12, b: 0.1, a: 1}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
-  m_Maskable: 1
+  m_Maskable: 0
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
@@ -707,10 +780,10 @@ MonoBehaviour:
     m_SelectOnDown: {fileID: 0}
     m_SelectOnLeft: {fileID: 0}
     m_SelectOnRight: {fileID: 0}
-  m_Transition: 1
+  m_Transition: 0
   m_Colors:
-    m_NormalColor: {r: 0.16, g: 0.12, b: 0.1, a: 1}
-    m_HighlightedColor: {r: 0.38, g: 0.2, b: 0.12, a: 1}
+    m_NormalColor: {r: 0, g: 0, b: 0, a: 1}
+    m_HighlightedColor: {r: 0.4339623, g: 0.4339623, b: 0.4339623, a: 1}
     m_PressedColor: {r: 0.55, g: 0.16, b: 0.12, a: 1}
     m_SelectedColor: {r: 0.9607843, g: 0.9607843, b: 0.9607843, a: 1}
     m_DisabledColor: {r: 0.12, g: 0.12, b: 0.12, a: 0.75}
@@ -732,6 +805,29 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls: []
+--- !u!114 &6116824402607985210
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1864624609836663600}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 58217175d2ce3ea4ba2174a282f57e37, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  scaleTarget: {fileID: 0}
+  primaryGraphic: {fileID: 0}
+  extraGraphics: []
+  enableScale: 1
+  normalScale: {x: 1, y: 1, z: 1}
+  hoverScale: {x: 1.08, y: 1.08, z: 1}
+  enableColorTint: 1
+  normalColor: {r: 0, g: 0, b: 0, a: 1}
+  hoverColor: {r: 1, g: 0.85, b: 0.55, a: 1}
+  transitionDuration: 0.12
+  useUnscaledTime: 1
 --- !u!1 &1926756640343081675
 GameObject:
   m_ObjectHideFlags: 0
@@ -1198,7 +1294,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_Material: {fileID: 0}
-  m_Color: {r: 0.18, g: 0.14, b: 0.12, a: 1}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
@@ -1307,6 +1403,7 @@ GameObject:
   - component: {fileID: 4900211252622041140}
   - component: {fileID: 3846911256993528013}
   - component: {fileID: 5125322615471225875}
+  - component: {fileID: 7508894147361075962}
   m_Layer: 0
   m_HasEditorInfo: 1
   m_Name: "RuntimeButton_\u8FD4\u56DE\u5730\u56FE"
@@ -1417,6 +1514,29 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls: []
+--- !u!114 &7508894147361075962
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4239635811298883066}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 58217175d2ce3ea4ba2174a282f57e37, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  scaleTarget: {fileID: 0}
+  primaryGraphic: {fileID: 0}
+  extraGraphics: []
+  enableScale: 1
+  normalScale: {x: 1, y: 1, z: 1}
+  hoverScale: {x: 1.08, y: 1.08, z: 1}
+  enableColorTint: 1
+  normalColor: {r: 1, g: 1, b: 1, a: 1}
+  hoverColor: {r: 1, g: 0.85, b: 0.55, a: 1}
+  transitionDuration: 0.12
+  useUnscaledTime: 1
 --- !u!1 &4320648584149542521
 GameObject:
   m_ObjectHideFlags: 0
@@ -1876,7 +1996,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_Material: {fileID: 0}
-  m_Color: {r: 0.18, g: 0.14, b: 0.12, a: 1}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
@@ -1952,7 +2072,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_Material: {fileID: 0}
-  m_Color: {r: 0.18, g: 0.14, b: 0.12, a: 1}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
@@ -2188,7 +2308,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_Material: {fileID: 0}
-  m_Color: {r: 0.18, g: 0.14, b: 0.12, a: 1}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
@@ -2299,6 +2419,7 @@ GameObject:
   - component: {fileID: 1862212373228544676}
   - component: {fileID: 6919079996499155439}
   - component: {fileID: 3883490995864318118}
+  - component: {fileID: 656257056293064523}
   m_Layer: 0
   m_HasEditorInfo: 1
   m_Name: "RuntimeButton_\u53D6\u6D88"
@@ -2322,10 +2443,10 @@ RectTransform:
   - {fileID: 4865814915522571956}
   m_Father: {fileID: 7288524604088873014}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 1}
-  m_AnchorMax: {x: 0, y: 1}
-  m_AnchoredPosition: {x: 125, y: -148}
-  m_SizeDelta: {x: 162, y: 42}
+  m_AnchorMin: {x: 0.5, y: 0.5}
+  m_AnchorMax: {x: 0.5, y: 0.5}
+  m_AnchoredPosition: {x: 9, y: -69}
+  m_SizeDelta: {x: 90.3, y: 31.5}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &1862212373228544676
 CanvasRenderer:
@@ -2351,7 +2472,7 @@ MonoBehaviour:
   m_Color: {r: 0.16, g: 0.12, b: 0.1, a: 1}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
-  m_Maskable: 1
+  m_Maskable: 0
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
@@ -2384,10 +2505,10 @@ MonoBehaviour:
     m_SelectOnDown: {fileID: 0}
     m_SelectOnLeft: {fileID: 0}
     m_SelectOnRight: {fileID: 0}
-  m_Transition: 1
+  m_Transition: 0
   m_Colors:
-    m_NormalColor: {r: 0.16, g: 0.12, b: 0.1, a: 1}
-    m_HighlightedColor: {r: 0.38, g: 0.2, b: 0.12, a: 1}
+    m_NormalColor: {r: 0, g: 0, b: 0, a: 1}
+    m_HighlightedColor: {r: 0.4339623, g: 0.4339623, b: 0.4339623, a: 1}
     m_PressedColor: {r: 0.55, g: 0.16, b: 0.12, a: 1}
     m_SelectedColor: {r: 0.9607843, g: 0.9607843, b: 0.9607843, a: 1}
     m_DisabledColor: {r: 0.12, g: 0.12, b: 0.12, a: 0.75}
@@ -2409,6 +2530,29 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls: []
+--- !u!114 &656257056293064523
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7417545656475880181}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 58217175d2ce3ea4ba2174a282f57e37, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  scaleTarget: {fileID: 0}
+  primaryGraphic: {fileID: 0}
+  extraGraphics: []
+  enableScale: 1
+  normalScale: {x: 1, y: 1, z: 1}
+  hoverScale: {x: 1.08, y: 1.08, z: 1}
+  enableColorTint: 1
+  normalColor: {r: 0, g: 0, b: 0, a: 1}
+  hoverColor: {r: 1, g: 0.85, b: 0.55, a: 1}
+  transitionDuration: 0.12
+  useUnscaledTime: 1
 --- !u!1 &7552816729448360218
 GameObject:
   m_ObjectHideFlags: 0
@@ -2621,6 +2765,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   teamSelectionBg: {fileID: 8084728712974847519}
   heroCardBg: {fileID: 8020144609111852302}
+  titleText: {fileID: 0}
+  subtitleText: {fileID: 0}
+  lineupText: {fileID: 0}
+  backButton: {fileID: 0}
+  startBattleButton: {fileID: 0}
+  heroCards: []
 --- !u!1 &8767105089745372142
 GameObject:
   m_ObjectHideFlags: 0
@@ -2862,4 +3012,3 @@ MonoBehaviour:
     m_VerticalOverflow: 0
     m_LineSpacing: 1
   m_Text: "\u53D6\u6D88"
-

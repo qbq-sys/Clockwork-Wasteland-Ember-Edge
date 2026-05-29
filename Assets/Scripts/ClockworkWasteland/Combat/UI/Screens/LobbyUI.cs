@@ -15,6 +15,8 @@ namespace ClockworkWasteland.Combat
         [SerializeField] private Button adventureButton;
         [SerializeField] private Button recoveryWardButton;
         [SerializeField] private Button heroCodexButton;
+        [SerializeField] private Button shopButton;
+        [SerializeField] private Button inventoryButton;
         [SerializeField] private Button menuButton;
         [SerializeField] private Button settingsButton;
 
@@ -25,7 +27,7 @@ namespace ClockworkWasteland.Combat
             // Prefab-driven screen. Runtime must not rebuild layout or override authored positions.
         }
 
-        public void Show(int currentGold, Action onOpenTavern, Action onOpenAdventure, Action onOpenRecoveryWard, Action onOpenHeroCodex, Action onOpenSettings, Action onBackToStartMenu)
+        public void Show(int currentGold, Action onOpenTavern, Action onOpenAdventure, Action onOpenRecoveryWard, Action onOpenHeroCodex, Action onOpenShop, Action onOpenInventory, Action onOpenSettings, Action onBackToStartMenu)
         {
             PrepareRoot();
             TryBindExistingLayout();
@@ -40,6 +42,8 @@ namespace ClockworkWasteland.Combat
             BindButton(adventureButton, onOpenAdventure);
             BindButton(recoveryWardButton, onOpenRecoveryWard);
             BindButton(heroCodexButton, onOpenHeroCodex);
+            BindButton(shopButton, onOpenShop);
+            BindButton(inventoryButton, onOpenInventory);
             BindButton(menuButton, onBackToStartMenu);
             BindButton(settingsButton, onOpenSettings);
 
@@ -75,6 +79,8 @@ namespace ClockworkWasteland.Combat
             adventureButton = adventureButton != null ? adventureButton : FindButtonByLabel("冒险");
             recoveryWardButton = recoveryWardButton != null ? recoveryWardButton : FindButtonByLabel("伤员休整");
             heroCodexButton = heroCodexButton != null ? heroCodexButton : FindButtonByLabel("英雄图鉴");
+            shopButton = shopButton != null ? shopButton : FindButtonByLabel("商店");
+            inventoryButton = inventoryButton != null ? inventoryButton : FindButtonByLabel("背包");
             menuButton = menuButton != null ? menuButton : FindButtonByLabel("主菜单");
             if (menuButton == null)
             {
@@ -92,9 +98,6 @@ namespace ClockworkWasteland.Combat
 
         private void HideStartMenuOnlyElements()
         {
-            SetButtonVisibleByLabel("新游戏", false);
-            SetButtonVisibleByLabel("继续游戏", false);
-            SetButtonVisibleByLabel("退出", false);
             SetButtonVisibleByLabel("返回大厅", false);
         }
 

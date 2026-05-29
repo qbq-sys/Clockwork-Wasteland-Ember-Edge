@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.UI;
 using System.Collections;
 using System;
@@ -10,6 +10,7 @@ namespace ClockworkWasteland.Combat
     {
         private const float DefaultNameplatePositionY = -1.726f;
         private const float DefaultVisualRootY = -1.4f;
+        private const float DefaultTurnIndicatorPositionY = 1.5f;
 
         [Header("Prefab Hooks")]
         [SerializeField] private Transform visualRoot;
@@ -17,6 +18,8 @@ namespace ClockworkWasteland.Combat
         [SerializeField] private SpriteRenderer overlayRenderer;
         [SerializeField] private SpriteRenderer hitOverlayRenderer;
         [SerializeField] private Transform nameplatePosition;
+        [SerializeField] private Transform turnIndicatorPosition;
+        [SerializeField] private TurnIndicatorView turnIndicatorPrefab;
 
         [Header("Floating Text")]
         [SerializeField] private Vector3 floatingTextBaseOffset = new Vector3(0f, 1.2f, -0.6f);
@@ -28,6 +31,7 @@ namespace ClockworkWasteland.Combat
         [SerializeField] private float floatingTextAdditionalLiftPerText = 0.05f;
 
         private CombatNameplate nameplate;
+        private TurnIndicatorView turnIndicator;
         private BattleUnit unit;
         private Sprite[] idleFrames;
         private float animationTimer;
@@ -56,10 +60,11 @@ namespace ClockworkWasteland.Combat
             floatingTextAdditionalLiftPerText = Mathf.Max(0f, additionalLiftPerText);
         }
 
-        public void Initialize(BattleUnit battleUnit, Sprite fallbackSprite, Action<BattleUnit> onClicked, CombatNameplate nameplatePrefab)
+        public void Initialize(BattleUnit battleUnit, Sprite fallbackSprite, Action<BattleUnit> onClicked, CombatNameplate nameplatePrefab, TurnIndicatorView turnIndicatorPrefabToUse, float nameplatePositionY)
         {
             unit = battleUnit;
             clicked = onClicked;
+            turnIndicatorPrefab = turnIndicatorPrefabToUse;
 
             EnsureVisualHierarchy();
             spriteRenderer = spriteRenderer != null ? spriteRenderer : GetComponent<SpriteRenderer>();
@@ -81,6 +86,7 @@ namespace ClockworkWasteland.Combat
             EnsureOverlayRenderer();
             EnsureHitOverlayRenderer();
             EnsureNameplatePosition();
+            SetNameplatePositionY(nameplatePositionY);
             ApplyDefaultVisualRootOffset();
 
             // Runtime must respect the prefab-authored VisualRoot scale.
@@ -98,6 +104,7 @@ namespace ClockworkWasteland.Combat
             CacheFeatures();
 
             AttachNameplate(nameplatePrefab);
+            AttachTurnIndicator();
             CreateClickCollider();
             Refresh();
         }
@@ -112,7 +119,21 @@ namespace ClockworkWasteland.Combat
             spriteRenderer.color = unit.IsCorpse ? new Color(0.32f, 0.3f, 0.28f, 0.78f) : unit.Definition.tint;
             nameplate?.Refresh(unit);
             RefreshFeatures();
+            if (turnIndicator != null && !gameObject.activeSelf)
+            {
+                turnIndicator.SetState(false, string.Empty, Color.white);
+            }
             gameObject.SetActive(unit.IsAlive);
+        }
+
+        public void SetTurnIndicator(bool active, string label, Color color)
+        {
+            if (turnIndicator == null)
+            {
+                return;
+            }
+
+            turnIndicator.SetState(active && unit != null && unit.IsAlive, label, color);
         }
 
         private void Update()
@@ -218,7 +239,7 @@ namespace ClockworkWasteland.Combat
         public IEnumerator MoveToFormation(float worldX, float feetY, float duration)
         {
             var start = transform.position;
-            var target = new Vector3(worldX, start.y, start.z);
+            var target = new Vector3(worldX, feetY, start.z);
             var elapsed = 0f;
             ResetVisualOffset();
 
@@ -438,6 +459,33 @@ namespace ClockworkWasteland.Combat
             }
         }
 
+        private void SetNameplatePositionY(float y)
+        {
+            if (nameplatePosition == null)
+            {
+                return;
+            }
+
+            var localPosition = nameplatePosition.localPosition;
+            nameplatePosition.localPosition = new Vector3(localPosition.x, y, localPosition.z);
+        }
+
+        private void EnsureTurnIndicatorPosition()
+        {
+            if (turnIndicatorPosition == null)
+            {
+                turnIndicatorPosition = transform.Find("TurnIndicatorPosition");
+            }
+
+            if (turnIndicatorPosition == null)
+            {
+                var positionObject = new GameObject("TurnIndicatorPosition");
+                positionObject.transform.SetParent(transform, false);
+                positionObject.transform.localPosition = new Vector3(0f, DefaultTurnIndicatorPositionY, 0f);
+                turnIndicatorPosition = positionObject.transform;
+            }
+        }
+
         private void AttachNameplate(CombatNameplate nameplatePrefab)
         {
             nameplate = nameplatePrefab != null
@@ -446,6 +494,21 @@ namespace ClockworkWasteland.Combat
 
             nameplate.transform.localPosition = Vector3.zero;
             nameplate.transform.localRotation = Quaternion.identity;
+        }
+
+        private void AttachTurnIndicator()
+        {
+            EnsureTurnIndicatorPosition();
+            if (turnIndicatorPosition == null || turnIndicatorPrefab == null)
+            {
+                return;
+            }
+
+            turnIndicator = Instantiate(turnIndicatorPrefab, turnIndicatorPosition);
+            turnIndicator.transform.localPosition = Vector3.zero;
+            turnIndicator.transform.localRotation = Quaternion.identity;
+            turnIndicator.transform.localScale = Vector3.one;
+            turnIndicator.SetState(false, string.Empty, Color.white);
         }
 
         private static CombatNameplate CreateFallbackNameplate(Transform parent)
@@ -653,3 +716,4 @@ namespace ClockworkWasteland.Combat
 
 
 }
+

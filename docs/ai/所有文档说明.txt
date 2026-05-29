@@ -1,0 +1,7 @@
+/docs/开发规范.md              // 长版，长期参考
+/docs/项目级补充规范.md              // 长期参考
+/docs/ai/AI_RULES.md           // 短版，Codex 每次必读
+/docs/ai/AI_PROJECT_BRIEF.md   // 项目方向
+
+
+其他文档，根据需求再对应观看。

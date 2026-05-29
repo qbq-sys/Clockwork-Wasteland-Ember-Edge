@@ -176,8 +176,6 @@ namespace ClockworkWasteland.Combat
         private const int MaxFormationSlots = 4;
         private const int MapNodeCount = 3;
         private const int InitialGold = 1200;
-        private const float InitialCombatantY = 0.2f;
-        private const float FormationFeetY = -1.8f;
         private const float HeroFrontSlotX = -0.8f;
         private const float EnemyFrontSlotX = 1.3f;
         private const float BaseFormationSlotSpacing = 1.1f;
@@ -199,11 +197,16 @@ namespace ClockworkWasteland.Combat
         [SerializeField] private CombatantDefinition[] heroPoolConfig;
         [SerializeField] private AdventureMapCatalog adventureMapCatalog;
 
+        [Header("Formation")]
+        [SerializeField] private float combatantY = 0.2f;
+        [SerializeField] private float nameplatePositionY = -1.726f;
+
         [Header("Presentation")]
         [FormerlySerializedAs("battleUIPrefab")]
         [SerializeField] private BattleHudController battleHudControllerPrefab;
         [SerializeField] private CombatantView defaultUnitPrefab;
         [SerializeField] private CombatNameplate nameplatePrefab;
+        [SerializeField] private TurnIndicatorView turnIndicatorPrefab;
         [SerializeField] private Sprite[] battleBackgrounds;
         [SerializeField] private int battleBackgroundIndex = 0;
         [SerializeField] private Vector3 floatingTextBaseOffset = new Vector3(0f, 1.2f, -0.6f);
@@ -285,13 +288,14 @@ namespace ClockworkWasteland.Combat
         private int activeSaveSlotIndex = -1;
         private Action settingsBackAction;
 
-        public void Configure(CombatantDefinition[] heroesToUse, CombatantDefinition[] enemiesToUse, BattleHudController hudControllerPrefabToUse = null, CombatantView unitPrefabToUse = null, CombatNameplate nameplatePrefabToUse = null)
+        public void Configure(CombatantDefinition[] heroesToUse, CombatantDefinition[] enemiesToUse, BattleHudController hudControllerPrefabToUse = null, CombatantView unitPrefabToUse = null, CombatNameplate nameplatePrefabToUse = null, TurnIndicatorView turnIndicatorPrefabToUse = null)
         {
             heroParty = heroesToUse;
             enemyParty = enemiesToUse;
             battleHudControllerPrefab = hudControllerPrefabToUse;
             defaultUnitPrefab = unitPrefabToUse;
             nameplatePrefab = nameplatePrefabToUse;
+            turnIndicatorPrefab = turnIndicatorPrefabToUse;
         }
 
         private void Start()
@@ -362,6 +366,7 @@ namespace ClockworkWasteland.Combat
         {
             waitingForPlayer = false;
             resolvingPlayerAction = false;
+            ClearCurrentActorIndicator();
             currentActor = null;
             selectedUnit = null;
             selectedSkill = null;
@@ -417,7 +422,7 @@ namespace ClockworkWasteland.Combat
         private void ShowLobby()
         {
             PrepareNonCombatScreen("\u5927\u5385");
-            hudController.ShowLobby(gold, ShowTavern, ShowAdventureMap, ShowRecoveryWard, ShowHeroCodex, ShowSettingsFromLobby, ShowTitleScreen);
+            hudController.ShowLobby(gold, ShowTavern, ShowAdventureMap, ShowRecoveryWard, ShowHeroCodex, ShowShopFromLobby, ShowInventoryFromLobby, ShowSettingsFromLobby, ShowTitleScreen);
         }
 
         private void StartNewGame()
@@ -564,9 +569,21 @@ namespace ClockworkWasteland.Combat
             hudController.ShowShop(shopItems, gold, GetInventoryStacks(), BuyItem, ShowTeamSelection);
         }
 
+        private void ShowShopFromLobby()
+        {
+            PrepareNonCombatScreen("\u5546\u5e97", false);
+            hudController.ShowShop(shopItems, gold, GetInventoryStacks(), BuyItem, ShowLobby);
+        }
+
         private void ShowInventory()
         {
             hudController.ShowInventory(GetInventoryStacks(), availableHeroPool, UseItemOnHero, ShowTeamSelection);
+        }
+
+        private void ShowInventoryFromLobby()
+        {
+            PrepareNonCombatScreen("\u80cc\u5305", false);
+            hudController.ShowInventory(GetInventoryStacks(), availableHeroPool, UseItemOnHero, ShowLobby);
         }
 
         private void ShowTavern()
@@ -1873,6 +1890,7 @@ namespace ClockworkWasteland.Combat
                     }
 
                     currentActor = actor;
+                    UpdateCurrentActorIndicator(actor, false);
                     actor.ResetActionPoints();
                     yield return StartCoroutine(RunTurn(actor));
                 }
@@ -1923,6 +1941,7 @@ namespace ClockworkWasteland.Combat
                 }
 
                 actor.TickSkillCooldowns();
+                ClearCurrentActorIndicator();
                 yield break;
             }
 
@@ -1932,12 +1951,14 @@ namespace ClockworkWasteland.Combat
 
             if (!actor.IsAlive || !actor.CanAct)
             {
+                ClearCurrentActorIndicator();
                 RefreshViews();
                 yield break;
             }
 
             if (actor.IsHero)
             {
+                UpdateCurrentActorIndicator(actor, true);
                 waitingForPlayer = true;
                 selectedUnit = actor;
                 selectedSkill = null;
@@ -1960,6 +1981,8 @@ namespace ClockworkWasteland.Combat
                     yield return StartCoroutine(ExecuteSkill(actor, skill, target));
                 }
             }
+
+            ClearCurrentActorIndicator();
         }
 
         private void SelectSkill(SkillData skill)
@@ -2280,7 +2303,7 @@ namespace ClockworkWasteland.Combat
 
                 unit.CurrentPosition = i + 1;
                 var targetX = GetFormationSlotX(isHero, slots, unit.CurrentPosition);
-                moves.Add(view.StartCoroutine(view.MoveToFormation(targetX, FormationFeetY, duration)));
+                moves.Add(view.StartCoroutine(view.MoveToFormation(targetX, combatantY, duration)));
             }
 
             foreach (var move in moves)
@@ -2299,11 +2322,6 @@ namespace ClockworkWasteland.Combat
             if (!IsPositionAllowed(actor.CurrentPosition, skill.casterAllowedPositions))
             {
                 return new SkillUseState(skill, false, "\u7ad9\u4f4d\u9519\u8bef");
-            }
-
-            if (!actor.HasResourcesFor(skill))
-            {
-                return new SkillUseState(skill, false, "\u8d44\u6e90\u4e0d\u8db3");
             }
 
             var cooldown = actor.GetCooldownRemaining(skill);
@@ -2358,7 +2376,6 @@ namespace ClockworkWasteland.Combat
 
             return usableSkills
                 .OrderByDescending(skill => ScoreEnemySkill(actor, skill))
-                .ThenBy(skill => skill.manaCost)
                 .ThenBy(skill => skill.skillName)
                 .FirstOrDefault();
         }
@@ -3186,30 +3203,6 @@ namespace ClockworkWasteland.Combat
 
             switch (skill.skillId)
             {
-                case "hero_03_crescent_lunge":
-                    if (target.IsBackline)
-                    {
-                        var gained = actor.GainResource(1);
-                        if (gained > 0)
-                        {
-                            hudController.AddLog($"{actor.DisplayName} 突进压住了敌方后排，获得了 {gained} 点资源。");
-                        }
-                    }
-                    break;
-                case "hero_03_wild_hunt":
-                    if (!target.IsAlive)
-                    {
-                        var gained = actor.GainResource(2);
-                        if (gained > 0)
-                        {
-                            hudController.AddLog($"{actor.DisplayName} 完成了野性追猎，回收了 {gained} 点资源。");
-                            if (views.TryGetValue(actor, out var huntActorView))
-                            {
-                                huntActorView.ShowFloatingText($"+{gained} 资源", new Color(0.96f, 0.82f, 0.36f), 0.85f);
-                            }
-                        }
-                    }
-                    break;
                 case "hero_02_iron_cut":
                     if (actor.HealthRatio < 0.85f)
                     {
@@ -3255,17 +3248,6 @@ namespace ClockworkWasteland.Combat
                         if (views.TryGetValue(target, out var purgeTargetView))
                         {
                             purgeTargetView.ShowFloatingText("\u51c0\u5316", new Color(0.58f, 0.94f, 0.95f), 0.9f);
-                        }
-                    }
-                    break;
-                case "hero_02_stun_chain":
-                case "hero_06_stun_chain":
-                    if (target.IsBackline)
-                    {
-                        var gained = actor.GainResource(1);
-                        if (gained > 0)
-                        {
-                            hudController.AddLog($"{actor.DisplayName} \u7528\u9707\u8361\u9501\u94fe\u538b\u5236\u540e\u6392\uff0c\u989d\u5916\u83b7\u5f97\u4e86 {gained} \u70b9\u8d44\u6e90\u3002");
                         }
                     }
                     break;
@@ -3336,89 +3318,7 @@ namespace ClockworkWasteland.Combat
 
         private void ApplySkillSpecificActionReward(BattleUnit actor, SkillData skill, BattleUnit[] targets)
         {
-            if (actor == null || skill == null || targets == null || targets.Length == 0 || !actor.IsAlive)
-            {
-                return;
-            }
-
-            var livingTargets = targets.Count(target => target != null && target.IsAlive);
-            switch (actor.Specialization)
-            {
-                case CombatSpecialization.Sentinel:
-                    if (actor.IsFrontline && targets.Any(target => target != null && target.IsFrontline))
-                    {
-                        var sentinelGain = actor.GainResource(1);
-                        if (sentinelGain > 0)
-                        {
-                            hudController.AddLog($"{actor.DisplayName} ������ר����סǰ�ߣ������ {sentinelGain} ����Դ��");
-                        }
-                    }
-                    break;
-                case CombatSpecialization.Controller:
-                    if (skill.skillType == SkillDataType.控制)
-                    {
-                        var controllerGain = actor.GainResource(1);
-                        if (controllerGain > 0)
-                        {
-                            hudController.AddLog($"{actor.DisplayName} �Ŀس�ר����ѹ���л����� {controllerGain} ����Դ��");
-                        }
-                    }
-                    break;
-                case CombatSpecialization.Stimulator:
-                    if (skill.skillType == SkillDataType.治疗 && targets.Any(target => target != null && target.HasCooldowns))
-                    {
-                        var stimGain = actor.GainResource(1);
-                        if (stimGain > 0)
-                        {
-                            hudController.AddLog($"{actor.DisplayName} �ļ���ר����������ת�䣬����� {stimGain} ����Դ��");
-                        }
-                    }
-                    break;
-            }
-
-            switch (skill.skillId)
-            {
-                case "hero_01_iron_cut":
-                    if (livingTargets > 0 && targets.Any(target => target != null && target.IsFrontline && actor.IsFrontline))
-                    {
-                        var gained = actor.GainResource(1);
-                        if (gained > 0)
-                        {
-                            hudController.AddLog($"{actor.DisplayName} ��ǰ�߶�ײ����ס���࣬����� {gained} ����Դ��");
-                        }
-                    }
-                    break;
-                case "hero_01_gear_sting":
-                case "hero_05_gear_sting":
-                    if (livingTargets > 0 && actor.IsBackline && targets.Any(target => target != null && target.IsBackline))
-                    {
-                        var gained = actor.GainResource(1);
-                        if (gained > 0)
-                        {
-                            hudController.AddLog($"{actor.DisplayName} �Ӻ�����ɾ�׼��ɱ�������� {gained} ����Դ��");
-                        }
-                    }
-                    break;
-                case "hero_08_ember_rend":
-                    if (livingTargets > 0 && targets.Any(target => target != null && target.IsBackline))
-                    {
-                        var gained = actor.GainResource(1);
-                        if (gained > 0)
-                        {
-                            hudController.AddLog($"{actor.DisplayName} �����ȸ���ѹ���˺��ţ������ {gained} ����Դ��");
-                        }
-                    }
-                    break;
-            }
-
-            if ((skill.skillId == "hero_01_scrap_volley" || skill.skillId == "hero_03_scrap_volley") && livingTargets >= 3)
-            {
-                var gained = actor.GainResource(1);
-                if (gained > 0)
-                {
-                    hudController.AddLog($"{actor.DisplayName} \u7684\u9f50\u5c04\u547d\u4e2d\u591a\u540d\u76ee\u6807\uff0c\u56de\u6536\u4e86 {gained} \u70b9\u8d44\u6e90\u3002");
-                }
-            }
+            return;
         }
 
         private void ApplySkillSpecificActionRisk(BattleUnit actor, SkillData skill, BattleUnit[] targets)
@@ -3714,106 +3614,17 @@ namespace ClockworkWasteland.Combat
 
         private void ApplyArchetypeTurnStart(BattleUnit actor)
         {
-            if (actor == null || !actor.CanAct)
-            {
-                return;
-            }
-
-            var gained = 0;
-            switch (actor.Archetype)
-            {
-                case CombatArchetype.Bulwark:
-                    gained = actor.IsFrontline ? actor.GainResource(1) : 0;
-                    break;
-                case CombatArchetype.Executioner:
-                    gained = GetLivingOpponents(actor).Any(target => target.HealthRatio <= 0.6f) ? actor.GainResource(1) : 0;
-                    break;
-                case CombatArchetype.Artificer:
-                    gained = actor.IsBackline ? actor.GainResource(1) : 0;
-                    break;
-                case CombatArchetype.Physician:
-                    gained = GetLivingAllies(actor, includeSelf: true).Any(target => target.HealthRatio < 0.85f) ? actor.GainResource(1) : 0;
-                    break;
-            }
-
-            if (gained > 0)
-            {
-                hudController.AddLog($"{actor.DisplayName} ��{actor.Definition.ArchetypeDisplayName}����ָ��� {gained} ����Դ��");
-            }
-
-            ApplySpecializationTurnStart(actor);
+            return;
         }
 
         private void ApplySpecializationTurnStart(BattleUnit actor)
         {
-            if (actor == null || !actor.CanAct)
-            {
-                return;
-            }
-
-            var gained = 0;
-            switch (actor.Specialization)
-            {
-                case CombatSpecialization.Bastion:
-                    gained = actor.IsFrontline && actor.HealthRatio < 0.8f ? actor.GainResource(1) : 0;
-                    break;
-                case CombatSpecialization.Slayer:
-                    gained = GetLivingOpponents(actor).Any(target => target.HealthRatio <= 0.4f) ? actor.GainResource(1) : 0;
-                    break;
-                case CombatSpecialization.Bombardier:
-                    gained = actor.IsBackline ? actor.GainResource(1) : 0;
-                    break;
-                case CombatSpecialization.Surgeon:
-                    gained = GetLivingAllies(actor, includeSelf: true).Any(target => target.HealthRatio <= 0.5f) ? actor.GainResource(1) : 0;
-                    break;
-            }
-
-            if (gained > 0)
-            {
-                hudController.AddLog($"{actor.DisplayName} ��{actor.Definition.SpecializationDisplayName}ר���ָ��� {gained} ����Դ��");
-            }
+            return;
         }
 
         private void ApplyArchetypeActionResource(BattleUnit actor, SkillData skill, BattleUnit[] targets)
         {
-            if (actor == null || skill == null || targets == null || targets.Length == 0)
-            {
-                return;
-            }
-
-            var gained = 0;
-            switch (actor.Archetype)
-            {
-                case CombatArchetype.Bulwark:
-                    if (targets.Any(target => target.IsFrontline))
-                    {
-                        gained = actor.GainResource(1);
-                    }
-                    break;
-                case CombatArchetype.Executioner:
-                    if (targets.Any(target => !target.IsAlive || target.HealthRatio <= 0.5f))
-                    {
-                        gained = actor.GainResource(1);
-                    }
-                    break;
-                case CombatArchetype.Artificer:
-                    if (skill.skillType == SkillDataType.控制 || targets.Length >= 2 || targets.Any(target => target.IsBackline))
-                    {
-                        gained = actor.GainResource(1);
-                    }
-                    break;
-                case CombatArchetype.Physician:
-                    if (skill.skillType == SkillDataType.控制)
-                    {
-                        gained = actor.GainResource(targets.Count(target => target.HealthRatio < 1f) >= 2 ? 2 : 1);
-                    }
-                    break;
-            }
-
-            if (gained > 0)
-            {
-                hudController.AddLog($"{actor.DisplayName} ������ {gained} ����Դ��");
-            }
+            return;
         }
 
         private static Color GetDamageColor(SkillDataType skillType)
@@ -4293,6 +4104,11 @@ namespace ClockworkWasteland.Combat
             {
                 nameplatePrefab = AssetDatabase.LoadAssetAtPath<CombatNameplate>("Assets/ClockworkWastelandDemo/Prefabs/CombatNameplate.prefab");
             }
+
+            if (turnIndicatorPrefab == null)
+            {
+                turnIndicatorPrefab = AssetDatabase.LoadAssetAtPath<TurnIndicatorView>("Assets/ClockworkWastelandDemo/Prefabs/CombatTurnIndicator.prefab");
+            }
 #endif
         }
 
@@ -4495,8 +4311,8 @@ namespace ClockworkWasteland.Combat
                 enemySlots[slot - 1] = unit;
 
                 var view = CreateCombatantView(unit);
-                view.transform.position = new Vector3(GetBaseSlotX(false, unit.CurrentPosition), InitialCombatantY, 0f);
-                view.Initialize(unit, fallbackSprite, HandleUnitClicked, nameplatePrefab);
+                view.transform.position = new Vector3(GetBaseSlotX(false, unit.CurrentPosition), combatantY, 0f);
+                view.Initialize(unit, fallbackSprite, HandleUnitClicked, nameplatePrefab, turnIndicatorPrefab, nameplatePositionY);
                 view.ResetVisualOffset();
                 views[unit] = view;
             }
@@ -4595,8 +4411,8 @@ namespace ClockworkWasteland.Combat
                 slots[i] = unit;
 
                 var view = CreateCombatantView(unit);
-                view.transform.position = new Vector3(GetBaseSlotX(isHero, unit.CurrentPosition), InitialCombatantY, 0f);
-                view.Initialize(unit, fallbackSprite, HandleUnitClicked, nameplatePrefab);
+                view.transform.position = new Vector3(GetBaseSlotX(isHero, unit.CurrentPosition), combatantY, 0f);
+                view.Initialize(unit, fallbackSprite, HandleUnitClicked, nameplatePrefab, turnIndicatorPrefab, nameplatePositionY);
                 view.ResetVisualOffset();
                 views[unit] = view;
             }
@@ -4761,7 +4577,7 @@ namespace ClockworkWasteland.Combat
                 }
 
                 unit.CurrentPosition = i + 1;
-                view.transform.position = new Vector3(GetFormationSlotX(isHero, slots, unit.CurrentPosition), InitialCombatantY, 0f);
+                view.transform.position = new Vector3(GetFormationSlotX(isHero, slots, unit.CurrentPosition), combatantY, 0f);
                 view.ResetVisualOffset();
             }
         }
@@ -4826,6 +4642,39 @@ namespace ClockworkWasteland.Combat
             foreach (var view in views.Values)
             {
                 view.Refresh();
+            }
+        }
+
+        private void UpdateCurrentActorIndicator(BattleUnit actor, bool waitingForPlayerAction)
+        {
+            foreach (var pair in views)
+            {
+                var view = pair.Value;
+                if (view == null)
+                {
+                    continue;
+                }
+
+                if (pair.Key == actor)
+                {
+                    var label = waitingForPlayerAction && actor != null && actor.IsHero ? "请行动" : "行动中";
+                    var color = waitingForPlayerAction && actor != null && actor.IsHero
+                        ? new Color(0.98f, 0.88f, 0.3f, 1f)
+                        : new Color(0.9f, 0.36f, 0.3f, 1f);
+                    view.SetTurnIndicator(true, label, color);
+                }
+                else
+                {
+                    view.SetTurnIndicator(false, string.Empty, Color.white);
+                }
+            }
+        }
+
+        private void ClearCurrentActorIndicator()
+        {
+            foreach (var view in views.Values)
+            {
+                view?.SetTurnIndicator(false, string.Empty, Color.white);
             }
         }
 

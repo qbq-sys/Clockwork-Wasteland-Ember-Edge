@@ -142,6 +142,15 @@ MonoBehaviour:
   overlayRenderer: {fileID: 6891422504181296408}
   hitOverlayRenderer: {fileID: 4332009260121640918}
   nameplatePosition: {fileID: 5462660806244965855}
+  turnIndicatorPosition: {fileID: 0}
+  turnIndicatorPrefab: {fileID: 0}
+  floatingTextBaseOffset: {x: 0, y: 1.2, z: -0.6}
+  floatingTextBaseScale: 1
+  floatingTextBurstWindow: 0.18
+  floatingTextQueueDelay: 0.08
+  floatingTextHorizontalSpacing: 0.18
+  floatingTextVerticalSpacing: 0.26
+  floatingTextAdditionalLiftPerText: 0.05
 --- !u!1 &5134265292175701946
 GameObject:
   m_ObjectHideFlags: 0
@@ -290,7 +299,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: -1.4, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_LocalScale: {x: 0.9, y: 0.9, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 5018978235119545609}

@@ -80,26 +80,18 @@ namespace ClockworkWasteland.Combat
 
         public bool HasResourcesFor(SkillData skill)
         {
-            return ActionPoints >= 1 && Resource >= skill.manaCost;
+            return ActionPoints >= 1;
         }
 
         public void SpendResourcesFor(SkillData skill)
         {
             ActionPoints = System.Math.Max(0, ActionPoints - 1);
-            Resource = System.Math.Max(0, Resource - skill.manaCost);
             StartCooldown(skill);
         }
 
         public int GainResource(int amount)
         {
-            if (amount <= 0)
-            {
-                return 0;
-            }
-
-            var before = Resource;
-            Resource = System.Math.Min(MaxResource, Resource + amount);
-            return Resource - before;
+            return 0;
         }
 
         public int GetCooldownRemaining(SkillData skill)

@@ -267,7 +267,7 @@ namespace ClockworkWasteland.Combat
             var description =
                 $"{skill.skillName}\n" +
                 $"{BuildEffectSummary(skill)}\n" +
-                $"资源消耗：{skill.manaCost}    冷却：{skill.cooldown}\n" +
+                $"冷却：{skill.cooldown}\n" +
                 $"\u65bd\u6cd5\u7ad9\u4f4d\uff1a{casterRequirement}\n" +
                 $"\u76ee\u6807\u7ad9\u4f4d\uff1a{BuildTargetRequirement(skill)}\n" +
                 $"{BuildTacticalHint(skill)}" +
@@ -311,9 +311,9 @@ namespace ClockworkWasteland.Combat
             switch (skill.skillId)
             {
                 case "hero_01_gear_sting":
-                    return "战术提示：后排点杀工具，命中敌方后排时还能回资源。\n";
+                    return "战术提示：后排点杀工具，适合专门压制敌方后排。\n";
                 case "hero_01_scrap_volley":
-                    return "战术提示：压低全体血线，命中三人以上可回资源，但会有少量反震。\n";
+                    return "战术提示：压低全体血线，命中三人以上会有少量反震。\n";
                 case "hero_01_lock_pin":
                     return "战术提示：先给目标挂压制，再用其他技能扩大收益。\n";
                 case "hero_01_overload_spark":
@@ -323,9 +323,9 @@ namespace ClockworkWasteland.Combat
                 case "hero_03_vein_rend":
                     return "战术提示：先挂流血，再为后续处决和追猎铺路。\n";
                 case "hero_03_crescent_lunge":
-                    return "战术提示：专打敌方后排，命中后排时还能回资源。\n";
+                    return "战术提示：专打敌方后排，适合主动打开后排缺口。\n";
                 case "hero_03_wild_hunt":
-                    return "战术提示：锁定残血目标，完成击杀时会大量回收资源。\n";
+                    return "战术提示：锁定残血目标，适合用来完成击杀。\n";
                 case "hero_01_iron_cut":
                     return "\u6218\u672f\u63d0\u793a\uff1a\u524d\u6392\u5bf9\u649e\u65f6\u4f1a\u989d\u5916\u56de\u8d44\u6e90\u3002\n";
                 case "hero_01_ember_rend":
@@ -337,9 +337,9 @@ namespace ClockworkWasteland.Combat
                 case "hero_02_steam_purge":
                     return "战术提示：净化灼烧和眩晕时收益最高，适合稳住濒危友军。\n";
                 case "hero_02_stun_chain":
-                    return "战术提示：优先压制敌方后排，命中后排时会额外回资源。\n";
+                    return "战术提示：优先压制敌方后排，用来破坏敌方后排节奏。\n";
                 case "hero_02_bone_dart":
-                    return "战术提示：作为低消耗补刀和过渡出手，方便把资源留给治疗与控制。\n";
+                    return "战术提示：作为稳定补刀和过渡出手，适合维持节奏。\n";
                 case "hero_03_scrap_volley":
                     return "\u6218\u672f\u63d0\u793a\uff1a\u547d\u4e2d\u591a\u4eba\u65f6\u53ef\u56de\u8d44\u6e90\uff0c\u66f4\u504f\u7a33\u5b9a\u538b\u5236\u3002\n";
                 case "hero_04_iron_cut":
@@ -423,7 +423,6 @@ namespace ClockworkWasteland.Combat
                 $"\u504f\u597d\u7ad9\u4f4d\uff1a{selectedUnit.Definition.PreferredRowDisplayName}\n" +
                 $"\u7b49\u7ea7\uff1a{selectedUnit.Level}\n" +
                 $"\u751f\u547d\uff1a{selectedUnit.Health}/{selectedUnit.MaxHealth}\n" +
-                $"\u8d44\u6e90\uff1a{selectedUnit.Resource}/{selectedUnit.MaxResource}\n" +
                 $"\u653b\u51fb\uff1a{selectedUnit.Attack}\n" +
                 $"\u9632\u5fa1\uff1a{selectedUnit.Defense}\n" +
                 $"\u7ad9\u4f4d\uff1a{selectedUnit.CurrentPosition}\n" +
@@ -455,7 +454,7 @@ namespace ClockworkWasteland.Combat
             activeNameText.text = activeActor.DisplayName;
             activeMetaText.text = $"{activeActor.Definition.ArchetypeDisplayName}  /  {activeActor.Definition.SpecializationDisplayName}  /  {activeActor.Definition.PreferredRowDisplayName}";
             activeStatsText.text =
-                $"生命 {activeActor.Health}/{activeActor.MaxHealth}    资源 {activeActor.Resource}/{activeActor.MaxResource}\n" +
+                $"生命 {activeActor.Health}/{activeActor.MaxHealth}\n" +
                 $"攻击 {activeActor.Attack}    防御 {activeActor.Defense}    速度 {activeActor.Speed}    站位 {activeActor.CurrentPosition}";
 
             if (activePortraitImage != null)
@@ -588,11 +587,11 @@ namespace ClockworkWasteland.Combat
             runtimeUiManager.ShowRewardScreen(goldGained, totalGold, results, onContinue);
         }
 
-        public void ShowLobby(int currentGold, Action onOpenTavern, Action onOpenAdventure, Action onOpenRecoveryWard, Action onOpenHeroCodex, Action onOpenSettings, Action onBackToStartMenu)
+        public void ShowLobby(int currentGold, Action onOpenTavern, Action onOpenAdventure, Action onOpenRecoveryWard, Action onOpenHeroCodex, Action onOpenShop, Action onOpenInventory, Action onOpenSettings, Action onBackToStartMenu)
         {
             EnsureRuntimePrefabUi();
             SetBattleHudVisible(false);
-            runtimeUiManager?.ShowLobby(currentGold, onOpenTavern, onOpenAdventure, onOpenRecoveryWard, onOpenHeroCodex, onOpenSettings, onBackToStartMenu);
+            runtimeUiManager?.ShowLobby(currentGold, onOpenTavern, onOpenAdventure, onOpenRecoveryWard, onOpenHeroCodex, onOpenShop, onOpenInventory, onOpenSettings, onBackToStartMenu);
         }
 
         public void ShowSaveSlots(string title, IReadOnlyList<SaveSlotSummary> slots, bool allowEmptySelection, Action<int> onSelect, Action<int> onDelete, Action onBack)
@@ -1065,7 +1064,7 @@ namespace ClockworkWasteland.Combat
                 _ => "未知"
             };
 
-            return $"消耗 {skill.manaCost}    冷却 {skill.cooldown}    {targetLabel}";
+            return $"冷却 {skill.cooldown}    {targetLabel}";
         }
 
         private static string BuildSkillRowHint(SkillData skill)

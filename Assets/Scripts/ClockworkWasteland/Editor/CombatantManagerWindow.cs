@@ -18,6 +18,7 @@ namespace ClockworkWasteland.EditorTools
         private const string UnitPrefabsPath = Root + "/Prefabs/CombatUnits";
         private const float VisualRootY = -1.4f;
         private const float NameplatePositionY = -1.726f;
+        private const float TurnIndicatorPositionY = 1.5f;
         private const string CharacterArtRoot = "Assets/Art/Characters";
         private const string CharacterSpecificVfxRoot = "Assets/Art/VFX/Combat/CharacterSpecific";
 
@@ -1296,6 +1297,8 @@ namespace ClockworkWasteland.EditorTools
 
                 var nameplatePosition = EnsureChild(prefabRoot.transform, "NameplatePosition");
                 nameplatePosition.localPosition = new Vector3(0f, NameplatePositionY, 0f);
+                var turnIndicatorPosition = EnsureChild(prefabRoot.transform, "TurnIndicatorPosition");
+                turnIndicatorPosition.localPosition = new Vector3(0f, TurnIndicatorPositionY, 0f);
 
                 var colliderTransform = EnsureChild(prefabRoot.transform, "Collider");
                 RemoveMissingScriptsRecursively(colliderTransform.gameObject);
@@ -1305,7 +1308,7 @@ namespace ClockworkWasteland.EditorTools
                     clickProxy = colliderTransform.gameObject.AddComponent<CombatantClickProxy>();
                 }
 
-                BindCombatantViewReferences(view, visualRoot, bodyRenderer, actionOverlay, hitOverlay, nameplatePosition, clickCollider);
+                BindCombatantViewReferences(view, visualRoot, bodyRenderer, actionOverlay, hitOverlay, nameplatePosition, turnIndicatorPosition, clickCollider);
                 CombatUnitFeaturePatchRegistry.ApplyAll(prefabRoot, combatant);
                 PrefabUtility.SaveAsPrefabAsset(prefabRoot, prefabPath);
             }
@@ -1444,7 +1447,7 @@ namespace ClockworkWasteland.EditorTools
             return Mathf.Approximately(scale.x, 0f) && Mathf.Approximately(scale.y, 0f) && Mathf.Approximately(scale.z, 0f);
         }
 
-        private static void BindCombatantViewReferences(CombatantView view, Transform visualRoot, SpriteRenderer bodyRenderer, SpriteRenderer actionOverlay, SpriteRenderer hitOverlay, Transform nameplatePosition, BoxCollider2D clickCollider)
+        private static void BindCombatantViewReferences(CombatantView view, Transform visualRoot, SpriteRenderer bodyRenderer, SpriteRenderer actionOverlay, SpriteRenderer hitOverlay, Transform nameplatePosition, Transform turnIndicatorPosition, BoxCollider2D clickCollider)
         {
             var serializedView = new SerializedObject(view);
             SetObjectReferenceIfPropertyExists(serializedView, "visualRoot", visualRoot);
@@ -1452,6 +1455,7 @@ namespace ClockworkWasteland.EditorTools
             SetObjectReferenceIfPropertyExists(serializedView, "overlayRenderer", actionOverlay);
             SetObjectReferenceIfPropertyExists(serializedView, "hitOverlayRenderer", hitOverlay);
             SetObjectReferenceIfPropertyExists(serializedView, "nameplatePosition", nameplatePosition);
+            SetObjectReferenceIfPropertyExists(serializedView, "turnIndicatorPosition", turnIndicatorPosition);
             SetObjectReferenceIfPropertyExists(serializedView, "clickCollider", clickCollider);
             serializedView.ApplyModifiedPropertiesWithoutUndo();
         }

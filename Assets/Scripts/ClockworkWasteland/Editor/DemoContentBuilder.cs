@@ -22,9 +22,11 @@ namespace ClockworkWasteland.EditorTools
         private const string BattleHudControllerPrefabPath = PrefabsPath + "/BattleHudController.prefab";
         private const string CombatUnitPrefabPath = PrefabsPath + "/CombatUnit.prefab";
         private const string CombatNameplatePrefabPath = PrefabsPath + "/CombatNameplate.prefab";
+        private const string CombatTurnIndicatorPrefabPath = PrefabsPath + "/CombatTurnIndicator.prefab";
         private const string ScenePath = "Assets/Scenes/CombatDemo.unity";
         private const float VisualRootY = -1.4f;
         private const float NameplatePositionY = -1.726f;
+        private const float TurnIndicatorPositionY = 1.5f;
 
         private static BattleHudController CreateBattleHudControllerPrefab()
         {
@@ -51,6 +53,7 @@ namespace ClockworkWasteland.EditorTools
             EnsureFolder(PrefabsPath, "CombatUnits");
 
             CreateCombatNameplatePrefab();
+            CreateCombatTurnIndicatorPrefab();
             CreateCombatUnitPrefab();
             AssignExistingCombatantUnitPrefabs();
 
@@ -164,6 +167,79 @@ namespace ClockworkWasteland.EditorTools
             return AssetDatabase.LoadAssetAtPath<CombatNameplate>(CombatNameplatePrefabPath);
         }
 
+        private static TurnIndicatorView CreateCombatTurnIndicatorPrefab()
+        {
+            var root = new GameObject("CombatTurnIndicator", typeof(RectTransform), typeof(Canvas), typeof(TurnIndicatorView));
+            root.transform.localScale = Vector3.one * 0.01f;
+
+            var canvas = root.GetComponent<Canvas>();
+            canvas.renderMode = RenderMode.WorldSpace;
+            canvas.sortingOrder = 24;
+
+            var rect = root.GetComponent<RectTransform>();
+            rect.sizeDelta = new Vector2(168f, 70f);
+
+            var background = new GameObject("Background", typeof(RectTransform), typeof(Image));
+            background.transform.SetParent(root.transform, false);
+            var backgroundRect = background.GetComponent<RectTransform>();
+            backgroundRect.anchorMin = new Vector2(0.5f, 1f);
+            backgroundRect.anchorMax = new Vector2(0.5f, 1f);
+            backgroundRect.pivot = new Vector2(0.5f, 1f);
+            backgroundRect.anchoredPosition = new Vector2(0f, -2f);
+            backgroundRect.sizeDelta = new Vector2(132f, 32f);
+            background.GetComponent<Image>().color = new Color(0.28f, 0.08f, 0.08f, 0.9f);
+
+            var labelObject = new GameObject("LabelText", typeof(RectTransform), typeof(Text));
+            labelObject.transform.SetParent(root.transform, false);
+            var labelRect = labelObject.GetComponent<RectTransform>();
+            labelRect.anchorMin = new Vector2(0.5f, 1f);
+            labelRect.anchorMax = new Vector2(0.5f, 1f);
+            labelRect.pivot = new Vector2(0.5f, 1f);
+            labelRect.anchoredPosition = new Vector2(0f, -6f);
+            labelRect.sizeDelta = new Vector2(124f, 24f);
+            var labelText = labelObject.GetComponent<Text>();
+            labelText.alignment = TextAnchor.MiddleCenter;
+            labelText.fontSize = 18;
+            labelText.fontStyle = FontStyle.Bold;
+            labelText.color = new Color(0.97f, 0.82f, 0.45f);
+            labelText.horizontalOverflow = HorizontalWrapMode.Overflow;
+            labelText.verticalOverflow = VerticalWrapMode.Overflow;
+            labelText.font = ChineseFontProvider.LegacyFont ?? Resources.GetBuiltinResource<Font>("Arial.ttf");
+            labelText.raycastTarget = false;
+            labelText.text = "行动中";
+
+            var arrowObject = new GameObject("ArrowText", typeof(RectTransform), typeof(Text));
+            arrowObject.transform.SetParent(root.transform, false);
+            var arrowRect = arrowObject.GetComponent<RectTransform>();
+            arrowRect.anchorMin = new Vector2(0.5f, 0f);
+            arrowRect.anchorMax = new Vector2(0.5f, 0f);
+            arrowRect.pivot = new Vector2(0.5f, 0.5f);
+            arrowRect.anchoredPosition = new Vector2(0f, 10f);
+            arrowRect.sizeDelta = new Vector2(52f, 28f);
+            var arrowText = arrowObject.GetComponent<Text>();
+            arrowText.alignment = TextAnchor.MiddleCenter;
+            arrowText.fontSize = 24;
+            arrowText.fontStyle = FontStyle.Bold;
+            arrowText.color = new Color(0.97f, 0.82f, 0.45f);
+            arrowText.horizontalOverflow = HorizontalWrapMode.Overflow;
+            arrowText.verticalOverflow = VerticalWrapMode.Overflow;
+            arrowText.font = ChineseFontProvider.LegacyFont ?? Resources.GetBuiltinResource<Font>("Arial.ttf");
+            arrowText.raycastTarget = false;
+            arrowText.text = "▼";
+
+            var indicator = root.GetComponent<TurnIndicatorView>();
+            var serializedIndicator = new SerializedObject(indicator);
+            serializedIndicator.FindProperty("animatedRoot").objectReferenceValue = rect;
+            serializedIndicator.FindProperty("backgroundImage").objectReferenceValue = background.GetComponent<Image>();
+            serializedIndicator.FindProperty("labelText").objectReferenceValue = labelText;
+            serializedIndicator.FindProperty("arrowText").objectReferenceValue = arrowText;
+            serializedIndicator.ApplyModifiedPropertiesWithoutUndo();
+
+            var prefab = PrefabUtility.SaveAsPrefabAsset(root, CombatTurnIndicatorPrefabPath);
+            Object.DestroyImmediate(root);
+            return AssetDatabase.LoadAssetAtPath<TurnIndicatorView>(CombatTurnIndicatorPrefabPath);
+        }
+
         [MenuItem("Clockwork Wasteland/Build/Rebuild Character Unit Prefabs")]
         public static void AssignExistingCombatantUnitPrefabs()
         {
@@ -239,6 +315,10 @@ namespace ClockworkWasteland.EditorTools
             var nameplatePosition = new GameObject("NameplatePosition");
             nameplatePosition.transform.SetParent(root.transform, false);
             nameplatePosition.transform.localPosition = new Vector3(0f, NameplatePositionY, 0f);
+
+            var turnIndicatorPosition = new GameObject("TurnIndicatorPosition");
+            turnIndicatorPosition.transform.SetParent(root.transform, false);
+            turnIndicatorPosition.transform.localPosition = new Vector3(0f, TurnIndicatorPositionY, 0f);
 
             CombatUnitFeaturePatchRegistry.ApplyAll(root, combatant);
             var prefab = PrefabUtility.SaveAsPrefabAsset(root, prefabPath);

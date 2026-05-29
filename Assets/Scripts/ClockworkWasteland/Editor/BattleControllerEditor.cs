@@ -11,9 +11,12 @@ namespace ClockworkWasteland.EditorTools
         private SerializedProperty heroPartyProperty;
         private SerializedProperty enemyPartyProperty;
         private SerializedProperty heroPoolConfigProperty;
+        private SerializedProperty combatantYProperty;
+        private SerializedProperty nameplatePositionYProperty;
         private SerializedProperty battleHudControllerPrefabProperty;
         private SerializedProperty defaultUnitPrefabProperty;
         private SerializedProperty nameplatePrefabProperty;
+        private SerializedProperty turnIndicatorPrefabProperty;
         private SerializedProperty battleBackgroundsProperty;
         private SerializedProperty battleBackgroundIndexProperty;
         private SerializedProperty floatingTextBaseOffsetProperty;
@@ -57,9 +60,12 @@ namespace ClockworkWasteland.EditorTools
             heroPartyProperty = serializedObject.FindProperty("heroParty");
             enemyPartyProperty = serializedObject.FindProperty("enemyParty");
             heroPoolConfigProperty = serializedObject.FindProperty("heroPoolConfig");
+            combatantYProperty = serializedObject.FindProperty("combatantY");
+            nameplatePositionYProperty = serializedObject.FindProperty("nameplatePositionY");
             battleHudControllerPrefabProperty = serializedObject.FindProperty("battleHudControllerPrefab");
             defaultUnitPrefabProperty = serializedObject.FindProperty("defaultUnitPrefab");
             nameplatePrefabProperty = serializedObject.FindProperty("nameplatePrefab");
+            turnIndicatorPrefabProperty = serializedObject.FindProperty("turnIndicatorPrefab");
             battleBackgroundsProperty = serializedObject.FindProperty("battleBackgrounds");
             battleBackgroundIndexProperty = serializedObject.FindProperty("battleBackgroundIndex");
             floatingTextBaseOffsetProperty = serializedObject.FindProperty("floatingTextBaseOffset");
@@ -109,11 +115,14 @@ namespace ClockworkWasteland.EditorTools
             DrawProperty(heroPartyProperty, "初始英雄队伍");
             DrawProperty(enemyPartyProperty, "场景敌人池");
             DrawProperty(heroPoolConfigProperty, "手工英雄池");
+            DrawProperty(combatantYProperty, "单位公共 Y");
+            DrawProperty(nameplatePositionYProperty, "NameplatePosition Y");
 
             DrawSection("表现资源");
             DrawProperty(battleHudControllerPrefabProperty, "战斗 HUD 控制器预制体");
             DrawProperty(defaultUnitPrefabProperty, "默认单位预制体");
             DrawProperty(nameplatePrefabProperty, "血条名牌预制体");
+            DrawProperty(turnIndicatorPrefabProperty, "当前回合标记预制体");
             DrawProperty(battleBackgroundsProperty, "战斗背景列表", true);
             DrawProperty(battleBackgroundIndexProperty, "默认背景索引");
             DrawProperty(floatingTextBaseOffsetProperty, "飘字初始偏移");

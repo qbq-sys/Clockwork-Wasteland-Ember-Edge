@@ -24,12 +24,7 @@ namespace ClockworkWasteland.Combat
                 return string.Empty;
             }
 
-            var suffix = string.Empty;
-            if (Skill.manaCost > 0 || Skill.cooldown > 0)
-            {
-                suffix = $" [{(Skill.manaCost > 0 ? $"费{Skill.manaCost}" : "费0")}/{(Skill.cooldown > 0 ? $"冷{Skill.cooldown}" : "冷0")}]";
-            }
-
+            var suffix = Skill.cooldown > 0 ? $" [冷{Skill.cooldown}]" : string.Empty;
             return Skill.skillName + suffix;
         }
     }

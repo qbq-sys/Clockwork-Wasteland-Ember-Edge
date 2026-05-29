@@ -1964,7 +1964,7 @@ namespace ClockworkWasteland.Combat
                 selectedSkill = null;
                 validSelectedTargets = new BattleUnit[0];
                 SetTargetHighlights(validSelectedTargets);
-                hudController.RenderPlayerTurn(actor, GetSkillUseStates(actor), SelectSkill);
+                hudController.RenderPlayerTurn(actor, GetSkillUseStates(actor), SelectSkill, selectedSkill);
 
                 while (waitingForPlayer)
                 {
@@ -1992,17 +1992,28 @@ namespace ClockworkWasteland.Combat
                 return;
             }
 
+            if (selectedSkill != null && skill != null && selectedSkill.skillId == skill.skillId)
+            {
+                selectedSkill = null;
+                validSelectedTargets = new BattleUnit[0];
+                SetTargetHighlights(validSelectedTargets);
+                hudController.AddLog($"已取消选择 {skill.skillName}。");
+                hudController.RenderUnitPanel(selectedUnit, currentActor, GetSkillUseStates(selectedUnit), SelectSkill, selectedSkill);
+                return;
+            }
+
             var state = GetSkillUseState(currentActor, skill);
             if (!state.CanUse)
             {
                 hudController.AddLog($"\u65e0\u6cd5\u4f7f\u7528 {skill.skillName}\uff1a{state.DisabledReason}\u3002");
-                hudController.RenderUnitPanel(selectedUnit, currentActor, GetSkillUseStates(selectedUnit), SelectSkill);
+                hudController.RenderUnitPanel(selectedUnit, currentActor, GetSkillUseStates(selectedUnit), SelectSkill, selectedSkill);
                 return;
             }
 
             selectedSkill = skill;
             validSelectedTargets = GetValidTargets(currentActor, skill).ToArray();
             SetTargetHighlights(validSelectedTargets);
+            hudController.RenderUnitPanel(selectedUnit, currentActor, GetSkillUseStates(selectedUnit), SelectSkill, selectedSkill);
 
             if (validSelectedTargets.Length == 1 && skill.targetType == SkillDataTargetType.自己)
             {
@@ -2010,7 +2021,7 @@ namespace ClockworkWasteland.Combat
                 return;
             }
 
-            hudController.RenderTargets(skill, validSelectedTargets, SelectTarget);
+            hudController.RenderTargets(skill, validSelectedTargets, SelectTarget, selectedSkill);
         }
 
         private void HandleUnitClicked(BattleUnit unit)
@@ -2037,7 +2048,7 @@ namespace ClockworkWasteland.Combat
             selectedSkill = null;
             validSelectedTargets = new BattleUnit[0];
             SetTargetHighlights(validSelectedTargets);
-            hudController.RenderUnitPanel(selectedUnit, waitingForPlayer ? currentActor : null, GetSkillUseStates(selectedUnit), SelectSkill);
+            hudController.RenderUnitPanel(selectedUnit, waitingForPlayer ? currentActor : null, GetSkillUseStates(selectedUnit), SelectSkill, selectedSkill);
         }
 
         private void SelectTarget(BattleUnit target)
@@ -4620,9 +4631,10 @@ namespace ClockworkWasteland.Combat
 
         private void SetTargetHighlights(IReadOnlyCollection<BattleUnit> targets)
         {
+            var hasActiveSelection = targets != null && targets.Count > 0;
             foreach (var pair in views)
             {
-                pair.Value.SetHighlighted(targets != null && targets.Contains(pair.Key));
+                pair.Value.SetTargetingState(hasActiveSelection, hasActiveSelection && targets.Contains(pair.Key));
             }
         }
 
@@ -4661,10 +4673,12 @@ namespace ClockworkWasteland.Combat
                     var color = waitingForPlayerAction && actor != null && actor.IsHero
                         ? new Color(0.98f, 0.88f, 0.3f, 1f)
                         : new Color(0.9f, 0.36f, 0.3f, 1f);
+                    view.SetCurrentActorHighlight(true);
                     view.SetTurnIndicator(true, label, color);
                 }
                 else
                 {
+                    view.SetCurrentActorHighlight(false);
                     view.SetTurnIndicator(false, string.Empty, Color.white);
                 }
             }
@@ -4674,6 +4688,7 @@ namespace ClockworkWasteland.Combat
         {
             foreach (var view in views.Values)
             {
+                view?.SetCurrentActorHighlight(false);
                 view?.SetTurnIndicator(false, string.Empty, Color.white);
             }
         }

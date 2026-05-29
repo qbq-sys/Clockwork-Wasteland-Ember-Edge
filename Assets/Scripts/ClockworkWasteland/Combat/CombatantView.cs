@@ -45,6 +45,9 @@ namespace ClockworkWasteland.Combat
         private readonly List<ICombatantViewFeature> features = new List<ICombatantViewFeature>();
         private float floatingTextBurstWindowEnd;
         private int floatingTextBurstCount;
+        private bool isTargetHighlightActive;
+        private bool isTargetDimmed;
+        private bool isCurrentActorHighlighted;
 
         public BattleUnit Unit => unit;
         public float FormationSpacingScale => Mathf.Max(0.8f, GetVisualScale().x / 0.8f);
@@ -116,7 +119,7 @@ namespace ClockworkWasteland.Combat
                 return;
             }
 
-            spriteRenderer.color = unit.IsCorpse ? new Color(0.32f, 0.3f, 0.28f, 0.78f) : unit.Definition.tint;
+            ApplySpriteTint();
             nameplate?.Refresh(unit);
             RefreshFeatures();
             if (turnIndicator != null && !gameObject.activeSelf)
@@ -163,14 +166,27 @@ namespace ClockworkWasteland.Combat
 
             clicked?.Invoke(unit);
         }
-        public void SetHighlighted(bool highlighted)
+        public void SetTargetingState(bool hasActiveSelection, bool isValidTarget)
         {
-            if (spriteRenderer == null || unit == null || !unit.IsAlive)
+            if (unit == null || !unit.IsAlive)
             {
                 return;
             }
 
-            spriteRenderer.color = highlighted ? Color.white : unit.IsCorpse ? new Color(0.32f, 0.3f, 0.28f, 0.78f) : unit.Definition.tint;
+            isTargetHighlightActive = hasActiveSelection && isValidTarget;
+            isTargetDimmed = hasActiveSelection && !isValidTarget;
+            ApplySpriteTint();
+        }
+
+        public void SetCurrentActorHighlight(bool highlighted)
+        {
+            if (unit == null || !unit.IsAlive)
+            {
+                return;
+            }
+
+            isCurrentActorHighlighted = highlighted;
+            ApplySpriteTint();
         }
 
         public void SetCombatEmphasis(bool emphasized, int sortingOrder)
@@ -397,6 +413,46 @@ namespace ClockworkWasteland.Combat
             {
                 feature?.Refresh(unit);
             }
+        }
+
+        private void ApplySpriteTint()
+        {
+            if (spriteRenderer == null || unit == null)
+            {
+                return;
+            }
+
+            var baseColor = unit.IsCorpse
+                ? new Color(0.32f, 0.3f, 0.28f, 0.78f)
+                : unit.Definition.tint;
+
+            if (isTargetHighlightActive)
+            {
+                spriteRenderer.color = Color.white;
+                return;
+            }
+
+            if (isCurrentActorHighlighted)
+            {
+                spriteRenderer.color = new Color(
+                    Mathf.Min(1f, baseColor.r * 1.25f),
+                    Mathf.Min(1f, baseColor.g * 1.25f),
+                    Mathf.Min(1f, baseColor.b * 1.1f),
+                    baseColor.a);
+                return;
+            }
+
+            if (isTargetDimmed)
+            {
+                spriteRenderer.color = new Color(
+                    baseColor.r * 0.38f,
+                    baseColor.g * 0.38f,
+                    baseColor.b * 0.38f,
+                    baseColor.a);
+                return;
+            }
+
+            spriteRenderer.color = baseColor;
         }
 
         private void ApplyDefaultVisualRootOffset()

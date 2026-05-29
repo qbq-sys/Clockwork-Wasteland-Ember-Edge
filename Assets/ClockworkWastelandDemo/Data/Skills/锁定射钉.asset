@@ -28,7 +28,7 @@ MonoBehaviour:
   applyBuffDuration: 1
   attackSprite: {fileID: 0}
   hitSprite: {fileID: 0}
-  skillSfx: {fileID: 0}
+  skillSfx: {fileID: 8300000, guid: 0cc440c1d59b1ea47a45b048036355cd, type: 3}
   overlayDuration: 0.22
   isSwapSkill: 0
   isPassSkill: 0

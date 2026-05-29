@@ -208,24 +208,25 @@ namespace ClockworkWasteland.Combat
             SetBattleHudVisible(false);
         }
 
-        public void RenderPlayerTurn(BattleUnit actor, IReadOnlyList<SkillUseState> skillStates, Action<SkillData> onSkillSelected)
+        public void RenderPlayerTurn(BattleUnit actor, IReadOnlyList<SkillUseState> skillStates, Action<SkillData> onSkillSelected, SkillData selectedSkill = null)
         {
             SetBattleHudVisible(true);
             SetTurn($"{actor.DisplayName} \u884c\u52a8");
             ClearRuntimeButtons(targetPanel);
             AddLog($"\u8bf7\u9009\u62e9 {actor.DisplayName} \u7684\u6280\u80fd\u3002");
-            RenderUnitPanel(actor, actor, skillStates, onSkillSelected);
+            RenderUnitPanel(actor, actor, skillStates, onSkillSelected, selectedSkill);
         }
 
-        public void RenderTargets(SkillData skill, IReadOnlyList<BattleUnit> targets, Action<BattleUnit> onTargetSelected)
+        public void RenderTargets(SkillData skill, IReadOnlyList<BattleUnit> targets, Action<BattleUnit> onTargetSelected, SkillData selectedSkill = null)
         {
             SetBattleHudVisible(true);
             ClearRuntimeButtons(targetPanel);
             AddLog($"\u8bf7\u70b9\u51fb\u573a\u666f\u4e2d\u7684\u76ee\u6807\u6765\u4f7f\u7528 {skill.skillName}\u3002");
-            AppendInfoHint($"\n\n\u5df2\u9009\u6280\u80fd\uff1a{skill.skillName}\n\u8bf7\u70b9\u51fb\u573a\u666f\u4e2d\u7684\u53ef\u9009\u76ee\u6807\u3002");
+            var selectedSkillName = selectedSkill != null ? selectedSkill.skillName : skill.skillName;
+            AppendInfoHint($"\n\n\u5df2\u9009\u6280\u80fd\uff1a{selectedSkillName}\n\u8bf7\u70b9\u51fb\u573a\u666f\u4e2d\u7684\u53ef\u9009\u76ee\u6807\u3002");
         }
 
-        public void RenderUnitPanel(BattleUnit selectedUnit, BattleUnit activeActor, IReadOnlyList<SkillUseState> skillStates, Action<SkillData> onSkillSelected)
+        public void RenderUnitPanel(BattleUnit selectedUnit, BattleUnit activeActor, IReadOnlyList<SkillUseState> skillStates, Action<SkillData> onSkillSelected, SkillData selectedSkill = null)
         {
             SetBattleHudVisible(true);
             ClearRuntimeButtons(skillPanel);
@@ -245,13 +246,13 @@ namespace ClockworkWasteland.Combat
                 var skill = state.Skill;
                 if (skillListContent != null && skillButtonTemplate != null)
                 {
-                    CreateSkillTemplateButton(skillListContent, skillButtonTemplate, state, () => onSkillSelected(skill), canUseSkills && state.CanUse);
+                    CreateSkillTemplateButton(skillListContent, skillButtonTemplate, state, () => onSkillSelected(skill), canUseSkills && state.CanUse, IsSelectedSkill(state.Skill, selectedSkill));
                 }
                 else
                 {
                     var column = i % 2;
                     var row = i / 2;
-                    CreateButton(skillPanel, state.ButtonLabel, new Vector2(92f + column * 178f, -62f - row * 54f), () => onSkillSelected(skill), canUseSkills && state.CanUse, skill);
+                    CreateButton(skillPanel, state.ButtonLabel, new Vector2(92f + column * 178f, -62f - row * 54f), () => onSkillSelected(skill), canUseSkills && state.CanUse, skill, IsSelectedSkill(state.Skill, selectedSkill));
                 }
             }
         }
@@ -888,7 +889,7 @@ namespace ClockworkWasteland.Combat
             return scroll;
         }
 
-        private void CreateButton(RectTransform parent, string label, Vector2 anchoredPosition, UnityEngine.Events.UnityAction action, bool interactable, SkillData skill)
+        private void CreateButton(RectTransform parent, string label, Vector2 anchoredPosition, UnityEngine.Events.UnityAction action, bool interactable, SkillData skill, bool selected)
         {
             var buttonObject = new GameObject($"RuntimeButton_{label}", typeof(RectTransform), typeof(Image), typeof(Button));
             buttonObject.transform.SetParent(parent, false);
@@ -900,7 +901,7 @@ namespace ClockworkWasteland.Combat
             rect.sizeDelta = new Vector2(162f, 42f);
 
             var image = buttonObject.GetComponent<Image>();
-            image.color = new Color(0.16f, 0.12f, 0.1f, 1f);
+            image.color = selected ? new Color(0.62f, 0.18f, 0.16f, 1f) : new Color(0.16f, 0.12f, 0.1f, 1f);
             if (image.sprite == null)
             {
                 EnsureSkinSprites();
@@ -926,9 +927,9 @@ namespace ClockworkWasteland.Combat
             button.interactable = interactable;
 
             var colors = button.colors;
-            colors.normalColor = new Color(0.16f, 0.12f, 0.1f, 1f);
-            colors.highlightedColor = new Color(0.38f, 0.2f, 0.12f, 1f);
-            colors.pressedColor = new Color(0.55f, 0.16f, 0.12f, 1f);
+            colors.normalColor = selected ? new Color(0.62f, 0.18f, 0.16f, 1f) : new Color(0.16f, 0.12f, 0.1f, 1f);
+            colors.highlightedColor = selected ? new Color(0.76f, 0.24f, 0.2f, 1f) : new Color(0.38f, 0.2f, 0.12f, 1f);
+            colors.pressedColor = selected ? new Color(0.84f, 0.3f, 0.24f, 1f) : new Color(0.55f, 0.16f, 0.12f, 1f);
             colors.disabledColor = new Color(0.12f, 0.12f, 0.12f, 0.75f);
             button.colors = colors;
 
@@ -969,7 +970,7 @@ namespace ClockworkWasteland.Combat
             trigger.triggers.Add(down);
         }
 
-        private void CreateSkillTemplateButton(RectTransform parent, Button template, SkillUseState state, UnityEngine.Events.UnityAction action, bool interactable)
+        private void CreateSkillTemplateButton(RectTransform parent, Button template, SkillUseState state, UnityEngine.Events.UnityAction action, bool interactable, bool selected)
         {
             if (parent == null || template == null || state.Skill == null)
             {
@@ -991,6 +992,8 @@ namespace ClockworkWasteland.Combat
                 }
             }
 
+            var defaultImageColor = new Color(0.16f, 0.12f, 0.1f, 1f);
+
             var button = buttonObject.GetComponent<Button>();
             button.onClick.RemoveAllListeners();
             button.onClick.AddListener(() =>
@@ -1003,10 +1006,15 @@ namespace ClockworkWasteland.Combat
 
             var colors = button.colors;
             colors.normalColor = Color.white;
-            colors.highlightedColor = new Color(1f, 1f, 1f, 1f);
-            colors.pressedColor = new Color(0.92f, 0.92f, 0.92f, 1f);
+            colors.highlightedColor = Color.white;
+            colors.pressedColor = Color.white;
             colors.disabledColor = new Color(1f, 1f, 1f, 0.72f);
             button.colors = colors;
+
+            if (image != null)
+            {
+                image.color = selected ? new Color(0.9f, 0.18f, 0.18f, 1f) : defaultImageColor;
+            }
 
             var nameText = buttonObject.transform.Find("SkillNameText")?.GetComponent<Text>();
             var metaText = buttonObject.transform.Find("SkillMetaText")?.GetComponent<Text>();
@@ -1026,7 +1034,7 @@ namespace ClockworkWasteland.Combat
 
             if (hintText != null)
             {
-                hintText.text = interactable ? BuildSkillRowHint(state.Skill) : state.DisabledReason;
+                hintText.text = selected && interactable ? "已选中，点击目标" : interactable ? BuildSkillRowHint(state.Skill) : state.DisabledReason;
                 hintText.color = interactable ? new Color(0.72f, 0.66f, 0.58f) : new Color(0.78f, 0.48f, 0.42f);
             }
 
@@ -1050,6 +1058,16 @@ namespace ClockworkWasteland.Combat
             var down = new EventTrigger.Entry { eventID = EventTriggerType.PointerDown };
             down.callback.AddListener(_ => ShowSkillDescription(state.Skill, rect));
             trigger.triggers.Add(down);
+        }
+
+        private static bool IsSelectedSkill(SkillData skill, SkillData selectedSkill)
+        {
+            if (skill == null || selectedSkill == null)
+            {
+                return false;
+            }
+
+            return ReferenceEquals(skill, selectedSkill) || skill.skillId == selectedSkill.skillId;
         }
 
         private static string BuildSkillMetaText(SkillData skill)

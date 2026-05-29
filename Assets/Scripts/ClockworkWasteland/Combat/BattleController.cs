@@ -3498,7 +3498,7 @@ namespace ClockworkWasteland.Combat
                 Mathf.Abs(candidate.CurrentPosition - protectedUnit.CurrentPosition) == 1);
         }
 
-        private bool TryPushUnitBackward(BattleUnit target)
+        private bool TryPushUnitBackward(BattleUnit target, int steps = 1)
         {
             if (target == null || !target.IsAlive)
             {
@@ -3506,34 +3506,27 @@ namespace ClockworkWasteland.Combat
             }
 
             var slots = target.IsHero ? heroSlots : enemySlots;
-            var targetIndex = target.CurrentPosition - 1;
-            if (targetIndex < 0 || targetIndex >= slots.Length - 1)
+            var occupiedUnits = slots.Where(unit => unit != null).ToList();
+            var currentIndex = occupiedUnits.IndexOf(target);
+            if (currentIndex < 0 || currentIndex >= occupiedUnits.Count - 1)
             {
                 return false;
             }
 
-            var emptyIndex = -1;
-            for (var i = targetIndex + 1; i < slots.Length; i++)
+            var moveSteps = Mathf.Clamp(steps, 1, occupiedUnits.Count - 1 - currentIndex);
+            occupiedUnits.RemoveAt(currentIndex);
+            occupiedUnits.Insert(currentIndex + moveSteps, target);
+
+            for (var i = 0; i < slots.Length; i++)
             {
-                if (slots[i] == null)
+                slots[i] = i < occupiedUnits.Count ? occupiedUnits[i] : null;
+                if (slots[i] != null)
                 {
-                    emptyIndex = i;
-                    break;
+                    slots[i].CurrentPosition = i + 1;
                 }
             }
 
-            if (emptyIndex < 0)
-            {
-                return false;
-            }
-
-            for (var i = emptyIndex; i > targetIndex; i--)
-            {
-                slots[i] = slots[i - 1];
-            }
-
-            slots[targetIndex] = null;
-            return true;
+            return moveSteps > 0;
         }
 
         private bool ApplyPassiveBeforeDeath(BattleUnit unit, int incomingDamage)

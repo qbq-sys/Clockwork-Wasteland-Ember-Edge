@@ -15,18 +15,7 @@ namespace ClockworkWasteland.EditorTools
         private const string RouteMapPrefabPath = ScreenPrefabRootPath + "/RouteMapUI.prefab";
         private const string RestNodePrefabPath = ScreenPrefabRootPath + "/RestNodeUI.prefab";
 
-        [InitializeOnLoadMethod]
-        private static void EnsureMissingCombatUiScreenPrefabsOnLoad()
-        {
-            if (Application.isBatchMode)
-            {
-                CreateMissingCombatUiScreenPrefabs();
-                return;
-            }
-
-            EditorApplication.delayCall += CreateMissingCombatUiScreenPrefabs;
-        }
-
+        [MenuItem("Tools/Clockwork Wasteland/Rebuild Missing Combat UI Screen Prefabs")]
         public static void CreateMissingCombatUiScreenPrefabs()
         {
             EnsureFolder("Assets", "UI");

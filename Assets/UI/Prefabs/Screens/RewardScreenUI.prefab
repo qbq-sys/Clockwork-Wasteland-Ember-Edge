@@ -9,7 +9,7 @@ GameObject:
   serializedVersion: 7
   m_Component:
   - component: {fileID: 4385207287729672619}
-  - component: {fileID: 5128003462838395087}
+  - component: {fileID: 4728790712838669472}
   m_Layer: 0
   m_HasEditorInfo: 1
   m_Name: RewardScreenUI
@@ -38,7 +38,7 @@ RectTransform:
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
---- !u!114 &5128003462838395087
+--- !u!114 &4728790712838669472
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -50,11 +50,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 50be447e813de334182e179dfa26a281, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  rewardBg: {fileID: 1099302268837371729}
-  titleText: {fileID: 5185107110904172955}
-  rewardSummaryText: {fileID: 614156707229095315}
-  rewardsText: {fileID: 2040295664432220992}
-  continueButton: {fileID: 357095713385036285}
+  rewardBg: {fileID: 140393886982058747}
+  titleText: {fileID: 5981486633436845026}
+  rewardSummaryText: {fileID: 5304957214362253784}
+  rewardsText: {fileID: 100067493302951447}
+  continueButton: {fileID: 1390819489101535468}
 --- !u!1 &437073426558866821
 GameObject:
   m_ObjectHideFlags: 0
@@ -65,7 +65,7 @@ GameObject:
   m_Component:
   - component: {fileID: 6164053200971149161}
   - component: {fileID: 5490339166841737116}
-  - component: {fileID: 2040295664432220992}
+  - component: {fileID: 100067493302951447}
   m_Layer: 0
   m_HasEditorInfo: 1
   m_Name: Rewards
@@ -101,7 +101,7 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 437073426558866821}
   m_CullTransparentMesh: 1
---- !u!114 &2040295664432220992
+--- !u!114 &100067493302951447
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -145,7 +145,7 @@ GameObject:
   m_Component:
   - component: {fileID: 8063623622109051172}
   - component: {fileID: 6372016345589235971}
-  - component: {fileID: 5185107110904172955}
+  - component: {fileID: 5981486633436845026}
   m_Layer: 0
   m_HasEditorInfo: 1
   m_Name: Title
@@ -181,7 +181,7 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 4192737828696937920}
   m_CullTransparentMesh: 1
---- !u!114 &5185107110904172955
+--- !u!114 &5981486633436845026
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -225,7 +225,7 @@ GameObject:
   m_Component:
   - component: {fileID: 2157622197833963482}
   - component: {fileID: 3282872073036541468}
-  - component: {fileID: 1099302268837371729}
+  - component: {fileID: 140393886982058747}
   m_Layer: 0
   m_HasEditorInfo: 1
   m_Name: RewardPanel
@@ -265,7 +265,7 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 4391155232874431447}
   m_CullTransparentMesh: 1
---- !u!114 &1099302268837371729
+--- !u!114 &140393886982058747
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -305,7 +305,7 @@ GameObject:
   m_Component:
   - component: {fileID: 6601089244444821595}
   - component: {fileID: 5273837493712157139}
-  - component: {fileID: 2505642729038287571}
+  - component: {fileID: 3998978212040906720}
   m_Layer: 0
   m_HasEditorInfo: 1
   m_Name: Label
@@ -341,7 +341,7 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 6991334835298678967}
   m_CullTransparentMesh: 1
---- !u!114 &2505642729038287571
+--- !u!114 &3998978212040906720
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -385,8 +385,8 @@ GameObject:
   m_Component:
   - component: {fileID: 4326136069261293595}
   - component: {fileID: 8039953385584689468}
-  - component: {fileID: 7818444292993326439}
-  - component: {fileID: 357095713385036285}
+  - component: {fileID: 7003527050672015544}
+  - component: {fileID: 1390819489101535468}
   m_Layer: 0
   m_HasEditorInfo: 1
   m_Name: "RuntimeButton_\u7EE7\u7EED"
@@ -423,7 +423,7 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 7814091402562875463}
   m_CullTransparentMesh: 1
---- !u!114 &7818444292993326439
+--- !u!114 &7003527050672015544
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -453,7 +453,7 @@ MonoBehaviour:
   m_FillOrigin: 0
   m_UseSpriteMesh: 0
   m_PixelsPerUnitMultiplier: 1
---- !u!114 &357095713385036285
+--- !u!114 &1390819489101535468
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -493,7 +493,7 @@ MonoBehaviour:
     m_SelectedTrigger: Selected
     m_DisabledTrigger: Disabled
   m_Interactable: 1
-  m_TargetGraphic: {fileID: 7818444292993326439}
+  m_TargetGraphic: {fileID: 7003527050672015544}
   m_OnClick:
     m_PersistentCalls:
       m_Calls: []
@@ -507,7 +507,7 @@ GameObject:
   m_Component:
   - component: {fileID: 3835416652523125761}
   - component: {fileID: 1506608162690537439}
-  - component: {fileID: 614156707229095315}
+  - component: {fileID: 5304957214362253784}
   m_Layer: 0
   m_HasEditorInfo: 1
   m_Name: RewardSummary
@@ -543,7 +543,7 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 8633419988187978268}
   m_CullTransparentMesh: 1
---- !u!114 &614156707229095315
+--- !u!114 &5304957214362253784
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}

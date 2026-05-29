@@ -10,7 +10,7 @@ GameObject:
   m_Component:
   - component: {fileID: 8229397955849176728}
   - component: {fileID: 3318123398809954944}
-  - component: {fileID: 5586720187818546896}
+  - component: {fileID: 5116583979179461982}
   m_Layer: 0
   m_HasEditorInfo: 1
   m_Name: Title
@@ -46,7 +46,7 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 34889579146638077}
   m_CullTransparentMesh: 1
---- !u!114 &5586720187818546896
+--- !u!114 &5116583979179461982
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -126,7 +126,7 @@ GameObject:
   m_Component:
   - component: {fileID: 303656057463757421}
   - component: {fileID: 6666595263459626165}
-  - component: {fileID: 8523730812967505337}
+  - component: {fileID: 4887845501373436443}
   m_Layer: 0
   m_HasEditorInfo: 1
   m_Name: MapPanel
@@ -165,7 +165,7 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1319616671736870290}
   m_CullTransparentMesh: 1
---- !u!114 &8523730812967505337
+--- !u!114 &4887845501373436443
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -204,7 +204,7 @@ GameObject:
   serializedVersion: 7
   m_Component:
   - component: {fileID: 8378209719632102619}
-  - component: {fileID: 6850597127077111045}
+  - component: {fileID: 2677693402148486582}
   m_Layer: 0
   m_HasEditorInfo: 1
   m_Name: RouteMapUI
@@ -233,7 +233,7 @@ RectTransform:
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
---- !u!114 &6850597127077111045
+--- !u!114 &2677693402148486582
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -245,9 +245,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: f90e807d434dd924fa29ee90db17d0de, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  mapBg: {fileID: 8523730812967505337}
-  titleText: {fileID: 5586720187818546896}
-  routeText: {fileID: 1946297648780686010}
+  mapBg: {fileID: 4887845501373436443}
+  titleText: {fileID: 5116583979179461982}
+  routeText: {fileID: 5017252612854383630}
   cardRoot: {fileID: 440839152533326804}
 --- !u!1 &8800841462988391872
 GameObject:
@@ -259,7 +259,7 @@ GameObject:
   m_Component:
   - component: {fileID: 4648038289002277544}
   - component: {fileID: 7088175862831928874}
-  - component: {fileID: 1946297648780686010}
+  - component: {fileID: 5017252612854383630}
   m_Layer: 0
   m_HasEditorInfo: 1
   m_Name: Route
@@ -295,7 +295,7 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 8800841462988391872}
   m_CullTransparentMesh: 1
---- !u!114 &1946297648780686010
+--- !u!114 &5017252612854383630
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}

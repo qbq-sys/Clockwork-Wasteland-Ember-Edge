@@ -10,7 +10,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1026403980422220759}
   - component: {fileID: 4212386830627668175}
-  - component: {fileID: 5282196405119988162}
+  - component: {fileID: 3511832995626608455}
   m_Layer: 0
   m_HasEditorInfo: 1
   m_Name: Subtitle
@@ -46,7 +46,7 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 155974725392324527}
   m_CullTransparentMesh: 1
---- !u!114 &5282196405119988162
+--- !u!114 &3511832995626608455
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -90,7 +90,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1850756544238455816}
   - component: {fileID: 2899289989539906817}
-  - component: {fileID: 2496175186965600829}
+  - component: {fileID: 5224637091543182115}
   m_Layer: 0
   m_HasEditorInfo: 1
   m_Name: RestPanel
@@ -129,7 +129,7 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 3264713251657524288}
   m_CullTransparentMesh: 1
---- !u!114 &2496175186965600829
+--- !u!114 &5224637091543182115
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -169,7 +169,7 @@ GameObject:
   m_Component:
   - component: {fileID: 8395448503571888010}
   - component: {fileID: 3719697766116780894}
-  - component: {fileID: 6695324779114259978}
+  - component: {fileID: 8860053206859164511}
   m_Layer: 0
   m_HasEditorInfo: 1
   m_Name: Title
@@ -205,7 +205,7 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 4326481962700172705}
   m_CullTransparentMesh: 1
---- !u!114 &6695324779114259978
+--- !u!114 &8860053206859164511
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -284,7 +284,7 @@ GameObject:
   serializedVersion: 7
   m_Component:
   - component: {fileID: 8943153544095861119}
-  - component: {fileID: 4669413323493722772}
+  - component: {fileID: 6802872543834510304}
   m_Layer: 0
   m_HasEditorInfo: 1
   m_Name: RestNodeUI
@@ -313,7 +313,7 @@ RectTransform:
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
---- !u!114 &4669413323493722772
+--- !u!114 &6802872543834510304
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -325,7 +325,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 51efea6afe403144f8c0a656864223cb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  restBg: {fileID: 2496175186965600829}
-  titleText: {fileID: 6695324779114259978}
-  subtitleText: {fileID: 5282196405119988162}
+  restBg: {fileID: 5224637091543182115}
+  titleText: {fileID: 8860053206859164511}
+  subtitleText: {fileID: 3511832995626608455}
   heroListRoot: {fileID: 1357742394893035555}

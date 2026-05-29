@@ -46,8 +46,8 @@ GameObject:
   m_Component:
   - component: {fileID: 7265087948497492078}
   - component: {fileID: 5469032909702607379}
-  - component: {fileID: 8288675603476473558}
-  - component: {fileID: 1868358971607625760}
+  - component: {fileID: 6595083052507028854}
+  - component: {fileID: 6942776659232361680}
   m_Layer: 0
   m_HasEditorInfo: 1
   m_Name: "RuntimeButton_\u8FD4\u56DE"
@@ -84,7 +84,7 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 459829660804787279}
   m_CullTransparentMesh: 1
---- !u!114 &8288675603476473558
+--- !u!114 &6595083052507028854
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -114,7 +114,7 @@ MonoBehaviour:
   m_FillOrigin: 0
   m_UseSpriteMesh: 0
   m_PixelsPerUnitMultiplier: 1
---- !u!114 &1868358971607625760
+--- !u!114 &6942776659232361680
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -154,7 +154,7 @@ MonoBehaviour:
     m_SelectedTrigger: Selected
     m_DisabledTrigger: Disabled
   m_Interactable: 1
-  m_TargetGraphic: {fileID: 8288675603476473558}
+  m_TargetGraphic: {fileID: 6595083052507028854}
   m_OnClick:
     m_PersistentCalls:
       m_Calls: []
@@ -168,7 +168,7 @@ GameObject:
   m_Component:
   - component: {fileID: 7300260884401199051}
   - component: {fileID: 4092731631271798578}
-  - component: {fileID: 2083442460575223832}
+  - component: {fileID: 7143392191115774061}
   m_Layer: 0
   m_HasEditorInfo: 1
   m_Name: Title
@@ -204,7 +204,7 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1500904711475590825}
   m_CullTransparentMesh: 1
---- !u!114 &2083442460575223832
+--- !u!114 &7143392191115774061
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -247,7 +247,7 @@ GameObject:
   serializedVersion: 7
   m_Component:
   - component: {fileID: 1699549931278048417}
-  - component: {fileID: 6726489140082280588}
+  - component: {fileID: 5367438026465352659}
   m_Layer: 0
   m_HasEditorInfo: 1
   m_Name: InventoryUI
@@ -276,7 +276,7 @@ RectTransform:
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
---- !u!114 &6726489140082280588
+--- !u!114 &5367438026465352659
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -288,10 +288,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0eb5f4007cce9b1469f43623a945e381, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  inventoryBg: {fileID: 9187920475051162633}
-  titleText: {fileID: 2083442460575223832}
+  inventoryBg: {fileID: 6352081144027067269}
+  titleText: {fileID: 7143392191115774061}
   itemGridRoot: {fileID: 297414383203264005}
-  backButton: {fileID: 1868358971607625760}
+  backButton: {fileID: 6942776659232361680}
 --- !u!1 &5290644549583766455
 GameObject:
   m_ObjectHideFlags: 0
@@ -302,7 +302,7 @@ GameObject:
   m_Component:
   - component: {fileID: 8414125384746743025}
   - component: {fileID: 3819104360896611202}
-  - component: {fileID: 9187920475051162633}
+  - component: {fileID: 6352081144027067269}
   m_Layer: 0
   m_HasEditorInfo: 1
   m_Name: InventoryPanel
@@ -341,7 +341,7 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 5290644549583766455}
   m_CullTransparentMesh: 1
---- !u!114 &9187920475051162633
+--- !u!114 &6352081144027067269
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -381,7 +381,7 @@ GameObject:
   m_Component:
   - component: {fileID: 4518578835800237719}
   - component: {fileID: 8168621670965336394}
-  - component: {fileID: 2777714140206281114}
+  - component: {fileID: 4075117148435728894}
   m_Layer: 0
   m_HasEditorInfo: 1
   m_Name: Label
@@ -417,7 +417,7 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 5552990044154139764}
   m_CullTransparentMesh: 1
---- !u!114 &2777714140206281114
+--- !u!114 &4075117148435728894
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}

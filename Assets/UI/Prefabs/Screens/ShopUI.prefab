@@ -46,7 +46,7 @@ GameObject:
   m_Component:
   - component: {fileID: 777188728230768080}
   - component: {fileID: 8702780069097622401}
-  - component: {fileID: 1698455755242509046}
+  - component: {fileID: 3437325945740829258}
   m_Layer: 0
   m_HasEditorInfo: 1
   m_Name: Label
@@ -82,7 +82,7 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2432367628728018747}
   m_CullTransparentMesh: 1
---- !u!114 &1698455755242509046
+--- !u!114 &3437325945740829258
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -126,7 +126,7 @@ GameObject:
   m_Component:
   - component: {fileID: 6702612239843501869}
   - component: {fileID: 8756130475287397476}
-  - component: {fileID: 3245620521098910900}
+  - component: {fileID: 6479514864213266974}
   m_Layer: 0
   m_HasEditorInfo: 1
   m_Name: ShopPanel
@@ -166,7 +166,7 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 4835093249477357618}
   m_CullTransparentMesh: 1
---- !u!114 &3245620521098910900
+--- !u!114 &6479514864213266974
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -206,8 +206,8 @@ GameObject:
   m_Component:
   - component: {fileID: 6938037853865808762}
   - component: {fileID: 6699700792627970713}
-  - component: {fileID: 3471319247283667556}
-  - component: {fileID: 7999982800939380153}
+  - component: {fileID: 5190252152623478278}
+  - component: {fileID: 3858310131621158185}
   m_Layer: 0
   m_HasEditorInfo: 1
   m_Name: "RuntimeButton_\u8FD4\u56DE"
@@ -244,7 +244,7 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 6550031439039943187}
   m_CullTransparentMesh: 1
---- !u!114 &3471319247283667556
+--- !u!114 &5190252152623478278
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -274,7 +274,7 @@ MonoBehaviour:
   m_FillOrigin: 0
   m_UseSpriteMesh: 0
   m_PixelsPerUnitMultiplier: 1
---- !u!114 &7999982800939380153
+--- !u!114 &3858310131621158185
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -314,7 +314,7 @@ MonoBehaviour:
     m_SelectedTrigger: Selected
     m_DisabledTrigger: Disabled
   m_Interactable: 1
-  m_TargetGraphic: {fileID: 3471319247283667556}
+  m_TargetGraphic: {fileID: 5190252152623478278}
   m_OnClick:
     m_PersistentCalls:
       m_Calls: []
@@ -328,7 +328,7 @@ GameObject:
   m_Component:
   - component: {fileID: 7143640266816254358}
   - component: {fileID: 5110639883167558176}
-  - component: {fileID: 1718705262335688616}
+  - component: {fileID: 6885619303435965942}
   m_Layer: 0
   m_HasEditorInfo: 1
   m_Name: Title
@@ -364,7 +364,7 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 6910891552820252093}
   m_CullTransparentMesh: 1
---- !u!114 &1718705262335688616
+--- !u!114 &6885619303435965942
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -408,7 +408,7 @@ GameObject:
   m_Component:
   - component: {fileID: 9191146694521193140}
   - component: {fileID: 6878496784641897918}
-  - component: {fileID: 33915481836189044}
+  - component: {fileID: 6399837315223615559}
   m_Layer: 0
   m_HasEditorInfo: 1
   m_Name: Gold
@@ -444,7 +444,7 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 7520810316204821091}
   m_CullTransparentMesh: 1
---- !u!114 &33915481836189044
+--- !u!114 &6399837315223615559
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -487,7 +487,7 @@ GameObject:
   serializedVersion: 7
   m_Component:
   - component: {fileID: 287120897135707067}
-  - component: {fileID: 579993960154160849}
+  - component: {fileID: 8014939288447491516}
   m_Layer: 0
   m_HasEditorInfo: 1
   m_Name: ShopUI
@@ -516,7 +516,7 @@ RectTransform:
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
---- !u!114 &579993960154160849
+--- !u!114 &8014939288447491516
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -528,8 +528,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ed2bcda1a03dfd749ae4ffac1bdef929, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  shopBg: {fileID: 3245620521098910900}
-  titleText: {fileID: 1718705262335688616}
-  goldText: {fileID: 33915481836189044}
+  shopBg: {fileID: 6479514864213266974}
+  titleText: {fileID: 6885619303435965942}
+  goldText: {fileID: 6399837315223615559}
   itemListRoot: {fileID: 3681297468476656884}
-  backButton: {fileID: 7999982800939380153}
+  backButton: {fileID: 3858310131621158185}
